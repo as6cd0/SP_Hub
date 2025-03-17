@@ -190,8 +190,6 @@ end
 
 function MakeWindow(Configs)
   local title = Configs.Hub.Title or "REDz HUB"
-  local Anim_Title = Configs.Hub.Animation or "by : redz9999"
-  
   local KeySystem = Configs.Key.KeySystem or false
   local KeyTitle = Configs.Key.Title or "Key System"
   local KeyDescription = Configs.Key.Description or ".-."
@@ -393,39 +391,7 @@ function MakeWindow(Configs)
 Close_Button.MouseButton1Click:Connect(function()
     DestroyScript()
 end)
-  
-  local AnimMenu = Create("Frame", ScreenGui, {
-    Position = UDim2.new(0.5, 0, 0.5, 0),
-    AnchorPoint = Vector2.new(0.5, 0.5),
-    BackgroundColor3 = Configs_HUB.Cor_Hub
-  })Corner(AnimMenu, {CornerRadius = UDim.new(0, 6)})
-  
-  local Anim_Credits = Create("TextLabel", AnimMenu, {
-    Text = Anim_Title,
-    BackgroundTransparency = 1,
-    Size = UDim2.new(1, 0, 1, 0),
-    Visible = false,
-    Font = Configs_HUB.Text_Font,
-    TextTransparency = 1,
-    TextColor3 = Configs_HUB.Cor_Text,
-    Position = UDim2.new(0, 10, 0, 0),
-    TextXAlignment = "Left",
-    TextSize = 15
-  })
-  
-  CreateTween(AnimMenu, "Size", UDim2.new(0, 0, 0, 35), 0.5, true)
-  CreateTween(AnimMenu, "Size", UDim2.new(0, 150, 0, 35), 0.5, true)
-  Anim_Credits.Visible = true
-  task.wait(0.5)
-  for i = 1, 0, -0.1 do task.wait()
-    Anim_Credits.TextTransparency = i
-  end
-  task.wait(1)
-  for i = 0, 1, 0.1 do task.wait()
-    Anim_Credits.TextTransparency = i
-  end
-  Anim_Credits:Destroy()
-  AnimMenu:Destroy()
+
   CreateTween(Menu, "Size", UDim2.new(0, 500, 0, 35), 0.5, true)
   TopBar.Visible = true
   CreateTween(Menu, "Size", UDim2.new(0, 500, 0, 270), 0.3, true)
@@ -626,22 +592,20 @@ end)
         ImageColor3 = Configs_HUB.Cor_Stroke
     })
 
-    -- ✅ إنشاء شريط التحديد الأزرق
     local SelectedBar = Create("Frame", TextButton, {
-        Size = UDim2.new(1, 0, 0, 2), -- شريط صغير أسفل الزر
+        Size = UDim2.new(1, 0, 0, 2),
         Position = UDim2.new(0, 0, 1, -2),
-        BackgroundColor3 = Color3.fromRGB(0, 162, 255), -- اللون الأزرق
+        BackgroundColor3 = Color3.fromRGB(0, 162, 255),
         BorderSizePixel = 0,
-        Visible = false -- إخفاء الشريط في البداية
+        Visible = false
     })
 
-    -- 🖱️ عند النقر على الزر
-    TextButton.MouseButton1Click:Connect(function()
+TextButton.MouseButton1Click:Connect(function()
         Callback("Click!!")
         CreateTween(ImageLabel, "ImageColor3", Color3.fromRGB(30, 140, 200), 0.2, true)
         CreateTween(ImageLabel, "ImageColor3", Configs_HUB.Cor_Stroke, 0.2, false)
 
-        -- إزالة الشريط من جميع الأزرار الأخرى
+
         for _, button in pairs(parent:GetChildren()) do
             if button:IsA("TextButton") then
                 local bar = button:FindFirstChild("Frame")
@@ -651,9 +615,10 @@ end)
             end
         end
 
-        -- إظهار الشريط للأزرار المحددة فقط
-        SelectedBar.Visible = true
-    end)
+    SelectedBar.Visible = true
+    SelectedBar.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+    CreateTween(SelectedBar, "BackgroundColor3", Configs_HUB.Cor_Stroke, 0.6, true)
+end)
 
     TextSetColor(TextLabel)
 end
