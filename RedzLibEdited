@@ -357,12 +357,12 @@ function MakeWindow(Configs)
 local Minimize_BTN = Create("TextButton", ButtonsFrame, {
     Text = "-",
     TextColor3 = Configs_HUB.Cor_Text,
-    Size = UDim2.new(0.4, 0, 1, 0), -- تم تصغير الحجم لإضافة مسافة
+    Size = UDim2.new(0.4, 0, 1, 0),
     BackgroundTransparency = 1,
     Font = Configs_HUB.Text_Font,
     TextYAlignment = "Bottom",
     TextSize = 30,
-    Position = UDim2.new(0.5, -25, 0, 0) -- تم تغيير الموضع لتكون هناك مسافة
+    Position = UDim2.new(0.5, -25, 0, 0)
 })
   
   IsMinimized = false
@@ -381,9 +381,9 @@ local Minimize_BTN = Create("TextButton", ButtonsFrame, {
     Text = "×",
     TextYAlignment = "Bottom",
     TextColor3 = Configs_HUB.Cor_Text,
-    Size = UDim2.new(0.4, 0, 1, 0), -- تم تصغير الحجم لإضافة مسافة
+    Size = UDim2.new(0.4, 0, 1, 0),
     AnchorPoint = Vector2.new(1, 0),
-    Position = UDim2.new(1, -3, 0, 0), -- تم إزاحة الزر قليلًا لليسار
+    Position = UDim2.new(1, -3, 0, 0),
     BackgroundTransparency = 1,
     Font = Configs_HUB.Text_Font,
     TextSize = 30
@@ -493,9 +493,10 @@ end)
   function MakeTab(Configs)
     local TabName = Configs.Name or "Tab"
     local TabTitle = Configs.TabTitle or false
+    local ImageID = Configs.Image or "rbxassetid://5970247016"
     
     local Frame = Create("Frame", ScrollBar, {
-      Size = UDim2.new(1, 0, 0, 25),
+      Size = UDim2.new(1, 0, 0, 28),
       BackgroundTransparency = 1
     })Corner(Frame)Stroke(Frame)
     
@@ -505,6 +506,14 @@ end)
       Text = ""
     })
     
+local Icon = Create("ImageLabel", TextButton, { -- ✅ جعل الأيقونة داخل `TextButton`
+    Size = UDim2.new(0, 20, 0, 20),
+    Position = UDim2.new(0, 5, 0.5, -10),
+    BackgroundTransparency = 1,
+    Image = ImageID,
+    ImageColor3 = Configs_HUB.Cor_Stroke
+})
+
     local TextLabel = Create("TextLabel", Frame, {
       Size = UDim2.new(1, 0, 1, 0),
       BackgroundTransparency = 1,
@@ -536,28 +545,40 @@ end)
     end
     
     TextButton.MouseButton1Click:Connect(function()
-      for _,container in pairs(Containers:GetChildren()) do
+    for _, container in pairs(Containers:GetChildren()) do
         if container:IsA("ScrollingFrame") then
-          container.Visible = false
+            container.Visible = false
         end
-      end
-      for _,frame in pairs(ScrollBar:GetChildren()) do
+    end
+
+    for _, frame in pairs(ScrollBar:GetChildren()) do
         if frame:IsA("Frame") and frame:FindFirstChild("TextLabel") and frame.TextLabel ~= TextLabel then
-          CreateTween(frame.TextLabel, "TextColor3", Configs_HUB.Cor_DarkText, 0.3, false)
-          frame.TextLabel.TextSize = 14
+            CreateTween(frame.TextLabel, "TextColor3", Configs_HUB.Cor_DarkText, 0.3, false)
+            frame.TextLabel.TextSize = 14
+
+            local otherIcon = frame:FindFirstChild("ImageLabel")
+            if otherIcon then
+                CreateTween(otherIcon, "Size", UDim2.new(0, 20, 0, 20), 0.3, false)
+            end
         end
-      end
-      Container.Visible = true
-      CreateTween(TextLabel, "TextColor3", Configs_HUB.Cor_Text, 0.3, false)
-      TextLabel.TextSize = 16
-    end)
-    
-    firstVisible = false
-    FirstTab = false
-    textsize = 14
-    textcolor = Configs_HUB.Cor_DarkText
-    return Container
-  end
+    end
+
+    Container.Visible = true
+    CreateTween(TextLabel, "TextColor3", Configs_HUB.Cor_Text, 0.3, false)
+    TextLabel.TextSize = 16
+
+    local selectedIcon = Frame:FindFirstChild("ImageLabel") 
+    if selectedIcon then
+        CreateTween(selectedIcon, "Size", UDim2.new(0, 22, 0, 22), 0.3, false)
+    end
+end)
+
+firstVisible = false
+FirstTab = false
+textsize = 14
+textcolor = Configs_HUB.Cor_DarkText
+return Container
+end
   
   function AddButton(parent, Configs)
     local ButtonName = Configs.Name or "Button!!"
