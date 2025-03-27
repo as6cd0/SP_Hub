@@ -560,6 +560,14 @@ function OrionLib:MakeNotification(NotificationConfig)
             NotificationConfig.Image = NotificationConfig.Image or "rbxassetid://4384403532"
             NotificationConfig.Time = NotificationConfig.Time or 15
 
+if NotificationConfig.IsMobile and isMobile then
+        return nil
+    end
+
+    if NotificationConfig.IsPC and isPC then
+        return nil
+    end
+
             local NotificationParent =
                 SetProps(
                 MakeElement("TFrame"),
@@ -661,22 +669,14 @@ end
 
 function OrionLib:Init()
     if OrionLib.SaveCfg then
-        pcall(
-            function()
-                if isfile(OrionLib.Folder .. "/" .. game.GameId .. ".txt") then
-                    LoadCfg(readfile(OrionLib.Folder .. "/" .. game.GameId .. ".txt"))
-                    OrionLib:MakeNotification(
-                        {
-                            Name = "Configuration",
-                            Content = "Auto-loaded configuration for the game " .. game.GameId .. ".",
-                            Time = 5
-                        }
-                    )
-                end
+        pcall(function()
+            if isfile(OrionLib.Folder .. "/" .. game.GameId .. ".txt") then
+                LoadCfg(readfile(OrionLib.Folder .. "/" .. game.GameId .. ".txt"))
             end
-        )
+        end)
     end
 end
+
 
 function OrionLib:MakeWindow(WindowConfig)
     local FirstTab = true
@@ -954,6 +954,7 @@ function OrionLib:MakeWindow(WindowConfig)
     )
 
     local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+    local isPC = not UserInputService.TouchEnabled and UserInputService.KeyboardEnabled
 
 local MainWindow =
         AddThemeObject(
@@ -1035,23 +1036,40 @@ local MainWindow =
         WindowIcon.Parent = MainWindow.TopBar
     end
 
-    AddDraggingFunctionality(DragPoint, MainWindow)
+AddDraggingFunctionality(DragPoint, MainWindow)
 
-    AddConnection(
-        CloseBtn.MouseButton1Up,
-        function()
-            MainWindow.Visible = false
-            UIHidden = true
-            OrionLib:MakeNotification(
-                {
-                    Name = "Interface Hidden",
-                    Content = "Tap RightShift to reopen the interface",
-                    Time = 5
-                }
-            )
-            WindowConfig.CloseCallback()
-        end
-    )
+local T = Instance.new("ImageButton", Orion) 
+T.Size = UDim2.new(0, 80, 0, 80) 
+T.Position = UDim2.new(0.18, 0, 0.1, 0)
+T.Image = "rbxassetid://83114982417764"
+
+local Stroke = Instance.new("UIStroke", T)
+Stroke.Thickness = 2
+Stroke.Color = Color3.fromRGB(0, 0, 0)
+
+local Corner = Instance.new("UICorner", T)
+Corner.CornerRadius = UDim.new(0, 14)
+
+T.Active = true 
+
+AddDraggingFunctionality(T, T)
+
+local function ToggleUI()
+    UIHidden = not UIHidden
+    MainWindow.Visible = not UIHidden
+    if UIHidden and not isMobile then
+        OrionLib:MakeNotification({
+            Name = "UI Its Hidden",
+            Content = "Press RightShift For Show UI Again!",
+            Time = 5
+        })
+    end
+    WindowConfig.CloseCallback()
+end
+
+AddConnection(CloseBtn.MouseButton1Up, ToggleUI)
+T.MouseButton1Click:Connect(ToggleUI)
+
 
     AddConnection(
         UserInputService.InputBegan,
@@ -1154,12 +1172,20 @@ local MainWindow =
         LoadSequence()
     end
 
+
     local TabFunction = {}
     function TabFunction:MakeTab(TabConfig)
         TabConfig = TabConfig or {}
         TabConfig.Name = TabConfig.Name or "Tab"
         TabConfig.Icon = TabConfig.Icon or ""
         TabConfig.PremiumOnly = TabConfig.PremiumOnly or false
+if TabConfig.IsMobile and isMobile then
+        return nil
+    end
+
+    if TabConfig.IsPC and isPC then
+        return nil
+    end
 
         local TabFrame =
             SetChildren(
@@ -1381,135 +1407,142 @@ local MainWindow =
                 return ParagraphFunction
             end
             function ElementFunction:AddButton(ButtonConfig)
-                ButtonConfig = ButtonConfig or {}
-                ButtonConfig.Name = ButtonConfig.Name or "Button"
-                ButtonConfig.Callback = ButtonConfig.Callback or function()
-                    end
-                ButtonConfig.Icon = ButtonConfig.Icon or "rbxassetid://3944703587"
+    ButtonConfig = ButtonConfig or {}
+    ButtonConfig.Name = ButtonConfig.Name or "Button"
+    ButtonConfig.Callback = ButtonConfig.Callback or function() end
+    ButtonConfig.Icon = ButtonConfig.Icon or "rbxassetid://3944703587"
 
-                local Button = {}
+    if ButtonConfig.IsMobile and isMobile then
+        return nil
+    end
 
-                local Click =
+    if ButtonConfig.IsPC and isPC then
+        return nil
+    end
+
+    local Button = {}
+
+    local Click =
+        SetProps(
+        MakeElement("Button"),
+        {
+            Size = UDim2.new(1, 0, 1, 0)
+        }
+    )
+
+    local ButtonFrame =
+        AddThemeObject(
+        SetChildren(
+            SetProps(
+                MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 5),
+                {
+                    Size = UDim2.new(1, 0, 0, 33),
+                    Parent = ItemParent
+                }
+            ),
+            {
+                AddThemeObject(
                     SetProps(
-                    MakeElement("Button"),
-                    {
-                        Size = UDim2.new(1, 0, 1, 0)
-                    }
-                )
-
-                local ButtonFrame =
-                    AddThemeObject(
-                    SetChildren(
-                        SetProps(
-                            MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 5),
-                            {
-                                Size = UDim2.new(1, 0, 0, 33),
-                                Parent = ItemParent
-                            }
-                        ),
+                        MakeElement("Label", ButtonConfig.Name, 15),
                         {
-                            AddThemeObject(
-                                SetProps(
-                                    MakeElement("Label", ButtonConfig.Name, 15),
-                                    {
-                                        Size = UDim2.new(1, -12, 1, 0),
-                                        Position = UDim2.new(0, 12, 0, 0),
-                                        Font = Enum.Font.GothamBold,
-                                        Name = "Content"
-                                    }
-                                ),
-                                "Text"
-                            ),
-                            AddThemeObject(
-                                SetProps(
-                                    MakeElement("Image", ButtonConfig.Icon),
-                                    {
-                                        Size = UDim2.new(0, 20, 0, 20),
-                                        Position = UDim2.new(1, -30, 0, 7)
-                                    }
-                                ),
-                                "TextDark"
-                            ),
-                            AddThemeObject(MakeElement("Stroke"), "Stroke"),
-                            Click
+                            Size = UDim2.new(1, -12, 1, 0),
+                            Position = UDim2.new(0, 12, 0, 0),
+                            Font = Enum.Font.GothamBold,
+                            Name = "Content"
                         }
                     ),
-                    "Second"
-                )
+                    "Text"
+                ),
+                AddThemeObject(
+                    SetProps(
+                        MakeElement("Image", ButtonConfig.Icon),
+                        {
+                            Size = UDim2.new(0, 20, 0, 20),
+                            Position = UDim2.new(1, -30, 0, 7)
+                        }
+                    ),
+                    "TextDark"
+                ),
+                AddThemeObject(MakeElement("Stroke"), "Stroke"),
+                Click
+            }
+        ),
+        "Second"
+    )
 
-                AddConnection(
-                    Click.MouseEnter,
-                    function()
-                        TweenService:Create(
-                            ButtonFrame,
-                            TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-                            {
-                                BackgroundColor3 = Color3.fromRGB(
-                                    OrionLib.Themes[OrionLib.SelectedTheme].Second.R * 255 + 3,
-                                    OrionLib.Themes[OrionLib.SelectedTheme].Second.G * 255 + 3,
-                                    OrionLib.Themes[OrionLib.SelectedTheme].Second.B * 255 + 3
-                                )
-                            }
-                        ):Play()
-                    end
-                )
+    AddConnection(
+        Click.MouseEnter,
+        function()
+            TweenService:Create(
+                ButtonFrame,
+                TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+                {
+                    BackgroundColor3 = Color3.fromRGB(
+                        OrionLib.Themes[OrionLib.SelectedTheme].Second.R * 255 + 3,
+                        OrionLib.Themes[OrionLib.SelectedTheme].Second.G * 255 + 3,
+                        OrionLib.Themes[OrionLib.SelectedTheme].Second.B * 255 + 3
+                    )
+                }
+            ):Play()
+        end
+    )
 
-                AddConnection(
-                    Click.MouseLeave,
-                    function()
-                        TweenService:Create(
-                            ButtonFrame,
-                            TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-                            {BackgroundColor3 = OrionLib.Themes[OrionLib.SelectedTheme].Second}
-                        ):Play()
-                    end
-                )
+    AddConnection(
+        Click.MouseLeave,
+        function()
+            TweenService:Create(
+                ButtonFrame,
+                TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+                {BackgroundColor3 = OrionLib.Themes[OrionLib.SelectedTheme].Second}
+            ):Play()
+        end
+    )
 
-                AddConnection(
-                    Click.MouseButton1Up,
-                    function()
-                        TweenService:Create(
-                            ButtonFrame,
-                            TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-                            {
-                                BackgroundColor3 = Color3.fromRGB(
-                                    OrionLib.Themes[OrionLib.SelectedTheme].Second.R * 255 + 3,
-                                    OrionLib.Themes[OrionLib.SelectedTheme].Second.G * 255 + 3,
-                                    OrionLib.Themes[OrionLib.SelectedTheme].Second.B * 255 + 3
-                                )
-                            }
-                        ):Play()
-                        spawn(
-                            function()
-                                ButtonConfig.Callback()
-                            end
-                        )
-                    end
-                )
-
-                AddConnection(
-                    Click.MouseButton1Down,
-                    function()
-                        TweenService:Create(
-                            ButtonFrame,
-                            TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-                            {
-                                BackgroundColor3 = Color3.fromRGB(
-                                    OrionLib.Themes[OrionLib.SelectedTheme].Second.R * 255 + 6,
-                                    OrionLib.Themes[OrionLib.SelectedTheme].Second.G * 255 + 6,
-                                    OrionLib.Themes[OrionLib.SelectedTheme].Second.B * 255 + 6
-                                )
-                            }
-                        ):Play()
-                    end
-                )
-
-                function Button:Set(ButtonText)
-                    ButtonFrame.Content.Text = ButtonText
+    AddConnection(
+        Click.MouseButton1Up,
+        function()
+            TweenService:Create(
+                ButtonFrame,
+                TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+                {
+                    BackgroundColor3 = Color3.fromRGB(
+                        OrionLib.Themes[OrionLib.SelectedTheme].Second.R * 255 + 3,
+                        OrionLib.Themes[OrionLib.SelectedTheme].Second.G * 255 + 3,
+                        OrionLib.Themes[OrionLib.SelectedTheme].Second.B * 255 + 3
+                    )
+                }
+            ):Play()
+            spawn(
+                function()
+                    ButtonConfig.Callback()
                 end
+            )
+        end
+    )
 
-                return Button
-            end
+    AddConnection(
+        Click.MouseButton1Down,
+        function()
+            TweenService:Create(
+                ButtonFrame,
+                TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+                {
+                    BackgroundColor3 = Color3.fromRGB(
+                        OrionLib.Themes[OrionLib.SelectedTheme].Second.R * 255 + 6,
+                        OrionLib.Themes[OrionLib.SelectedTheme].Second.G * 255 + 6,
+                        OrionLib.Themes[OrionLib.SelectedTheme].Second.B * 255 + 6
+                    )
+                }
+            ):Play()
+        end
+    )
+
+    function Button:Set(ButtonText)
+        ButtonFrame.Content.Text = ButtonText
+    end
+
+    return Button
+end
             function ElementFunction:AddToggle(ToggleConfig)
                 ToggleConfig = ToggleConfig or {}
                 ToggleConfig.Name = ToggleConfig.Name or "Toggle"
@@ -1521,6 +1554,13 @@ local MainWindow =
                 ToggleConfig.Save = ToggleConfig.Save or false
 
                 local Toggle = {Value = ToggleConfig.Default, Save = ToggleConfig.Save}
+if ToggleConfig.IsMobile and isMobile then
+        return nil
+    end
+
+    if ToggleConfig.IsPC and isPC then
+        return nil
+    end
 
                 local Click =
                     SetProps(
@@ -1701,6 +1741,14 @@ local MainWindow =
                 SliderConfig.Flag = SliderConfig.Flag or nil
                 SliderConfig.Save = SliderConfig.Save or false
 
+if SliderConfig.IsMobile and isMobile then
+        return nil
+    end
+
+    if SliderConfig.IsPC and isPC then
+        return nil
+    end
+
                 local Slider = {Value = SliderConfig.Default, Save = SliderConfig.Save}
                 local Dragging = false
 
@@ -1867,6 +1915,14 @@ local MainWindow =
                     end
                 DropdownConfig.Flag = DropdownConfig.Flag or nil
                 DropdownConfig.Save = DropdownConfig.Save or false
+
+if DropdownConfig.IsMobile and isMobile then
+        return nil
+    end
+
+    if DropdownConfig.IsPC and isPC then
+        return nil
+    end
 
                 local Dropdown = {
                     Value = DropdownConfig.Default,
@@ -2151,6 +2207,13 @@ local MainWindow =
                     end
                 BindConfig.Flag = BindConfig.Flag or nil
                 BindConfig.Save = BindConfig.Save or false
+if BindConfig.IsMobile and isMobile then
+        return nil
+    end
+
+    if BindConfig.IsPC and isPC then
+        return nil
+    end
 
                 local Bind = {Value, Binding = false, Type = "Bind", Save = BindConfig.Save}
                 local Holding = false
@@ -2382,6 +2445,13 @@ local MainWindow =
                 TextboxConfig.TextDisappear = TextboxConfig.TextDisappear or false
                 TextboxConfig.Callback = TextboxConfig.Callback or function()
                     end
+if TextboxConfig.IsMobile and isMobile then
+        return nil
+    end
+
+    if TextboxConfig.IsPC and isPC then
+        return nil
+    end
 
                 local Click =
                     SetProps(
@@ -2555,6 +2625,13 @@ local MainWindow =
                     end
                 ColorpickerConfig.Flag = ColorpickerConfig.Flag or nil
                 ColorpickerConfig.Save = ColorpickerConfig.Save or false
+if ColorpickerConfig.IsMobile and isMobile then
+        return nil
+    end
+
+    if ColorpickerConfig.IsPC and isPC then
+        return nil
+    end
 
                 local ColorH, ColorS, ColorV = 1, 1, 1
                 local Colorpicker = {
@@ -2902,6 +2979,13 @@ local MainWindow =
 
         function ElementFunction:AddSection(SectionConfig)
             SectionConfig.Name = SectionConfig.Name or "Section"
+if SectionConfig.IsMobile and isMobile then
+        return nil
+    end
+
+    if SectionConfig.IsPC and isPC then
+        return nil
+    end
 
             local SectionFrame =
                 SetChildren(
