@@ -1039,8 +1039,10 @@ local MainWindow =
 AddDraggingFunctionality(DragPoint, MainWindow)
 
 local T = Instance.new("ImageButton", Orion) 
-T.Size = UDim2.new(0, 80, 0, 80) 
-T.Position = UDim2.new(0.18, 0, 0.1, 0)
+local sizeValue = isPC and 80 or 60
+T.Size = UDim2.new(0, sizeValue, 0, sizeValue)
+local xPos = isPC and 0.18 or (isMobile and 0.10 or 0.18)
+T.Position = UDim2.new(xPos, 0, 0.1, 0)
 T.Image = "rbxassetid://83114982417764"
 
 local Stroke = Instance.new("UIStroke", T)
