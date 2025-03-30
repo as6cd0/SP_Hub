@@ -914,7 +914,7 @@ local MainWindow =
         WindowIcon.Parent = MainWindow.TopBar
     end
 
-
+AddDraggingFunctionality(MainWindow, MainWindow)
 AddDraggingFunctionality(DragPoint, MainWindow)
 
 local T = Instance.new("ImageButton", Orion) 
