@@ -4,6 +4,34 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = game:GetService("Players").LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+
+local PlayersBanned = {
+
+}
+
+if PlayersBanned[LocalPlayer.Name] or PlayersBanned[LocalPlayer.UserId] then
+game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Banned",
+        Text = "You got banned to use SP Hub",
+        Duration = 10,
+        Icon = "rbxassetid://5108797866"
+    })
+    OrionLib:Destroy()
+    return
+end
+
+local AdminsPlayer = {
+  ["nadermohamedtest"] = true
+}
+
+if AdminsPlayer[LocalPlayer.Name] or AdminsPlayer[LocalPlayer.UserId] then
+game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Admin",
+        Text = "You are admin",
+        Duration = 6
+    })
+end
 
 local OrionLib = {
     Elements = {},
@@ -787,22 +815,27 @@ function OrionLib:MakeWindow(WindowConfig)
         }
     )
 
-local WindowStuff =
-    AddThemeObject(
-        SetChildren(
-            SetProps(
-                MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 10),
-                {
-                    Size = UDim2.new(0, 150, 1, -50),
-                    Position = UDim2.new(0, 0, 0, 50),
-                    BackgroundTransparency = 1
-                }
-            ),
+local WindowStuff = AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 10), {
+	Size = UDim2.new(0, 150, 1, -50),
+	Position = UDim2.new(0, 0, 0, 50)
+}), {
+	AddThemeObject(SetProps(MakeElement("Frame"), {
+		Size = UDim2.new(0, 1, 1, 0),
+		Position = UDim2.new(1, -1, 0, 0)
+	}), "Stroke"), 
+	TabHolder,
+}), "Second")
+
+    local WindowTopBarLine =
+        AddThemeObject(
+        SetProps(
+            MakeElement("Frame"),
             {
-                TabHolder
+                Size = UDim2.new(1, 0, 0, 1),
+                Position = UDim2.new(0, 0, 1, -1)
             }
         ),
-        "Second"
+        "Stroke"
     )
 
     local WindowName =
@@ -817,18 +850,6 @@ local WindowStuff =
             }
         ),
         "Text"
-    )
-
-    local WindowTopBarLine =
-        AddThemeObject(
-        SetProps(
-            MakeElement("Frame"),
-            {
-                Size = UDim2.new(1, 0, 0, 1),
-                Position = UDim2.new(0, 0, 1, -1)
-            }
-        ),
-        "Stroke"
     )
 
     local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
@@ -947,7 +968,6 @@ local function ToggleUI()
         wait(0.1)
         MainWindow.Visible = false
     else
-        -- إظهار مع أنيميشن (يظهر لأعلى بشفافية)
         MainWindow.Visible = true
         TweenService:Create(
             MainWindow,
