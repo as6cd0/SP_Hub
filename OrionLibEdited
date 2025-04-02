@@ -1243,7 +1243,6 @@ if TabConfig.IsMobile and isMobile then
 end
 
 
--- 🖱️ عند الضغط على زر Tap، يتحرك الـ Bar بنفس الأنيميشن
 AddConnection(
     TabFrame.MouseButton1Click,
     function()
@@ -1522,6 +1521,7 @@ AddConnection(
     end
 )
 
+
 AddConnection(
     Click.MouseButton1Up,
     function()
@@ -1544,13 +1544,14 @@ AddConnection(
     end
 )
 
-local isOnCooldown = false -- متغير لتحديد حالة التبريد (Cooldown)
+
+local isOnCooldown = false 
 
 AddConnection(
     Click.MouseButton1Down,
     function()
-        if isOnCooldown then return end -- إذا كان في وضع التبريد، لا تفعل شيء
-        isOnCooldown = true -- تفعيل التبريد
+        if isOnCooldown then return end
+        isOnCooldown = true
 
         ShineBar.Size = UDim2.new(0, 0, 1, 0)
         ShineBar.Position = UDim2.new(0, 0, 0, 0)
@@ -1562,7 +1563,6 @@ AddConnection(
             {Size = UDim2.new(1, 0, 1, 0)}
         ):Play()
 
-        -- إخفاء الشريط بعد انتهاء الحركة
         task.wait(0.2)
         TweenService:Create(
             ShineBar,
@@ -1570,12 +1570,10 @@ AddConnection(
             {BackgroundTransparency = 1}
         ):Play()
 
-        -- إيقاف التبريد بعد 0.2 ثانية
         task.wait(0.2)
         isOnCooldown = false
     end
 )
-
 
     function Button:Set(ButtonText)
         ButtonFrame.Content.Text = ButtonText
@@ -1923,22 +1921,55 @@ if SliderConfig.IsMobile and isMobile then
                         end
                     end
                 )
-                function Slider:Set(Value)
-                    self.Value = math.clamp(Round(Value, SliderConfig.Increment), SliderConfig.Min, SliderConfig.Max)
-                    TweenService:Create(
-                        SliderDrag,
-                        TweenInfo.new(.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-                        {
-                            Size = UDim2.fromScale(
-                                (self.Value - SliderConfig.Min) / (SliderConfig.Max - SliderConfig.Min),
-                                1
-                            )
-                        }
-                    ):Play()
-                    SliderBar.Value.Text = tostring(self.Value) .. " " .. SliderConfig.ValueName
-                    SliderDrag.Value.Text = tostring(self.Value) .. " " .. SliderConfig.ValueName
-                    SliderConfig.Callback(self.Value)
-                end
+                
+function Slider:Set(Value)
+    self.Value = math.clamp(Round(Value, SliderConfig.Increment), SliderConfig.Min, SliderConfig.Max)
+
+    TweenService:Create(
+        SliderDrag,
+        TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {
+            Size = UDim2.fromScale(
+                (self.Value - SliderConfig.Min) / (SliderConfig.Max - SliderConfig.Min),
+                1
+            )
+        }
+    ):Play()
+
+    SliderBar.Value.Text = tostring(self.Value) .. " " .. SliderConfig.ValueName
+    SliderDrag.Value.Text = tostring(self.Value) .. " " .. SliderConfig.ValueName
+
+    local function enlargeText()
+        TweenService:Create(
+            SliderBar.Value,
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {TextSize = 20}
+        ):Play()
+
+        TweenService:Create(
+            SliderDrag.Value,
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {TextSize = 20}
+        ):Play()
+
+        task.wait(0.4)
+
+        TweenService:Create(
+            SliderBar.Value,
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {TextSize = 13}
+        ):Play()
+
+        TweenService:Create(
+            SliderDrag.Value,
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {TextSize = 13}
+        ):Play()
+    end
+
+    enlargeText()
+    SliderConfig.Callback(self.Value)
+end
 
                 Slider:Set(Slider.Value)
                 if SliderConfig.Flag then
