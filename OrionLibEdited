@@ -741,7 +741,7 @@ function OrionLib:MakeWindow(WindowConfig)
             SetProps(
                 MakeElement("ScrollFrame", Color3.fromRGB(255, 255, 255), 4),
                 {
-                    Size = UDim2.new(1, 0, 1, -50)
+                    Size = UDim2.new(1, 0, 1, -18)
                 }
             ),
             {
@@ -934,7 +934,7 @@ local MainWindow =
         )
         WindowIcon.Parent = MainWindow.TopBar
     end
- 
+
 AddDraggingFunctionality(DragPoint, MainWindow)
 
 local T = Instance.new("ImageButton", Orion) 
