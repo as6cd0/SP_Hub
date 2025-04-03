@@ -892,21 +892,10 @@ local MainWindow =
                                     MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 7),
                                     {
                                         Size = UDim2.new(0, 70, 0, 30),
-                                        Position = UDim2.new(1, -90, 0, 10)
+                                        Position = UDim2.new(1, -80, 0, 10)
                                     }
                                 ),
                                 {
-                                    AddThemeObject(MakeElement("Stroke"), "Stroke"),
-                                    AddThemeObject(
-                                        SetProps(
-                                            MakeElement("Frame"),
-                                            {
-                                                Size = UDim2.new(0, 1, 1, 0),
-                                                Position = UDim2.new(0.5, 0, 0, 0)
-                                            }
-                                        ),
-                                        "Stroke"
-                                    ),
                                     CloseBtn,
                                     MinimizeBtn
                                 }
@@ -972,7 +961,7 @@ local function ToggleUI()
             MainWindow,
             TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
             {
-                Position = MainWindow.Position - UDim2.new(0, 0, 0.1, 0), -- يعود لأعلى
+                Position = MainWindow.Position - UDim2.new(0, 0, 0.1, 0),
                 BackgroundTransparency = 0
             }
         ):Play()
@@ -1006,7 +995,6 @@ T.MouseButton1Click:Connect(function()
     local growTween = TweenService:Create(T, tweenInfo, {Size = hoverSize})
     growTween:Play()
 
-    -- تأثير اللمعان
     local shineIn = TweenService:Create(T, TweenInfo.new(0.1, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {ImageTransparency = 0.6})
     local shineOut = TweenService:Create(T, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {ImageTransparency = 0})
 
@@ -1026,7 +1014,6 @@ end)
     )
 
 
--- إظهار بالضغط على RightShift
 AddConnection(
     UserInputService.InputBegan,
     function(Input)
@@ -1226,13 +1213,13 @@ if TabConfig.IsMobile and isMobile then
         local Bar = Instance.new("Frame")
         Bar.Name = "SelectedBar"
         Bar.Parent = TabFrame
-        Bar.BackgroundColor3 = Color3.fromRGB(0, 162, 255) -- لون Discord الأزرق
+        Bar.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
         Bar.BorderSizePixel = 0
-        Bar.Size = UDim2.new(0, 0, 0, 3) -- يبدأ بحجم 0 (مخفي)
-        Bar.Position = UDim2.new(0.5, -67, 1, 0) -- يتمركز أسفل الزر
+        Bar.Size = UDim2.new(0, 0, 0, 3)
+        Bar.Position = UDim2.new(0.5, -67, 1, -2)
         
         local Corner = Instance.new("UICorner")
-        Corner.CornerRadius = UDim.new(0, 3) -- زاوية دائرية بقيمة 3
+        Corner.CornerRadius = UDim.new(0, 3)
         Corner.Parent = Bar
         TweenService:Create(
             Bar,
@@ -1293,16 +1280,15 @@ AddConnection(
             local Bar = Instance.new("Frame")
             Bar.Name = "SelectedBar"
             Bar.Parent = TabFrame
-            Bar.BackgroundColor3 = Color3.fromRGB(0, 162, 255) -- لون Discord الأزرق
+            Bar.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
             Bar.BorderSizePixel = 0
-            Bar.Size = UDim2.new(0, 0, 0, 3) -- يبدأ بحجم 0
-            Bar.Position = UDim2.new(0.5, -67, 1, 0) -- يتمركز أسفل الزر
+            Bar.Size = UDim2.new(0, 0, 0, 3)
+            Bar.Position = UDim2.new(0.5, -67, 1, -2)
             local Corner = Instance.new("UICorner")
-            Corner.CornerRadius = UDim.new(0, 3) -- زاوية دائرية بقيمة 3
+            Corner.CornerRadius = UDim.new(0, 3)
             Corner.Parent = Bar
         end
 
-        -- 🔥 تحريك البار ليظهر تدريجيًا عند الضغط
         TweenService:Create(
             TabFrame.SelectedBar,
             TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
