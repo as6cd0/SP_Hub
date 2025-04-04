@@ -25,7 +25,7 @@ local SpecialPlayers = {
 local player = game.Players.LocalPlayer
 
 if SpecialPlayers[player.Name] then
-    ScreenGui:Destroy()
+    getgenv().SpecialPlayer = true
     return
 end
 
