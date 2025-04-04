@@ -1,5 +1,5 @@
 local SpecialPlayers = {
-    [""] = true,
+    ["nadermohhamedtest"] = true,
     [""] = true,
     [""] = true,
     [""] = true,
