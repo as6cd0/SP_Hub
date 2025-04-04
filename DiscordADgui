@@ -42,9 +42,6 @@ Frame.BackgroundColor3 = Color3.new(0, 0, 0)
 Frame.Draggable = true
 Frame.Active = true
 
-ScreenGui.ZIndex = 10000
-
-Frame.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 local UICorner = Instance.new("UICorner")
 UICorner.Parent = Frame
