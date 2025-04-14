@@ -3,23 +3,7 @@ local SpecialPlayers = {
     [""] = true,
     [""] = true,
     [""] = true,
-    [""] = true,
-    [""] = true,
-    [""] = true,
-    [""] = true,
-    [""] = true,
-    [""] = true,
-    [""] = true,
-    [""] = true,
-    [""] = true,
-    [""] = true,
-    [""] = true,
-    [""] = true,
-    [""] = true,
-    [""] = true,
-    [""] = true,
-    [""] = true,
-    [""] = true,
+    [""] = true
 }
 
 local player = game.Players.LocalPlayer
@@ -52,7 +36,7 @@ Label1.Parent = Frame
 Label1.BackgroundTransparency = 1
 Label1.Position = UDim2.new(0.2, 0, 0.05, 0)
 Label1.Size = UDim2.new(0, 400, 0, 50)
-Label1.Text = "New Discord Server, Join Now!!"
+Label1.Text = "New Discord Server, Join Now!! | THE OLD HAS BEED DELETED!!!!!!!!"
 Label1.TextColor3 = Color3.new(1, 1, 1)
 Label1.TextScaled = true
 Label1.Font = Enum.Font.SourceSans
@@ -62,7 +46,7 @@ Label5.Parent = Frame
 Label5.BackgroundTransparency = 1
 Label5.Position = UDim2.new(0.17, 0, 0.58, 0)
 Label5.Size = UDim2.new(0, 400, 0, 50)
-Label5.Text = "Want to stop showing this AD? Just join the server and tell the owner."
+Label5.Text = "Wanna stop this ad? just join the server"
 Label5.TextColor3 = Color3.new(1, 1, 1)
 Label5.TextScaled = true
 Label5.Font = Enum.Font.SourceSans
@@ -82,7 +66,7 @@ SecondsLabel.Parent = Frame
 SecondsLabel.BackgroundTransparency = 1
 SecondsLabel.Position = UDim2.new(0.4, 0, 0.2, 0)
 SecondsLabel.Size = UDim2.new(0, 100, 0, 50)
-SecondsLabel.Text = "10"
+SecondsLabel.Text = "15"
 SecondsLabel.TextColor3 = Color3.new(1, 1, 1)
 SecondsLabel.TextScaled = true
 SecondsLabel.Font = Enum.Font.SourceSans
@@ -109,7 +93,7 @@ end)
 ScreenGui.Parent = game.CoreGui
 
 spawn(function()
-    for i = 10, 0, -1 do
+    for i = 15, 0, -1 do
         SecondsLabel.Text = tostring(i)
         wait(1)
     end
