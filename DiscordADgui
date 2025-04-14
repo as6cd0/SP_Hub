@@ -102,7 +102,7 @@ UICorner2.Parent = Button
 UICorner2.CornerRadius = UDim.new(0, 6)
 
 Button.MouseButton1Click:Connect(function()
-    setclipboard("https://discord.gg/dyQW9jEBqX")
+    setclipboard("https://discord.gg/fHD6kmvE5s")
     Button.Text = "Link copied"
 end)
 
