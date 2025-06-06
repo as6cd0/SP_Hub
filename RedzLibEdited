@@ -887,11 +887,8 @@ local redzlib = {
 	end)()
 }
 
-local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-local isPC = not UserInputService.TouchEnabled and UserInputService.KeyboardEnabled
-
 local ViewportSize = workspace.CurrentCamera.ViewportSize
-local UIScale = isPC and ViewportSize.Y / 550 or ViewportSize.Y / 450
+local UIScale = ViewportSize.Y / 450
 
 local Settings = redzlib.Settings
 local Flags = redzlib.Flags
@@ -1142,62 +1139,41 @@ local function CreateTween(Configs)
 	return Tween
 end
 
-local function AddDraggingFunctionality(DragPoint, Main)
-    pcall(function()
-        local Dragging, DragInput, MousePos, FramePos
-
-        DragPoint.InputBegan:Connect(function(Input)
-            if Input.UserInputType == Enum.UserInputType.MouseButton1 or
-               Input.UserInputType == Enum.UserInputType.Touch then
-                Dragging = true
-                MousePos = Input.Position
-                FramePos = Main.Position
-
-                Input.Changed:Connect(function()
-                    if Input.UserInputState == Enum.UserInputState.End then
-                        Dragging = false
-                    end
-                end)
-            end
-        end)
-
-        DragPoint.InputChanged:Connect(function(Input)
-            if Input.UserInputType == Enum.UserInputType.MouseMovement or
-               Input.UserInputType == Enum.UserInputType.Touch then
-                DragInput = Input
-            end
-        end)
-
-        UserInputService.InputChanged:Connect(function(Input)
-            if Dragging and Input == DragInput then
-                local Delta = Input.Position - MousePos
-                local NewPosition = UDim2.new(
-                    FramePos.X.Scale,
-                    FramePos.X.Offset + Delta.X,
-                    FramePos.Y.Scale,
-                    FramePos.Y.Offset + Delta.Y
-                )
-
-                local tweenInfo = TweenInfo.new(
-                    0.7,
-                    Enum.EasingStyle.Quint, 
-                    Enum.EasingDirection.Out
-                )
-                TweenService:Create(Main, tweenInfo, { Position = NewPosition }):Play()
-            end
-        end)
-    end)
-end
-
 local function MakeDrag(Instance)
-    SetProps(Instance, {
-        Active = true,
-        AutoButtonColor = false
-    })
-
-    AddDraggingFunctionality(Instance, Instance)
-
-    return Instance
+	task.spawn(function()
+		SetProps(Instance, {
+			Active = true,
+			AutoButtonColor = false
+		})
+		
+		local DragStart, StartPos, InputOn
+		
+		local function Update(Input)
+			local delta = Input.Position - DragStart
+			local Position = UDim2.new(StartPos.X.Scale, StartPos.X.Offset + delta.X / UIScale, StartPos.Y.Scale, StartPos.Y.Offset + delta.Y / UIScale)
+			-- Instance.Position = Position
+			CreateTween({Instance, "Position", Position, 0.35})
+		end
+		
+		Instance.MouseButton1Down:Connect(function()
+			InputOn = true
+		end)
+		
+		Instance.InputBegan:Connect(function(Input)
+			if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+				StartPos = Instance.Position
+				DragStart = Input.Position
+				
+				while UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do RunService.Heartbeat:Wait()
+					if InputOn then
+						Update(Input)
+					end
+				end
+				InputOn = false
+			end
+		end)
+	end)
+	return Instance
 end
 
 local function VerifyTheme(Theme)
@@ -1603,8 +1579,17 @@ function redzlib:MakeWindow(Configs)
 	local Minimized, SaveSize, WaitClick
 	local Window, FirstTab = {}, false
 	function Window:CloseBtn()
-    EnabledUIhide()
-    end
+		local Dialog = Window:Dialog({
+			Title = "Close",
+			Text = "You Want Close Ui?",
+			Options = {
+				{"Confirm", function()
+					ScreenGui:Destroy()
+				end},
+				{"Cancel"}
+			}
+		})
+	end
 	function Window:MinimizeBtn()
 		if WaitClick then return end
 		WaitClick = true
@@ -1657,91 +1642,6 @@ function redzlib:MakeWindow(Configs)
 			Button = Button
 		}
 	end
-
-local tweenInfoHideUI = TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-
-local OriginalPos = MainFrame.Position
-local UIVisibleed = true
-
-function EnabledUIhide()
-    if UIVisibleed then
-        local hideTween = TweenService:Create(MainFrame, tweenInfoHideUI, {
-            Position = OriginalPos + UDim2.new(0, 0, 0, 28),
-        })
-        hideTween:Play()
-        wait(0.2)
-
-        MainFrame.Visible = false
-    else
-        MainFrame.Visible = true
-
-        MainFrame.Position = OriginalPos + UDim2.new(0, 0, 0, 28)
-
-        local showTween = TweenService:Create(MainFrame, tweenInfoHideUI, {
-            Position = OriginalPos,
-        })
-        showTween:Play()
-    end
-
-    UIVisibleed = not UIVisibleed
-end
-
-
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then
-        EnabledUIhide()
-    end
-end)
-
-local T = Instance.new("ImageButton", ScreenGui) 
-local sizeValue = isPC and 55 or 30
-T.Size = UDim2.new(0, sizeValue, 0, sizeValue)
-local xPos = isPC and 0.10 or (isMobile and 0.8 or 0.10)
-T.Position = UDim2.new(xPos, 0, 0.1, 0)
-T.Image = "rbxassetid://83114982417764"
-
-local Corner = Instance.new("UICorner", T)
-Corner.CornerRadius = UDim.new(0, 14)
-
-T.Active = true 
-
-AddDraggingFunctionality(T, T)
-
-T.MouseButton1Click:Connect(EnabledUIhide)
-
-local normalSize = UDim2.new(0, sizeValue, 0, sizeValue)
-local hoverSize = UDim2.new(0, sizeValue + 10, 0, sizeValue + 10)
-local tweenInfo2 = TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-
-local function getCenteredPosition(originalSize, newSize, originalPosition)
-    local xOffset = (newSize.X.Offset - originalSize.X.Offset) / 2
-    local yOffset = (newSize.Y.Offset - originalSize.Y.Offset) / 2
-    return UDim2.new(originalPosition.X.Scale, originalPosition.X.Offset - xOffset, originalPosition.Y.Scale, originalPosition.Y.Offset - yOffset)
-end
-
-T.MouseEnter:Connect(function()
-    local hoverPosition = getCenteredPosition(normalSize, hoverSize, T.Position)
-    TweenService:Create(T, tweenInfo2, {Size = hoverSize, Position = hoverPosition}):Play()
-end)
-
-T.MouseLeave:Connect(function()
-    local normalPosition = getCenteredPosition(hoverSize, normalSize, T.Position)
-    TweenService:Create(T, tweenInfo2, {Size = normalSize, Position = normalPosition}):Play()
-end)
-
-T.MouseButton1Click:Connect(function()
-    local growTween = TweenService:Create(T, tweenInfo2, {Size = hoverSize})
-    growTween:Play()
-
-    local shineIn = TweenService:Create(T, TweenInfo.new(0.1, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {ImageTransparency = 0.6})
-    local shineOut = TweenService:Create(T, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {ImageTransparency = 0})
-
-    shineIn:Play()
-    shineIn.Completed:Wait()
-    shineOut:Play()
-end)
-
 	function Window:Set(Val1, Val2)
 		if type(Val1) == "string" and type(Val2) == "string" then
 			Title.Text = Val1
