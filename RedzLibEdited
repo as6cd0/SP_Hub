@@ -1613,6 +1613,7 @@ function redzlib:MakeWindow(Configs)
 	})
 	
 	local Minimized, SaveSize, WaitClick
+	local Window, FirstTab = {}, false
 	function Window:CloseBtn()
     ToggleUI()
     end
