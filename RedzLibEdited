@@ -12,14 +12,14 @@ local redzlib = {
 	Themes = {
 		Darker = {
 			["Color Hub 1"] = ColorSequence.new({
-				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(25, 25, 25)),
+				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(13, 13, 13)),
 				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(32.5, 32.5, 32.5)),
-				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(25, 25, 25))
+				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(13, 13, 13))
 			}),
 			["Color Hub 2"] = Color3.fromRGB(30, 30, 30),
-			["Color Stroke"] = Color3.fromRGB(40, 40, 40),
-			["Color Theme"] = Color3.fromRGB(88, 101, 242),
-			["Color Text"] = Color3.fromRGB(243, 243, 243),
+			["Color Stroke"] = Color3.fromRGB(13, 13, 13),
+			["Color Theme"] = Color3.fromRGB(0, 162, 255),
+			["Color Text"] = Color3.fromRGB(193, 61, 66),
 			["Color Dark Text"] = Color3.fromRGB(180, 180, 180)
 		},
 		Dark = {
@@ -891,7 +891,7 @@ local isMobile = UserInputService.TouchEnabled and not UserInputService.Keyboard
 local isPC = not UserInputService.TouchEnabled and UserInputService.KeyboardEnabled
 
 local ViewportSize = workspace.CurrentCamera.ViewportSize
-local UIScale = isPC and ViewportSize.Y / 550 or ViewportSize.Y / 450
+local UIScale = isPC and ViewportSize.Y / 550 or ViewportSize.Y / 425
 
 local Settings = redzlib.Settings
 local Flags = redzlib.Flags
@@ -1143,50 +1143,62 @@ local function CreateTween(Configs)
 end
 
 local function AddDraggingFunctionality(DragPoint, Main)
-    pcall(function()
-        local Dragging, DragInput, MousePos, FramePos
+    pcall(
+        function()
+            local Dragging, DragInput, MousePos, FramePos = false
+            DragPoint.InputBegan:Connect(
+                function(Input)
+                    if
+                        Input.UserInputType == Enum.UserInputType.MouseButton1 or
+                            Input.UserInputType == Enum.UserInputType.Touch
+                     then
+                        Dragging = true
+                        MousePos = Input.Position
+                        FramePos = Main.Position
 
-        DragPoint.InputBegan:Connect(function(Input)
-            if Input.UserInputType == Enum.UserInputType.MouseButton1 or
-               Input.UserInputType == Enum.UserInputType.Touch then
-                Dragging = true
-                MousePos = Input.Position
-                FramePos = Main.Position
-
-                Input.Changed:Connect(function()
-                    if Input.UserInputState == Enum.UserInputState.End then
-                        Dragging = false
+                        Input.Changed:Connect(
+                            function()
+                                if Input.UserInputState == Enum.UserInputState.End then
+                                    Dragging = false
+                                end
+                            end
+                        )
                     end
-                end)
-            end
-        end)
+                end
+            )
 
-        DragPoint.InputChanged:Connect(function(Input)
-            if Input.UserInputType == Enum.UserInputType.MouseMovement or
-               Input.UserInputType == Enum.UserInputType.Touch then
-                DragInput = Input
-            end
-        end)
+            DragPoint.InputChanged:Connect(
+                function(Input)
+                    if
+                        Input.UserInputType == Enum.UserInputType.MouseMovement or
+                            Input.UserInputType == Enum.UserInputType.Touch
+                     then
+                        DragInput = Input
+                    end
+                end
+            )
 
-        UserInputService.InputChanged:Connect(function(Input)
-            if Dragging and Input == DragInput then
-                local Delta = Input.Position - MousePos
-                local NewPosition = UDim2.new(
-                    FramePos.X.Scale,
-                    FramePos.X.Offset + Delta.X,
-                    FramePos.Y.Scale,
-                    FramePos.Y.Offset + Delta.Y
-                )
-
-                local tweenInfo = TweenInfo.new(
-                    0.7,
-                    Enum.EasingStyle.Quint, 
-                    Enum.EasingDirection.Out
-                )
-                TweenService:Create(Main, tweenInfo, { Position = NewPosition }):Play()
-            end
-        end)
-    end)
+            UserInputService.InputChanged:Connect(
+                function(Input)
+                    if Input == DragInput and Dragging then
+                        local Delta = Input.Position - MousePos
+                        TweenService:Create(
+                            Main,
+                            TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+                            {
+                                Position = UDim2.new(
+                                    FramePos.X.Scale,
+                                    FramePos.X.Offset + Delta.X,
+                                    FramePos.Y.Scale,
+                                    FramePos.Y.Offset + Delta.Y
+                                )
+                            }
+                        ):Play()
+                    end
+                end
+            )
+        end
+    )
 end
 
 local function MakeDrag(Instance)
@@ -1452,10 +1464,10 @@ function redzlib:MakeWindow(Configs)
 		Position = UDim2.new(0.5, -UISizeX/2, 0.5, -UISizeY/2),
 		BackgroundTransparency = 0.03,
 		Name = "Hub"
-	}), "Main")
+	}), "Main")MakeDrag(MainFrame)
 	Make("Gradient", MainFrame, {
 		Rotation = 45
-	})MakeDrag(MainFrame)
+	})
 	
 	local MainCorner = Make("Corner", MainFrame)
 	
@@ -1601,9 +1613,8 @@ function redzlib:MakeWindow(Configs)
 	})
 	
 	local Minimized, SaveSize, WaitClick
-	local Window, FirstTab = {}, false
 	function Window:CloseBtn()
-    EnabledUIhide()
+    ToggleUI()
     end
 	function Window:MinimizeBtn()
 		if WaitClick then return end
@@ -1663,41 +1674,44 @@ local tweenInfoHideUI = TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDi
 local OriginalPos = MainFrame.Position
 local UIVisibleed = true
 
-function EnabledUIhide()
-    if UIVisibleed then
-        local hideTween = TweenService:Create(MainFrame, tweenInfoHideUI, {
-            Position = OriginalPos + UDim2.new(0, 0, 0, 28),
-        })
-        hideTween:Play()
-        wait(0.2)
+local function ToggleUI()
+    UIHidden = not UIHidden
 
+    if UIHidden then
+        TweenService:Create(
+            MainFrame,
+            TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+            {
+                Position = MainFrame.Position + UDim2.new(0, 0, 0.1, 0),
+            }
+        ):Play()
+
+        wait(0.1)
         MainFrame.Visible = false
     else
         MainFrame.Visible = true
-
-        MainFrame.Position = OriginalPos + UDim2.new(0, 0, 0, 28)
-
-        local showTween = TweenService:Create(MainFrame, tweenInfoHideUI, {
-            Position = OriginalPos,
-        })
-        showTween:Play()
+        TweenService:Create(
+            MainFrame,
+            TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+            {
+                Position = MainFrame.Position - UDim2.new(0, 0, 0.1, 0),
+            }
+        ):Play()
     end
-
-    UIVisibleed = not UIVisibleed
 end
 
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then
-        EnabledUIhide()
+        ToggleUI()
     end
 end)
 
 local T = Instance.new("ImageButton", ScreenGui) 
-local sizeValue = isPC and 55 or 30
+local sizeValue = isPC and 55 or 60
 T.Size = UDim2.new(0, sizeValue, 0, sizeValue)
-local xPos = isPC and 0.10 or (isMobile and 0.8 or 0.10)
+local xPos = isPC and 0.10 or (isMobile and 0.10 or 0.10)
 T.Position = UDim2.new(xPos, 0, 0.1, 0)
 T.Image = "rbxassetid://83114982417764"
 
@@ -1708,10 +1722,10 @@ T.Active = true
 
 AddDraggingFunctionality(T, T)
 
-T.MouseButton1Click:Connect(EnabledUIhide)
+T.MouseButton1Click:Connect(ToggleUI)
 
 local normalSize = UDim2.new(0, sizeValue, 0, sizeValue)
-local hoverSize = UDim2.new(0, sizeValue + 10, 0, sizeValue + 10)
+local hoverSize = UDim2.new(0, sizeValue + 6, 0, sizeValue + 10)
 local tweenInfo2 = TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
 local function getCenteredPosition(originalSize, newSize, originalPosition)
