@@ -1614,9 +1614,10 @@ function redzlib:MakeWindow(Configs)
 	
 	local Minimized, SaveSize, WaitClick
 	local Window, FirstTab = {}, false
-	function Window:CloseBtn()
-    ToggleUI()
-    end
+function Window:CloseBtn()
+    ScreenGui:Destroy()
+end
+
 	function Window:MinimizeBtn()
 		if WaitClick then return end
 		WaitClick = true
