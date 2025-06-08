@@ -1284,87 +1284,106 @@ AddEle("Gradient", function(parent, props, ...)
 	return New
 end)
 
-local function ButtonFrame(Instance, Title, Description, HolderSize)
-	local TitleL = InsertTheme(Create("TextLabel", {
-		Font = Enum.Font.GothamMedium,
-		TextColor3 = Theme["Color Text"],
-		Size = UDim2.new(1, -20),
-		AutomaticSize = "Y",
-		Position = UDim2.new(0, 0, 0.5),
-		AnchorPoint = Vector2.new(0, 0.5),
-		BackgroundTransparency = 1,
-		TextTruncate = "AtEnd",
-		TextSize = 10,
-		TextXAlignment = "Left",
-		Text = "",
-		RichText = true
-	}), "Text")
-	
-	local DescL = InsertTheme(Create("TextLabel", {
-		Font = Enum.Font.Gotham,
-		TextColor3 = Theme["Color Dark Text"],
-		Size = UDim2.new(1, -20),
-		AutomaticSize = "Y",
-		Position = UDim2.new(0, 12, 0, 15),
-		BackgroundTransparency = 1,
-		TextWrapped = true,
-		TextSize = 8,
-		TextXAlignment = "Left",
-		Text = "",
-		RichText = true
-	}), "DarkText")
 
-	local Frame = Make("Button", Instance, {
-		Size = UDim2.new(1, 0, 0, 25),
-		AutomaticSize = "Y",
-		Name = "Option"
-	})Make("Corner", Frame, UDim.new(0, 6))
-	
-	LabelHolder = Create("Frame", Frame, {
-		AutomaticSize = "Y",
-		BackgroundTransparency = 1,
-		Size = HolderSize,
-		Position = UDim2.new(0, 10, 0),
-		AnchorPoint = Vector2.new(0, 0)
-	}, {
-		Create("UIListLayout", {
-			SortOrder = "LayoutOrder",
-			VerticalAlignment = "Center",
-			Padding = UDim.new(0, 2)
-		}),
-		Create("UIPadding", {
-			PaddingBottom = UDim.new(0, 5),
-			PaddingTop = UDim.new(0, 5)
-		}),
-		TitleL,
-		DescL,
-	})
-	
-	local Label = {}
-	function Label:SetTitle(NewTitle)
-		if type(NewTitle) == "string" and NewTitle:gsub(" ", ""):len() > 0 then
-			TitleL.Text = NewTitle
-		end
-	end
-	function Label:SetDesc(NewDesc)
-		if type(NewDesc) == "string" and NewDesc:gsub(" ", ""):len() > 0 then
-			DescL.Visible = true
-			DescL.Text = NewDesc
-			LabelHolder.Position = UDim2.new(0, 10, 0)
-			LabelHolder.AnchorPoint = Vector2.new(0, 0)
-		else
-			DescL.Visible = false
-			DescL.Text = ""
-			LabelHolder.Position = UDim2.new(0, 10, 0.5)
-			LabelHolder.AnchorPoint = Vector2.new(0, 0.5)
-		end
-	end
-	
-	Label:SetTitle(Title)
-	Label:SetDesc(Description)
-	return Frame, Label
+local function ButtonFrame(parent, Title, Description, HolderSize, isBind)
+    if type(HolderSize) == "boolean" then
+        isBind, HolderSize = HolderSize, nil
+    end
+
+    local Frame = Make("Button", parent, {
+        Size = UDim2.new(1, 0, 0, 25),
+        Name = "Option"
+    })
+    Make("Corner", Frame, UDim.new(0, 6))
+
+    local TitleL = InsertTheme(Create("TextLabel", Frame, {
+        Font = Enum.Font.GothamMedium,
+        TextColor3 = Theme["Color Text"],
+        AutomaticSize = "Y",
+        Size = UDim2.new(1, -80, 0, 0),
+        Position = UDim2.new(0, 0, 0.5),
+        AnchorPoint = Vector2.new(0, 0.5),
+        BackgroundTransparency = 1,
+        TextSize = 10,
+        TextXAlignment = "Left",
+        TextTruncate = "AtEnd",
+        Text = Title or "",
+        RichText = true
+    }), "Text")
+
+    local DescL = InsertTheme(Create("TextLabel", Frame, {
+        Font = Enum.Font.Gotham,
+        TextColor3 = Theme["Color Dark Text"],
+        AutomaticSize = "Y",
+        Size = UDim2.new(1, -80, 0, 0),
+        Position = UDim2.new(0, 12, 0, 15),
+        BackgroundTransparency = 1,
+        TextWrapped = true,
+        TextSize = 8,
+        TextXAlignment = "Left",
+        Text = Description or "",
+        RichText = true
+    }), "DarkText")
+
+    local LabelHolder = Create("Frame", Frame, {
+        AutomaticSize = "Y",
+        BackgroundTransparency = 1,
+        Size = HolderSize or UDim2.new(1, -80, 0, 25),
+        Position = UDim2.new(0, 10, 0),
+        AnchorPoint = Vector2.new(0, 0)
+    }, {
+        Create("UIListLayout", {
+            SortOrder = "LayoutOrder",
+            VerticalAlignment = "Center",
+            Padding = UDim.new(0, 2)
+        }),
+        Create("UIPadding", {
+            PaddingTop    = UDim.new(0, 5),
+            PaddingBottom = UDim.new(0, 5)
+        }),
+        TitleL,
+        DescL,
+    })
+
+    local bindBox
+    if isBind then
+        bindBox = InsertTheme(Create("TextButton", Frame, {
+            Name               = "BindBox",
+            Text               = "...",
+            Font               = Enum.Font.GothamBold,
+            TextSize           = 14,
+            TextColor3         = Theme["Color Text"],
+            Size               = UDim2.new(0, 45, 0, 24),
+            Position           = UDim2.new(1, -10, 0, 3),
+            AnchorPoint        = Vector2.new(1, 0),
+            BackgroundColor3   = Theme["Color Stroke"],
+            BackgroundTransparency = 0,
+        }), "Stroke")
+Make("Corner", bindBox, UDim.new(0.25, 0))
+
+        Frame.Size = UDim2.new(1, 0, 0, 30)
+    end
+
+    local Label = {}
+    function Label:SetTitle(nt)
+        if type(nt)=="string" and nt:match("%S") then
+            TitleL.Text = nt
+        end
+    end
+    function Label:SetDesc(nd)
+        if type(nd)=="string" and nd:match("%S") then
+            DescL.Visible, DescL.Text = true, nd
+            LabelHolder.Position, LabelHolder.AnchorPoint = UDim2.new(0,10,0), Vector2.new(0,0)
+        else
+            DescL.Visible, DescL.Text = false, ""
+            LabelHolder.Position, LabelHolder.AnchorPoint = UDim2.new(0,10,0.5), Vector2.new(0,0.5)
+        end
+    end
+    Label:SetTitle(Title)
+    Label:SetDesc(Description)
+
+    return Frame, Label, bindBox
 end
-
 local function GetColor(Instance)
 	if Instance:IsA("Frame") then
 		return "BackgroundColor3"
@@ -1437,26 +1456,70 @@ function redzlib:SetScale(NewScale)
 end
 
 function redzlib:MakeWindow(Configs)
-	local WTitle = Configs[1] or Configs.Name or Configs.Title or "redz Library V5"
-	local WMiniText = Configs[2] or Configs.SubTitle or "by : redz9999"
-	
-	Settings.ScriptFile = Configs[3] or Configs.SaveFolder or false
-	
-	local function LoadFile()
-		local File = Settings.ScriptFile
-		if type(File) ~= "string" then return end
-		if not readfile or not isfile then return end
-		local s, r = pcall(isfile, File)
-		
-		if s and r then
-			local s, _Flags = pcall(readfile, File)
-			
-			if s and type(_Flags) == "string" then
-				local s,r = pcall(function() return HttpService:JSONDecode(_Flags) end)
-				Flags = s and r or {}
-			end
-		end
-	end;LoadFile()
+
+    local WTitle     = Configs[1] or Configs.Name or Configs.Title or "SP Lib v2"
+    local WMiniText  = Configs[2] or Configs.SubTitle or Configs.SubName or "by : SP Hub"
+
+function redzlib:MakeWindow(Configs)
+
+    local WTitle     = Configs[1] or Configs.Name or Configs.Title or "SP Lib v2"
+    local WMiniText  = Configs[2] or Configs.SubTitle or Configs.SubName or "by : SP Hub"
+
+
+    Settings.ScriptFile = Configs[3] or Configs.ConfigFolder or Configs.SaveFolder or false
+
+    local HidePremium  = Configs.HidePremium  == true
+    local SaveConfig   = Configs.SaveConfig   == true
+    local CloseCallback= type(Configs.CloseCallback) == "function" and Configs.CloseCallback or nil
+
+    local function LoadFile()
+        local File = Settings.ScriptFile
+        if type(File) ~= "string" then return end
+        if not readfile or not isfile then return end
+        if pcall(isfile, File) then
+            local raw = readfile(File)
+            local ok, t = pcall(HttpService.JSONDecode, HttpService, raw)
+            if ok and type(t)=="table" then
+                Flags = t
+            end
+        end
+    end; LoadFile()
+
+   
+    if HidePremium then
+        for _, el in ipairs(Window:GetPremiumElements()) do
+            el.Visible = false
+        end
+    end
+
+    Window.CloseButton.MouseButton1Click:Connect(function()
+        if CloseCallback then
+            pcall(CloseCallback)
+        end
+        Window:Destroy()
+    end)
+
+    local function saveSettings()
+        if not SaveConfig then return end
+        if not isfolder(Settings.ConfigFolder) then
+            makefolder(Settings.ConfigFolder)
+        end
+        local filePath = Settings.ConfigFolder.."/config.json"
+        writefile(filePath, HttpService:JSONEncode(Flags))
+    end
+    Window.SomeToggle.Changed:Connect(function(val)
+        Flags.SomeToggle = val
+        saveSettings()
+    end)
+
+    if SaveConfig then
+        Window.CloseButton.MouseButton1Click:Connect(function()
+            saveSettings()
+        end)
+    end
+
+    return Window
+end
 	
 	local UISizeX, UISizeY = unpack(redzlib.Save.UISize)
 	local MainFrame = InsertTheme(Create("ImageButton", ScreenGui, {
@@ -1705,7 +1768,7 @@ end
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then
+    if input.KeyCode == Enum.KeyCode.RightShift then
         ToggleUI()
     end
 end)
@@ -1883,10 +1946,18 @@ end)
 	end
 	
 	local ContainerList = {}
-	function Window:MakeTab(paste, Configs)
+function Window:MakeTab(paste, Configs)
 		if type(paste) == "table" then Configs = paste end
-		local TName = Configs[1] or Configs.Title or "Tab!"
+		local TName = Configs[1] or Configs.Title or Configs.Name or "Tab!"
 		local TIcon = Configs[2] or Configs.Icon or ""
+        
+    if Configs.IsMobile and not isMobile then
+        return nil
+    end
+
+    if Configs.IsPC and not isPC then
+        return nil
+    end
 		
 		TIcon = redzlib:GetIcon(TIcon)
 		if not TIcon:find("rbxassetid://") or TIcon:gsub("rbxassetid://", ""):len() < 6 then
@@ -2000,10 +2071,17 @@ end)
 			Funcs:ToggleParent(Container, Bool, Containers)
 		end
 		function Tab:Destroy() TabSelect:Destroy() Container:Destroy() end
-		
 		function Tab:AddSection(Configs)
 			local SectionName = type(Configs) == "string" and Configs or Configs[1] or Configs.Name or Configs.Title or Configs.Section
 			
+            if Configs.IsMobile and not isMobile then
+                return nil
+            end
+
+            if Configs.IsPC and not isPC then
+                return nil
+            end
+
 			local SectionFrame = Create("Frame", Container, {
 				Size = UDim2.new(1, 0, 0, 20),
 				BackgroundTransparency = 1,
@@ -2038,36 +2116,319 @@ end)
 			end
 			return Section
 		end
-		function Tab:AddParagraph(Configs)
-			local PName = Configs[1] or Configs.Title or "Paragraph"
-			local PDesc = Configs[2] or Configs.Text or ""
+function redzlib:MakeNotification(Configs)
+    if type(Configs) == "string" then
+        Configs = { Name = Configs }
+    elseif type(Configs) ~= "table" then
+        Configs = {}
+    end
+
+    Configs.Name     = Configs.Name     or "Notification"
+    Configs.Content  = Configs.Content  or "This is a test."
+    Configs.Image    = Configs.Image    or "rbxassetid://4384403532"
+    Configs.Time     = Configs.Time     or 4
+    Configs.IsMobile = Configs.IsMobile or false
+    Configs.IsPC     = Configs.IsPC     or false
+
+    if Configs.IsMobile and not isMobile then return end
+    if Configs.IsPC     and not isPC     then return end
+
+    local holder = self.NotificationHolder
+    if not holder then
+        holder = Create("Frame", ScreenGui, {
+            Name              = "NotificationHolder",
+            AnchorPoint       = Vector2.new(1, 1),
+            Position          = UDim2.new(1, -20, 1, -20),
+            Size              = UDim2.new(0, 300, 0, 0),
+            BackgroundTransparency = 1,
+            AutomaticSize     = Enum.AutomaticSize.Y,
+        })
+        Create("UIListLayout", holder, {
+            SortOrder         = Enum.SortOrder.LayoutOrder,
+            VerticalAlignment = Enum.VerticalAlignment.Bottom,
+            Padding           = UDim.new(0, 8),
+        })
+        self.NotificationHolder = holder
+    end
+
+    local notifParent = Create("Frame", holder, {
+        Name              = "NotifContainer",
+        Size              = UDim2.new(1, 0, 0, 0),
+        BackgroundTransparency = 1,
+        AutomaticSize     = Enum.AutomaticSize.Y,
+        LayoutOrder       = #holder:GetChildren(),
+    })
+
+    local notifFrame = Create("Frame", notifParent, {
+        Name              = "NotificationFrame",
+        BackgroundColor3  = Color3.fromRGB(24, 24, 24),
+        BackgroundTransparency = 0,
+        Size              = UDim2.new(1, 0, 0, 0),
+        AutomaticSize     = Enum.AutomaticSize.Y,
+    })
+    InsertTheme(notifFrame, "Main")
+    Make("Corner", notifFrame, UDim.new(0.25, 0))
+
+    Create("UIStroke", notifFrame, {
+        Color    = Color3.fromRGB(200, 60, 70),
+        Thickness= 1.2,
+    })
+
+    Create("UIPadding", notifFrame, {
+        PaddingLeft   = UDim.new(0, 12),
+        PaddingTop    = UDim.new(0, 8),
+        PaddingRight  = UDim.new(0, 12),
+        PaddingBottom = UDim.new(0, 8),
+    })
+
+    local icon = Create("ImageLabel", notifFrame, {
+        Name                  = "Icon",
+        Size                  = UDim2.new(0, 24, 0, 24),
+        Image                 = Configs.Image,
+        BackgroundTransparency= 1,
+        ScaleType             = Enum.ScaleType.Fit,
+    })
+
+    local title = Create("TextLabel", notifFrame, {
+        Name                  = "Title",
+        TextColor3 = Theme["Color Text"],
+        Position              = UDim2.new(0, 30, 0, 0),
+        Size                  = UDim2.new(1, -30, 0, 20),
+        Font                  = Enum.Font.GothamBold,
+        TextSize              = 16,
+        Text                  = Configs.Name,
+        BackgroundTransparency= 1,
+    })
+    InsertTheme(title, "Text")
+
+    local content = Create("TextLabel", notifFrame, {
+        Name                  = "Content",
+        TextColor3 = Theme["Color Text"],
+        Position              = UDim2.new(0, 0, 0, 26),
+        Size                  = UDim2.new(1, 0, 0, 0),
+        Font                  = Enum.Font.Gotham,
+        TextSize              = 14,
+        Text                  = Configs.Content,
+        TextWrapped           = true,
+        BackgroundTransparency= 1,
+        AutomaticSize         = Enum.AutomaticSize.Y,
+    })
+    InsertTheme(content, "Text")
+
+    notifFrame.Position = UDim2.new(1, 0, 0, 0)
+    TweenService:Create(
+        notifFrame,
+        TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+        { Position = UDim2.new(0, 0, 0, 0) }
+    ):Play()
+
+    task.spawn(function()
+        wait(math.max(Configs.Time - 0.8, 0))
+        TweenService:Create(icon, TweenInfo.new(0.3), { ImageTransparency = 1 }):Play()
+        TweenService:Create(notifFrame, TweenInfo.new(0.6), { BackgroundTransparency = 0.7 }):Play()
+        wait(0.3)
+        TweenService:Create(
+            notifFrame,
+            TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.In),
+            { Position = UDim2.new(1, 0, 0, 0) }
+        ):Play()
+        wait(0.6)
+        notifParent:Destroy()
+    end)
+end
+
+function Tab:AddLabel(Configs)
+           if type(Configs) == "string" then
+              Configs = { Configs }
+           end
+            local PName = Configs[1] or Configs.Title or "Label"
+            local PDesc = Configs[2] or Configs.Text or ""
+
+            if Configs.IsMobile and not isMobile then
+                return nil
+            end
+
+            if Configs.IsPC and not isPC then
+                return nil
+            end
+
 			
 			local Frame, LabelFunc = ButtonFrame(Container, PName, PDesc, UDim2.new(1, -20))
 			
-			local Paragraph = {}
-			function Paragraph:Visible(...) Funcs:ToggleVisible(Frame, ...) end
-			function Paragraph:Destroy() Frame:Destroy() end
-			function Paragraph:SetTitle(Val)
+			local Label = {}
+			function Label:Visible(...) Funcs:ToggleVisible(Frame, ...) end
+			function Label:Destroy() Frame:Destroy() end
+			function Label:SetTitle(Val)
 				LabelFunc:SetTitle(GetStr(Val))
 			end
-			function Paragraph:SetDesc(Val)
-				LabelFunc:SetDesc(GetStr(Val))
-			end
-			function Paragraph:Set(Val1, Val2)
-				if Val1 and Val2 then
+			function Label:Set(Val1, Val2)
+				if Val1 then
 					LabelFunc:SetTitle(GetStr(Val1))
-					LabelFunc:SetDesc(GetStr(Val2))
-				elseif Val1 then
-					LabelFunc:SetDesc(GetStr(Val1))
 				end
 			end
-			return Paragraph
+			return Label
 		end
-		function Tab:AddButton(Configs)
+
+function Tab:AddBind2(Configs)
+    if type(Configs) == "string" then
+        Configs = { Name = Configs }
+    end
+
+    local Name     = Configs.Name     or Configs.Title or "Bind"
+    local Desc     = Configs.Desc     or Configs.Description or ""
+    local Default  = Configs.Default  or Enum.KeyCode.Unknown
+    local Hold     = Configs.Hold     or false
+    local Callback = Configs.Callback or function() end
+    local Flag     = Configs.Flag     or nil
+    local Save     = Configs.Save     or false
+
+    if Configs.IsMobile and not isMobile then return nil end
+    if Configs.IsPC     and not isPC     then return nil end
+
+    local Frame, LabelFunc, BindBox = ButtonFrame(Container, Name, Desc, UDim2.new(1, -20), true)
+
+    local state = {
+        Value   = Default,
+        Binding = false,
+        Hold    = Hold,
+        Save    = Save,
+    }
+    local Holding = false
+
+    local function updateDisplay()
+        local nm = (typeof(state.Value) == "EnumItem" and state.Value.Name) or tostring(state.Value)
+        BindBox.Text = nm
+    end
+    updateDisplay()
+
+    Frame.Activated:Connect(function()
+        if state.Binding then return end
+        state.Binding = true
+        BindBox.Text = "..."
+
+        local conn
+        conn = UserInputService.InputBegan:Connect(function(input, gp)
+            if state.Binding then
+                local newKey
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    newKey = input.UserInputType
+                elseif input.KeyCode and input.KeyCode ~= Enum.KeyCode.Unknown then
+                    newKey = input.KeyCode
+                end
+
+                state.Value = newKey or state.Value
+                state.Binding = false
+                updateDisplay()
+                conn:Disconnect()
+
+                if Flag then redzlib.Flags[Flag] = state end
+                if state.Save then SaveCfg(game.GameId) end
+            end
+        end)
+    end)
+
+UserInputService.InputBegan:Connect(function(input, gp)
+    if state.Binding then return end
+
+    local match = false
+    if typeof(state.Value) == "EnumItem" then
+        if input.KeyCode == state.Value then
+            match = true
+        elseif input.UserInputType == state.Value then
+            match = true
+        end
+    end
+
+    if match then
+        if state.Hold then
+            Holding = true
+            Callback(Holding)
+        else
+            Callback()
+        end
+    end
+end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if state.Hold and input.KeyCode == state.Value then
+            Holding = false
+            Callback(Holding)
+        end
+    end)
+
+    local objBind = {}
+    function objBind:Visible(val) Funcs:ToggleVisible(Frame, val) end
+    function objBind:Destroy()      Frame:Destroy() end
+    function objBind:Callback(fn)
+        if type(fn) == "function" then Callback = fn end
+    end
+    function objBind:Set(val)
+        if typeof(val) == "EnumItem" or type(val) == "number" then
+            state.Value = val
+            updateDisplay()
+        end
+    end
+
+    return objBind
+end
+function Tab:AddParagraph(...)
+    local args = {...}
+
+    local Configs
+    if #args == 1 and type(args[1]) == "table" then
+        Configs = args[1]
+    else
+        Configs = {
+            args[1], -- PName = Configs[1]
+            args[2]  -- PDesc = Configs[2]
+        }
+    end
+
+    local PName = Configs[1] or Configs.Title or "Paragraph"
+    local PDesc = Configs[2] or Configs.Text  or ""
+
+    if Configs.IsMobile and not isMobile then
+        return nil
+     end
+
+    if Configs.IsPC and not isPC then
+        return nil
+     end
+    
+
+
+    local Frame, LabelFunc = ButtonFrame(Container, PName, PDesc, UDim2.new(1, -20))
+
+    local Paragraph = {}
+    function Paragraph:Visible(...) Funcs:ToggleVisible(Frame, ...) end
+    function Paragraph:Destroy()   Frame:Destroy() end
+    function Paragraph:SetTitle(Val) LabelFunc:SetTitle(GetStr(Val)) end
+    function Paragraph:SetDesc(Val)  LabelFunc:SetDesc(GetStr(Val))  end
+    function Paragraph:Set(Val1, Val2)
+        if Val1 and Val2 then
+            LabelFunc:SetTitle(GetStr(Val1))
+            LabelFunc:SetDesc(GetStr(Val2))
+        elseif Val1 then
+            LabelFunc:SetDesc(GetStr(Val1))
+        end
+    end
+
+    return Paragraph
+end
+function Tab:AddButton(Configs)
 			local BName = Configs[1] or Configs.Name or Configs.Title or "Button!"
 			local BDescription = Configs.Desc or Configs.Description or ""
 			local Callback = Funcs:GetCallback(Configs, 2)
+
+            if Configs.IsMobile and not isMobile then
+                return nil
+            end
+
+            if Configs.IsPC and not isPC then
+                return nil
+            end
 			
+
 			local FButton, LabelFunc = ButtonFrame(Container, BName, BDescription, UDim2.new(1, -20))
 			
 			local ButtonIcon = Create("ImageLabel", FButton, {
@@ -2105,6 +2466,14 @@ end)
 			local Flag = Configs[4] or Configs.Flag or false
 			local Default = Configs[2] or Configs.Default or false
 			if CheckFlag(Flag) then Default = GetFlag(Flag) end
+            
+            if Configs.IsMobile and not isMobile then
+                return nil
+            end
+
+            if Configs.IsPC and not isPC then
+                return nil
+            end
 			
 			local Button, LabelFunc = ButtonFrame(Container, TName, TDesc, UDim2.new(1, -38))
 			
@@ -2181,6 +2550,14 @@ end)
 			local Flag = Configs[5] or Configs.Flag or false
 			local DMultiSelect = Configs.MultiSelect or false
 			local Callback = Funcs:GetCallback(Configs, 4)
+
+            if Configs.IsMobile and not isMobile then
+                return nil
+            end
+
+            if Configs.IsPC and not isPC then
+                return nil
+            end
 			
 			local Button, LabelFunc = ButtonFrame(Container, DName, DDesc, UDim2.new(1, -180))
 			
@@ -2519,15 +2896,22 @@ end)
 		end
 		function Tab:AddSlider(Configs)
 			local SName = Configs[1] or Configs.Name or Configs.Title or "Slider!"
-			local SDesc = Configs.Desc or Configs.Description or ""
+			local SDesc = Configs.Desc or Configs.ValueName or Configs.Description or ""
 			local Min = Configs[2] or Configs.MinValue or Configs.Min or 10
 			local Max = Configs[3] or Configs.MaxValue or Configs.Max or 100
-			local Increase = Configs[4] or Configs.Increase or 1
+			local Increase = Configs[4] or Configs.Increase or Configs.Increment or 1
 			local Callback = Funcs:GetCallback(Configs, 6)
 			local Flag = Configs[7] or Configs.Flag or false
-			local Default = Configs[5] or Configs.Default or 25
+            local Default = Configs[5] or Configs.Default
 			if CheckFlag(Flag) then Default = GetFlag(Flag) end
-			Min, Max = Min / Increase, Max / Increase
+         
+            if Configs.IsMobile and not isMobile then
+                return nil
+            end
+
+            if Configs.IsPC and not isPC then
+                return nil
+            end
 			
 			local Button, LabelFunc = ButtonFrame(Container, SName, SDesc, UDim2.new(1, -180))
 			
@@ -2578,13 +2962,11 @@ end)
 				Visible = false
 			})
 			
-			local function UpdateLabel(NewValue)
-				local Number = tonumber(NewValue * Increase)
-				Number = math.floor(Number * 100) / 100
-				
-				Default, LabelVal.Text = Number, tostring(Number)
-				Funcs:FireCallback(Callback, Default)
-			end
+            local function UpdateLabel(NewValue)
+	          Default = NewValue
+	          LabelVal.Text = string.format("%.1f", NewValue)
+	          Funcs:FireCallback(Callback, NewValue)
+           end
 			
 			local function ControlPos()
 				local MousePos = Player:GetMouse()
@@ -2594,12 +2976,12 @@ end)
 				SliderIcon.Position = UDim2.new(math.clamp(ConfigureDpiPos, 0, 1), 0, 0.5, 0)
 			end
 			
-			local function UpdateValues()
-				Indicator.Size = UDim2.new(SliderIcon.Position.X.Scale, 0, 1, 0)
-				local SliderPos = SliderIcon.Position.X.Scale
-				local NewValue = math.floor(((SliderPos * Max) / Max) * (Max - Min) + Min)
-				UpdateLabel(NewValue)
-			end
+             local function UpdateValues()
+	          Indicator.Size = UDim2.new(SliderIcon.Position.X.Scale, 0, 1, 0)
+	          local SliderPos = SliderIcon.Position.X.Scale
+	          local NewValue = SliderPos * (Max - Min) + Min
+	          UpdateLabel(NewValue)
+            end
 			
 			SliderHolder.MouseButton1Down:Connect(function()
 				CreateTween({SliderIcon, "Transparency", 0, 0.3})
@@ -2622,11 +3004,7 @@ end)
 			
 			function SetSlider(NewValue)
 				if type(NewValue) ~= "number" then return end
-				
-				local Min, Max = Min * Increase, Max * Increase
-				
 				local SliderPos = (NewValue - Min) / (Max - Min)
-				
 				SetFlag(Flag, NewValue)
 				CreateTween({ SliderIcon, "Position", UDim2.fromScale(math.clamp(SliderPos, 0, 1), 0.5), 0.3, true })
 			end;SetSlider(Default)
@@ -2651,13 +3029,21 @@ end)
 			function Slider:Destroy() Button:Destroy() end
 			return Slider
 		end
-		function Tab:AddTextBox(Configs)
+		function Tab:AddTextbox(Configs)
 			local TName = Configs[1] or Configs.Name or Configs.Title or "Text Box"
 			local TDesc = Configs.Desc or Configs.Description or ""
 			local TDefault = Configs[2] or Configs.Default or ""
 			local TPlaceholderText = Configs[5] or Configs.PlaceholderText or "Input"
 			local TClearText = Configs[3] or Configs.ClearText or false
 			local Callback = Funcs:GetCallback(Configs, 4)
+
+            if Configs.IsMobile and not isMobile then
+                return nil
+            end
+
+            if Configs.IsPC and not isPC then
+                return nil
+            end
 			
 			if type(TDefault) ~= "string" or TDefault:gsub(" ", ""):len() < 1 then
 				TDefault = false
@@ -2717,6 +3103,7 @@ end)
 			function TextBox:Destroy() Button:Destroy() end
 			return TextBox
 		end
+        Tab.AddTextBox = Tab.AddTextbox
 		function Tab:AddDiscordInvite(Configs)
 			local Title = Configs[1] or Configs.Name or Configs.Title or "Discord"
 			local Desc = Configs.Desc or Configs.Description or ""
@@ -2819,5 +3206,6 @@ end)
 	MinimizeButton.Activated:Connect(Window.MinimizeBtn)
 	return Window
 end
+
 
 return redzlib
