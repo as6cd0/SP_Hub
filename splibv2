@@ -8,7 +8,7 @@ local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local PlayerMouse = Player:GetMouse()
 
-local redzlib = {
+local splib = {
 	Themes = {
 		Red = {
 			["Color Hub 1"] = ColorSequence.new({
@@ -57,6 +57,126 @@ local redzlib = {
 			["Color Theme"] = Color3.fromRGB(150, 0, 255),
 			["Color Text"] = Color3.fromRGB(150, 0, 255),
 			["Color Dark Text"] = Color3.fromRGB(150, 0, 255)
+		},
+		Green = {
+			["Color Hub 1"] = ColorSequence.new({
+				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(15, 25, 15)),
+				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(20, 35, 20)),
+				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(15, 25, 15))
+			}),
+			["Color Hub 2"] = Color3.fromRGB(25, 35, 25),
+			["Color Stroke"] = Color3.fromRGB(20, 40, 20),
+			["Color Theme"] = Color3.fromRGB(0, 200, 100),
+			["Color Text"] = Color3.fromRGB(0, 255, 128),
+			["Color Dark Text"] = Color3.fromRGB(180, 255, 210)
+		},
+		Orange = {
+			["Color Hub 1"] = ColorSequence.new({
+				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(30, 20, 10)),
+				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(45, 30, 15)),
+				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(30, 20, 10))
+			}),
+			["Color Hub 2"] = Color3.fromRGB(50, 30, 20),
+			["Color Stroke"] = Color3.fromRGB(70, 40, 25),
+			["Color Theme"] = Color3.fromRGB(255, 140, 0),
+			["Color Text"] = Color3.fromRGB(255, 165, 0),
+			["Color Dark Text"] = Color3.fromRGB(255, 200, 100)
+		},
+		Pink = {
+			["Color Hub 1"] = ColorSequence.new({
+				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(30, 20, 25)),
+				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(45, 30, 40)),
+				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(30, 20, 25))
+			}),
+			["Color Hub 2"] = Color3.fromRGB(45, 25, 35),
+			["Color Stroke"] = Color3.fromRGB(70, 40, 60),
+			["Color Theme"] = Color3.fromRGB(255, 105, 180),
+			["Color Text"] = Color3.fromRGB(255, 182, 193),
+			["Color Dark Text"] = Color3.fromRGB(255, 210, 220)
+		},
+		Gold = {
+			["Color Hub 1"] = ColorSequence.new({
+				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(40, 35, 20)),
+				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(60, 55, 30)),
+				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(40, 35, 20))
+			}),
+			["Color Hub 2"] = Color3.fromRGB(65, 60, 35),
+			["Color Stroke"] = Color3.fromRGB(80, 70, 40),
+			["Color Theme"] = Color3.fromRGB(255, 215, 0),
+			["Color Text"] = Color3.fromRGB(255, 223, 100),
+			["Color Dark Text"] = Color3.fromRGB(255, 240, 150)
+		},
+		Cyan = {
+			["Color Hub 1"] = ColorSequence.new({
+				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(20, 30, 35)),
+				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(30, 45, 50)),
+				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(20, 30, 35))
+			}),
+			["Color Hub 2"] = Color3.fromRGB(35, 50, 55),
+			["Color Stroke"] = Color3.fromRGB(40, 70, 75),
+			["Color Theme"] = Color3.fromRGB(0, 255, 255),
+			["Color Text"] = Color3.fromRGB(100, 255, 255),
+			["Color Dark Text"] = Color3.fromRGB(180, 255, 255)
+        },
+		NeonBlue = {
+			["Color Hub 1"] = ColorSequence.new({
+				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(10, 10, 20)),
+				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(20, 20, 40)),
+				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(10, 10, 20))
+			}),
+			["Color Hub 2"] = Color3.fromRGB(15, 15, 30),
+			["Color Stroke"] = Color3.fromRGB(0, 100, 200),
+			["Color Theme"] = Color3.fromRGB(0, 200, 255),
+			["Color Text"] = Color3.fromRGB(200, 240, 255),
+			["Color Dark Text"] = Color3.fromRGB(150, 200, 220)
+		},
+		Sunset = {
+			["Color Hub 1"] = ColorSequence.new({
+				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(30, 15, 20)),
+				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(50, 25, 30)),
+				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(30, 15, 20))
+			}),
+			["Color Hub 2"] = Color3.fromRGB(40, 20, 25),
+			["Color Stroke"] = Color3.fromRGB(60, 30, 35),
+			["Color Theme"] = Color3.fromRGB(255, 94, 77),
+			["Color Text"] = Color3.fromRGB(255, 200, 180),
+			["Color Dark Text"] = Color3.fromRGB(200, 150, 140)
+		},
+		Ocean = {
+			["Color Hub 1"] = ColorSequence.new({
+				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(10, 25, 30)),
+				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(20, 50, 60)),
+				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(10, 25, 30))
+			}),
+			["Color Hub 2"] = Color3.fromRGB(15, 40, 50),
+			["Color Stroke"] = Color3.fromRGB(0, 100, 110),
+			["Color Theme"] = Color3.fromRGB(0, 180, 200),
+			["Color Text"] = Color3.fromRGB(200, 255, 255),
+			["Color Dark Text"] = Color3.fromRGB(150, 200, 200)
+		},
+		RoseGold = {
+			["Color Hub 1"] = ColorSequence.new({
+				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(25, 20, 20)),
+				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(35, 28, 28)),
+				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(25, 20, 20))
+			}),
+			["Color Hub 2"] = Color3.fromRGB(30, 25, 25),
+			["Color Stroke"] = Color3.fromRGB(150, 90, 80),
+			["Color Theme"] = Color3.fromRGB(183, 110, 121),
+			["Color Text"] = Color3.fromRGB(255, 230, 230),
+			["Color Dark Text"] = Color3.fromRGB(200, 190, 190)
+		},
+		Matrix = {
+			["Color Hub 1"] = ColorSequence.new({
+				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 0, 0)),
+				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(10, 10, 10)),
+				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 0, 0))
+			}),
+			["Color Hub 2"] = Color3.fromRGB(5, 5, 5),
+			["Color Stroke"] = Color3.fromRGB(0, 50, 0),
+			["Color Theme"] = Color3.fromRGB(0, 255, 0),
+			["Color Text"] = Color3.fromRGB(0, 255, 100),
+			["Color Dark Text"] = Color3.fromRGB(0, 150, 0)
 		}
 	},
 	Info = {
@@ -75,7 +195,6 @@ local redzlib = {
 	Flags = {},
 	Tabs = {},
 	Icons = (function()
-	  -- This file was @generated by Tarmac and edited by nader (SP). It is not intended for manual editing.
 		return {
 			["accessibility"] = "rbxassetid://10709751939",
 			["activity"] = "rbxassetid://10709752035",
@@ -898,14 +1017,17 @@ local redzlib = {
 		}
 	end)()
 }
+
+-- ok this is redz lib v5 but now its for sp cuz its has edited in full! and  big improvent and added more functions by sp to contact the the dev discord @nadermohamed22
+
 local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 local isPC = not UserInputService.TouchEnabled and UserInputService.KeyboardEnabled
 
 local ViewportSize = workspace.CurrentCamera.ViewportSize
 local UIScale = isPC and ViewportSize.Y / 550 or ViewportSize.Y / 425
 
-local Settings = redzlib.Settings
-local Flags = redzlib.Flags
+local Settings = splib.Settings
+local Flags = splib.Flags
 local Toggles = {}
 
 local SettingsFile = "sp lib v2.json"
@@ -931,7 +1053,7 @@ end
 
 local function SaveCfg(filename)
     local data = {}
-    for flag, obj in pairs(redzlib.Flags) do
+    for flag, obj in pairs(splib.Flags) do
         if obj.Save then
             data[flag] = obj.Value
         end
@@ -944,7 +1066,7 @@ local function LoadCfg(filename)
         local ok, data = pcall(HttpService.JSONDecode, HttpService, readfile(filename .. ".json"))
         if ok and type(data) == "table" then
             for flag, value in pairs(data) do
-                local obj = redzlib.Flags[flag]
+                local obj = splib.Flags[flag]
                 if obj and obj.Set then
                     obj:Set(value)
                     obj.Value = value
@@ -954,11 +1076,11 @@ local function LoadCfg(filename)
     end
 end
 
-LoadCfg("redz library V5")
+LoadCfg("sp library v2")
 
 local SetProps, SetChildren, InsertTheme, Create do
 	InsertTheme = function(Instance, Type)
-		table.insert(redzlib.Instances, {
+		table.insert(splib.Instances, {
 			Instance = Instance,
 			Type = Type
 		})
@@ -1007,14 +1129,14 @@ local SetProps, SetChildren, InsertTheme, Create do
 			local decode = HttpService:JSONDecode(readfile(file))
 			
 			if type(decode) == "table" then
-				if rawget(decode, "UISize") then redzlib.Save["UISize"] = decode["UISize"] end
-				if rawget(decode, "TabSize") then redzlib.Save["TabSize"] = decode["TabSize"] end
-				if rawget(decode, "Theme") and VerifyTheme(decode["Theme"]) then redzlib.Save["Theme"] = decode["Theme"] end
+				if rawget(decode, "UISize") then splib.Save["UISize"] = decode["UISize"] end
+				if rawget(decode, "TabSize") then splib.Save["TabSize"] = decode["TabSize"] end
+				if rawget(decode, "Theme") and VerifyTheme(decode["Theme"]) then splib.Save["Theme"] = decode["Theme"] end
 			end
 		end
 	end
 	
-	pcall(Save, "redz library V5.json")
+	pcall(Save, "sp library v2.json")
 end
 
 local Funcs = {} do
@@ -1074,7 +1196,7 @@ local Funcs = {} do
 	end
 end
 
-local Connections, Connection = {}, redzlib.Connection do
+local Connections, Connection = {}, splib.Connection do
 	local function NewConnectionList(List)
 		if type(List) ~= "table" then return end
 		
@@ -1156,19 +1278,19 @@ local GetFlag, SetFlag, CheckFlag do
 end
 
 local saved = {}
-if isfile("redz library V5.json") then
-  local ok,data = pcall(HttpService.JSONDecode, HttpService, readfile("redz library V5.json"))
+if isfile("sp library v2.json") then
+  local ok,data = pcall(HttpService.JSONDecode, HttpService, readfile("sp library v2.json"))
   if ok and type(data)=="table" then saved = data end
 end
-redzlib.Save = {
-  UISize  = saved.UISize  or redzlib.Save.UISize,
-  TabSize = saved.TabSize or redzlib.Save.TabSize,
-  Theme   = saved.Theme   or redzlib.Save.Theme,
+splib.Save = {
+  UISize  = saved.UISize  or splib.Save.UISize,
+  TabSize = saved.TabSize or splib.Save.TabSize,
+  Theme   = saved.Theme   or splib.Save.Theme,
 }
 
 
 local ScreenGui = Create("ScreenGui", CoreGui, {
-	Name = "redz Library V5",
+	Name = "sp Library v2",
 }, {
 	Create("UIScale", {
 		Scale = UIScale,
@@ -1280,7 +1402,7 @@ local function MakeDrag(Instance)
 end
 
 local function VerifyTheme(Theme)
-	for name,_ in pairs(redzlib.Themes) do
+	for name,_ in pairs(splib.Themes) do
 		if name == Theme then
 			return true
 		end
@@ -1294,14 +1416,14 @@ local function SaveJson(FileName, save)
 	end
 end
 
-local Theme = redzlib.Themes[redzlib.Save.Theme]
+local Theme = splib.Themes[splib.Save.Theme]
 
 local function AddEle(Name, Func)
-	redzlib.Elements[Name] = Func
+	splib.Elements[Name] = Func
 end
 
 local function Make(Ele, Instance, props, ...)
-	local Element = redzlib.Elements[Ele](Instance, props, ...)
+	local Element = splib.Elements[Ele](Instance, props, ...)
 	return Element
 end
 
@@ -1478,7 +1600,7 @@ local function GetColor(Instance)
 end
 
 -- /////////// --
-function redzlib:GetIcon(index)
+function splib:GetIcon(index)
 	if type(index) ~= "string" or index:find("rbxassetid://") or #index == 0 then
 		return index
 	end
@@ -1501,15 +1623,15 @@ function redzlib:GetIcon(index)
 	return firstMatch or index
 end
 
-function redzlib:SetTheme(NewTheme)
+function splib:SetTheme(NewTheme)
 	if not VerifyTheme(NewTheme) then return end
 	
-	redzlib.Save.Theme = NewTheme
-	SaveJson("redz library V5.json", redzlib.Save)
-	Theme = redzlib.Themes[NewTheme]
+	splib.Save.Theme = NewTheme
+	SaveJson("sp library v2.json", splib.Save)
+	Theme = splib.Themes[NewTheme]
 	
 	Connection:FireConnection("ThemeChanged", NewTheme)
-	table.foreach(redzlib.Instances, function(_,Val)
+	table.foreach(splib.Instances, function(_,Val)
 		if Val.Type == "Gradient" then
 			Val.Instance.Color = Theme["Color Hub 1"]
 		elseif Val.Type == "Frame" then
@@ -1528,32 +1650,78 @@ function redzlib:SetTheme(NewTheme)
 	end)
 end
 
-function redzlib:SetScale(NewScale)
+function splib:SetScale(NewScale)
 	NewScale = ViewportSize.Y / math.clamp(NewScale, 300, 2000)
 	UIScale, ScreenGui.Scale.Scale = NewScale, NewScale
 end
 
-function redzlib:MakeWindow(Configs)
+function splib:MakeWindow(Configs)
 
+    local ToggleIcon = tostring(Configs.ToggleIcon or "rbxassetid://83114982417764")
     local WTitle     = Configs[1] or Configs.Name or Configs.Title or "SP Lib v2"
     local WMiniText  = Configs[2] or Configs.SubTitle or Configs.SubName or "by : SP Hub"
 
 
-function redzlib:MakeWindow(Configs)
+function splib:MakeWindow(Configs)
 
     local WTitle     = Configs[1] or Configs.Name or Configs.Title or "SP Lib v2"
     local WMiniText  = Configs[2] or Configs.SubTitle or Configs.SubName or "by : SP Hub"
 
     Settings.ScriptFile = Configs[3] or Configs.ConfigFolder or Configs.SaveFolder or false
-
+    
+   local EnableSetting = (Configs.Setting or Configs.ShowSetting) == true
+   local ToggleIcon = tostring(Configs.ToggleIcon or "rbxassetid://83114982417764")
     local HidePremium  = Configs.HidePremium == true
     local SaveConfig   = Configs.SaveConfig == true
     local Callback = Configs.Callback or function() end
     local CloseCallback = Configs.CloseCallback or false
-    if Configs.IntroEnabled == nil then Configs.IntroEnabled = true end
-    local IntroEnabled = Configs.IntroEnabled
-    local IntroText    = Configs.IntroText or "SP Lib v2"
-    local IntroIcon    = Configs.IntroIcon or "rbxassetid://8834748103"
+
+    if Configs.IntroEnabled == nil then
+        Configs.IntroEnabled = true
+    end
+    Configs.IntroText = Configs.IntroText or "SP Lib v2"
+    Configs.IntroIcon = Configs.IntroIcon or "rbxassetid://8834748103"
+
+    local function LoadSequence()
+        MainWindow.Visible = false
+        local LoadSequenceLogo = SetProps(
+            MakeElement("Image", Configs.IntroIcon),
+            {
+                Parent = ScreenGui,
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0.5, 0, 0.4, 0),
+                Size = UDim2.new(0, 28, 0, 28),
+                ImageColor3 = Color3.fromRGB(255, 255, 255),
+                ImageTransparency = 1
+            }
+        )
+        local LoadSequenceText = SetProps(
+            MakeElement("Label", Configs.IntroText, 14),
+            {
+                Parent = ScreenGui,
+                Size = UDim2.new(1, 0, 1, 0),
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0.5, 19, 0.5, 0),
+                TextXAlignment = Enum.TextXAlignment.Center,
+                Font = Enum.Font.GothamBold,
+                TextTransparency = 1
+            }
+        )
+        TweenService:Create(LoadSequenceLogo, TweenInfo.new(.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {ImageTransparency = 0, Position = UDim2.new(0.5, 0, 0.5, 0)}):Play()
+        wait(0.8)
+        TweenService:Create(LoadSequenceLogo, TweenInfo.new(.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -(LoadSequenceText.TextBounds.X / 2), 0.5, 0)}):Play()
+        wait(0.3)
+        TweenService:Create(LoadSequenceText, TweenInfo.new(.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextTransparency = 0}):Play()
+        wait(2)
+        TweenService:Create(LoadSequenceText, TweenInfo.new(.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextTransparency = 1}):Play()
+        MainWindow.Visible = true
+        LoadSequenceLogo:Destroy()
+        LoadSequenceText:Destroy()
+    end
+
+    if Configs.IntroEnabled then
+        LoadSequence()
+    end
 
     local function LoadFile()
         local File = Settings.ScriptFile
@@ -1597,7 +1765,7 @@ function redzlib:MakeWindow(Configs)
     return Window
 end
 	
-	local UISizeX, UISizeY = unpack(redzlib.Save.UISize)
+	local UISizeX, UISizeY = unpack(splib.Save.UISize)
 	local MainFrame = InsertTheme(Create("ImageButton", ScreenGui, {
 		Size = UDim2.fromOffset(UISizeX, UISizeY),
 		Position = UDim2.new(0.5, -UISizeX/2, 0.5, -UISizeY/2),
@@ -1657,7 +1825,7 @@ end
 	}), "Text")
 	
 	local MainScroll = InsertTheme(Create("ScrollingFrame", Components, {
-		Size = UDim2.new(0, redzlib.Save.TabSize, 1, -TopBar.Size.Y.Offset),
+		Size = UDim2.new(0, splib.Save.TabSize, 1, -TopBar.Size.Y.Offset),
 		ScrollBarImageColor3 = Theme["Color Theme"],
 		Position = UDim2.new(0, 0, 1, 0),
 		AnchorPoint = Vector2.new(0, 1),
@@ -1723,18 +1891,35 @@ Make("Corner", SearchBox)
 		BackgroundTransparency = 1,
 		Name = "Control Tab Size"
 	}))
-	
-	local function ControlSize()
-		local Pos1, Pos2 = ControlSize1.Position, ControlSize2.Position
-		ControlSize1.Position = UDim2.fromOffset(math.clamp(Pos1.X.Offset, 430, 1000), math.clamp(Pos1.Y.Offset, 200, 500))
-        local Pos2 = ControlSize2.Position
-        local minClamp = isPC and 50 or 100
-        ControlSize2.Position = UDim2.new(0, math.clamp(Pos2.X.Offset, minClamp, 250), 1, 0)
 
-		MainScroll.Size = UDim2.new(0, ControlSize2.Position.X.Offset, 1, -TopBar.Size.Y.Offset)
-		Containers.Size = UDim2.new(1, -MainScroll.Size.X.Offset, 1, -TopBar.Size.Y.Offset)
-		MainFrame.Size = ControlSize1.Position
-	end
+
+local function ControlSize()
+    local Pos1, Pos2 = ControlSize1.Position, ControlSize2.Position
+    
+    local minX, maxX
+    local minY, maxY
+
+    if isPC then
+        minX, maxX = 300, 550
+        minY, maxY = 250, 400
+    else
+        minX, maxX = 250, 400
+        minY, maxY = 150, 250
+    end
+
+    ControlSize1.Position = UDim2.fromOffset(
+        math.clamp(Pos1.X.Offset, minX, maxX),
+        math.clamp(Pos1.Y.Offset, minY, maxY)
+    )
+
+    local Pos2 = ControlSize2.Position
+    local minClamp = isPC and 50 or 100
+    ControlSize2.Position = UDim2.new(0, math.clamp(Pos2.X.Offset, minClamp, 100), 1, 0)
+
+    MainScroll.Size = UDim2.new(0, ControlSize2.Position.X.Offset, 1, -TopBar.Size.Y.Offset)
+    Containers.Size = UDim2.new(1, -MainScroll.Size.X.Offset, 1, -TopBar.Size.Y.Offset)
+    MainFrame.Size = ControlSize1.Position
+end
 	
 ControlSize1:GetPropertyChangedSignal("Position"):Connect(ControlSize)
 ControlSize2:GetPropertyChangedSignal("Position"):Connect(ControlSize)
@@ -1787,21 +1972,21 @@ if isPC then
     ControlSize2.Position = UDim2.new(0, originalSizeX, 1, 0)
     ControlSize()
 
-    if redzlib.Flags["sidebarHover"] and redzlib.Flags["sidebarHover"].Value then
+    if splib.Flags["sidebarHover"] and splib.Flags["sidebarHover"].Value then
         enableSidebarHover()
     end
 end
 
 ConnectSave(ControlSize1, function()
     if not Minimized then
-        redzlib.Save.UISize = {MainFrame.Size.X.Offset, MainFrame.Size.Y.Offset}
-        SaveJson("redz library V5.json", redzlib.Save)
+        splib.Save.UISize = {MainFrame.Size.X.Offset, MainFrame.Size.Y.Offset}
+        SaveJson("sp library v2 .json", splib.Save)
     end
 end)
 
 ConnectSave(ControlSize2, function()
-    redzlib.Save.TabSize = MainScroll.Size.X.Offset
-    SaveJson("redz library V5.json", redzlib.Save)
+    splib.Save.TabSize = MainScroll.Size.X.Offset
+    SaveJson("sp library v2.json", splib.Save)
 end)
 
 
@@ -1819,11 +2004,14 @@ end)
 		Name = "Close"
 	})
 
-	local SettingButton = SetProps(CloseButton:Clone(), {
+local EnableSetting = (Configs.Setting or Configs.ShowSetting) == true
+
+local SettingButton = SetProps(CloseButton:Clone(), {
     Position = UDim2.new(1, -60, 0.5),
     Size = UDim2.new(0, 14, 0, 14),
     Image = "rbxassetid://10734950309",
-    Name = "Settings"
+    Name = "Settings",
+    Visible = EnableSetting
 })
 
 	local MinimizeButton = SetProps(CloseButton:Clone(), {
@@ -1841,45 +2029,6 @@ end)
 	local Minimized, SaveSize, WaitClick
 	local Window, FirstTab = {}, false
 
-    local function LoadSequence()
-        MainFrame.Visible = false
-        local logo = InsertTheme(Create("ImageLabel", ScreenGui, {
-            AnchorPoint       = Vector2.new(0.5,0.5),
-            Position          = UDim2.new(0.5,0,0.4,0),
-            Size              = UDim2.fromOffset(28,28),
-            Image             = IntroIcon,
-            ImageTransparency = 1,
-        }))
-        local txt = InsertTheme(Create("TextLabel", ScreenGui, {
-            AnchorPoint        = Vector2.new(0.5,0.5),
-            Position           = UDim2.new(0.5,19,0.5,0),
-            TextSize           = 14,
-            Text               = IntroText,
-            TextTransparency   = 1,
-            TextXAlignment     = Enum.TextXAlignment.Center,
-            Font               = Enum.Font.GothamBold,
-        }))
-
-        TweenService:Create(logo, TweenInfo.new(0.3,"Quad","Out"), {ImageTransparency=0, Position=UDim2.new(0.5,0,0.5,0)}):Play()
-        wait(0.8)
-        TweenService:Create(logo, TweenInfo.new(0.3,"Quad","Out"), {Position=UDim2.new(0.5,-(txt.TextBounds.X/2),0.5,0)}):Play()
-        wait(0.3)
-        TweenService:Create(txt, TweenInfo.new(0.3,"Quad","Out"), {TextTransparency=0}):Play()
-        wait(2)
-        TweenService:Create(txt, TweenInfo.new(0.3,"Quad","Out"), {TextTransparency=1}):Play()
-        wait(0.3)
-
-        logo:Destroy()
-        txt:Destroy()
-        MainFrame.Visible = true
-    end
-
-    if IntroEnabled then
-        LoadSequence()
-    else
-        MainFrame.Visible = true
-    end
-
 local bindConnections = {}
 local shouldClearToggles = Configs.CloseCallback == true
 
@@ -1891,10 +2040,10 @@ CloseButton.Activated:Connect(function()
     end
     table.clear(bindConnections)
 
-    redzlib:ClearAllBinds()
+    splib:ClearAllBinds()
 
 if shouldClearToggles then
-    redzlib:ClearAllToggles()
+    splib:ClearAllToggles()
 end
 
     ScreenGui:Destroy()
@@ -2003,11 +2152,11 @@ local boundaryConnections = {}
 local originalMainPos = MainFrame.Position
 
 local T = Instance.new("ImageButton", ScreenGui) 
-local sizeValue = isPC and 55 or 50
+local sizeValue = isPC and 50 or 38
 T.Size = UDim2.new(0, sizeValue, 0, sizeValue)
 local xPos = isPC and 0.10 or (isMobile and 0.10 or 0.10)
 T.Position = UDim2.new(xPos, 0, 0.1, 0)
-T.Image = "rbxassetid://83114982417764"
+T.Image = tostring(ToggleIcon)
 T.Active = true 
 local Corner = Instance.new("UICorner", T)
 Corner.CornerRadius = UDim.new(0, 14)
@@ -2024,8 +2173,8 @@ local normalSizere = UDim2.new(0, sizeValue, 0, sizeValue)
 
 local holdBar = Instance.new("Frame", T)
 holdBar.AnchorPoint = Vector2.new(0, 1)
-holdBar.Position    = UDim2.new(0, 0.92, 0.92, 0)
-holdBar.Size        = UDim2.new(0, 0, 0, 4)
+holdBar.Position  = UDim2.new(0, 0.92, 0.92, 0)
+holdBar.Size = UDim2.new(0, 0, 0, 4)
 holdBar.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
 holdBar.BorderSizePixel = 0
 local HoCorner = Instance.new("UICorner", holdBar)
@@ -2074,14 +2223,14 @@ function disableBoundaryProtection()
 end
 
 T.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-    or input.UserInputType == Enum.UserInputType.Touch then
-        isHolding    = true
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isHolding = true
         didLongPress = false
 
         local startPos = T.Position
+        local propConn
+        local holdTween
 
-        if propConn then propConn:Disconnect() end
         propConn = T:GetPropertyChangedSignal("Position"):Connect(function()
             if T.Position ~= startPos then
                 if holdTween then
@@ -2091,7 +2240,6 @@ T.InputBegan:Connect(function(input)
                 TweenService:Create(holdBar, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
                     Size = UDim2.new(0, 0, 0, 4)
                 }):Play()
-
                 propConn:Disconnect()
             end
         end)
@@ -2285,9 +2433,9 @@ end)
 	end
 	function Window:SelectTab(TabSelect)
 		if type(TabSelect) == "number" then
-			redzlib.Tabs[TabSelect].func:Enable()
+			splib.Tabs[TabSelect].func:Enable()
 		else
-			for _,Tab in pairs(redzlib.Tabs) do
+			for _,Tab in pairs(splib.Tabs) do
 				if Tab.Cont == TabSelect.Cont then
 					Tab.func:Enable()
 				end
@@ -2308,7 +2456,7 @@ function Window:MakeTab(paste, Configs)
         return nil
     end
 		
-		TIcon = redzlib:GetIcon(TIcon)
+		TIcon = splib:GetIcon(TIcon)
 		if not TIcon:find("rbxassetid://") or TIcon:gsub("rbxassetid://", ""):len() < 6 then
 			TIcon = false
 		end
@@ -2324,7 +2472,7 @@ function Window:MakeTab(paste, Configs)
 			Font = Enum.Font.GothamMedium,
 			Text = TName,
 			TextColor3 = Theme["Color Text"],
-			TextSize = 10,
+			TextSize = 9,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			TextTransparency = (FirstTab and 0.3) or 0,
 			TextTruncate = "AtEnd"
@@ -2412,7 +2560,7 @@ function Window:MakeTab(paste, Configs)
 			end
 			Container.Parent = Containers
 			Container.Size = UDim2.new(1, 0, 1, 150)
-			table.foreach(redzlib.Tabs, function(_,Tab)
+			table.foreach(splib.Tabs, function(_,Tab)
 				if Tab.Cont ~= Container then
 					Tab.func:Disable()
 				end
@@ -2426,8 +2574,8 @@ function Window:MakeTab(paste, Configs)
 		end
 		TabSelect.Activated:Connect(Tabs)
 		
-		FirstTab = true
-		table.insert(redzlib.Tabs, {TabInfo = {Name = TName, Icon = TIcon}, func = Tab, Cont = Container})
+        FirstTab = true
+		table.insert(splib.Tabs, {TabInfo = {Name = TName, Icon = TIcon}, func = Tab, Cont = Container})
 		Tab.Cont = Container
 		if not table.find(ContainerList, SettingTab) then
     table.insert(ContainerList, SettingTab)
@@ -2446,7 +2594,7 @@ function SettingTabHandler:Enable()
     end
     SettingTab.Parent = Containers
     SettingTab.Size = UDim2.new(1, 0, 1, 150)
-    table.foreach(redzlib.Tabs, function(_, tab)
+    table.foreach(splib.Tabs, function(_, tab)
         if tab.Cont ~= SettingTab then
             tab.func:Disable()
         end
@@ -2512,7 +2660,7 @@ end)
 			}), "Text")
 			
 			local Section = {}
-			table.insert(redzlib.Options, {type = "Section", Name = SectionName, func = Section})
+			table.insert(splib.Options, {type = "Section", Name = SectionName, func = Section})
 			function Section:Visible(Bool)
 				if Bool == nil then SectionFrame.Visible = not SectionFrame.Visible return end
 				SectionFrame.Visible = Bool
@@ -2636,7 +2784,7 @@ local function LoadBindFlag(flag)
     return nil
 end
 
-function redzlib:MakeNotification(Configs)
+function splib:MakeNotification(Configs)
 	if isNotificationCooldown then return end
 	isNotificationCooldown = true
 	task.delay(0.5, function()
@@ -2725,7 +2873,7 @@ end
         Position              = UDim2.new(0, 30, 0, 0),
         Size                  = UDim2.new(1, -30, 0, 20),
         Font                  = Enum.Font.GothamBold,
-        TextSize              = 16,
+        TextSize              = isPC and 16 or 12,
         Text                  = Configs.Name,
         BackgroundTransparency= 1,
     })
@@ -2882,7 +3030,7 @@ Frame.Activated:Connect(function()
                 wait(.3)
 				recentlyBound = false
 
-				if Flag then redzlib.Flags[Flag] = state end
+				if Flag then splib.Flags[Flag] = state end
 				if state.Save then SaveCfg(game.GameId) end
 			end
 
@@ -2943,7 +3091,7 @@ table.insert(bindConnections, inputConnection)
     return objBind
 end
 
-function redzlib:ClearAllBinds()
+function splib:ClearAllBinds()
 	for i, bind in ipairs(Binds) do
 		bind:Set(Enum.KeyCode.Unknown)
 	end
@@ -3110,7 +3258,7 @@ local function SetToggle(Val)
     end
 
 if Flag then
-    redzlib.Flags[Flag] = {
+    splib.Flags[Flag] = {
         Value = Default,
         Save  = true,
         Set   = SetToggle,
@@ -3154,7 +3302,7 @@ end
     return ToggleAPI
 end
 
-function redzlib:ClearAllToggles()
+function splib:ClearAllToggles()
     for _, entry in ipairs(Toggles) do
         if entry.object and type(entry.object.Set) == "function" then
             entry.object:ForceCallback(false)
@@ -3201,7 +3349,17 @@ end
 				AnchorPoint = Vector2.new(1, 0.5),
 				BackgroundColor3 = Theme["Color Stroke"]
 			}), "Stroke")Make("Corner", SelectedFrame, UDim.new(0, 4))
- 
+
+local function updateSelectedFrameSize()
+    local scale = isPC and 0.23 or 0.15
+    local mineWidth = isPC and 80 or 60
+    local newWidth = math.clamp(Button.AbsoluteSize.X * scale, mineWidth, 150)
+    SelectedFrame.Size = UDim2.new(0, newWidth, 0, 18)
+end
+
+Button:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateSelectedFrameSize)
+updateSelectedFrameSize()
+
 			local ActiveLabel = InsertTheme(Create("TextLabel", SelectedFrame, {
 				Size = UDim2.new(0.85, 0, 0.85, 0),
 				AnchorPoint = Vector2.new(0.5, 0.5),
@@ -3409,17 +3567,36 @@ end
 					UpdateSelected()
 				end
  
-				AddOption = function(index, Value)
-					local Name = tostring(type(index) == "string" and index or Value)
- 
-					if Options[Name] then return end
-					Options[Name] = {
-						index = index,
-						Value = Value,
-						Name = Name,
-						Stats = false,
-						LastCB = 0
-					}
+AddOption = function(index, Value)
+    if type(index) == "table" then
+        Value = index[2]
+        index = index[1]
+    end
+
+    local Name
+    if type(index) == "string" then
+        Name = index
+    elseif Value ~= nil then
+        Name = tostring(Value)
+    else
+        Name = tostring(index)
+    end
+
+    if not Name or Name == "" then return end
+
+    if Value == nil then
+        Value = Name
+    end
+
+    if Options[Name] then return end
+
+    Options[Name] = {
+        index = index,
+        Value = Value,
+        Name = Name,
+        Stats = false,
+        LastCB = 0
+    }
  
 					if MultiSelect then
 						local Stats = Selected[Name]
@@ -3524,18 +3701,20 @@ end
 			function Dropdown:Destroy() Button:Destroy() end
 			function Dropdown:Callback(...) Funcs:InsertCallback(Callback, ...)(Selected) end
  
-			function Dropdown:Add(...)
-				local NewOptions = {...}
-				if type(NewOptions[1]) == "table" then
-					table.foreach(Option, function(_,Name)
-						AddOption(Name)
-					end)
-				else
-					table.foreach(NewOptions, function(_,Name)
-						AddOption(Name)
-					end)
-				end
-			end
+function Dropdown:Add(...)
+    local NewOptions = {...}
+    local list = {}
+
+    if type(NewOptions[1]) == "table" and NewOptions[1][1] ~= nil then
+        list = NewOptions[1]
+    else
+        list = NewOptions
+    end
+
+    for _, v in ipairs(list) do
+        AddOption(v)
+    end
+end
 function Dropdown:Remove(key)
     local opts = GetOptions()
 
@@ -3555,33 +3734,80 @@ function Dropdown:Remove(key)
         end
     end
 end
-function Dropdown:Select(key)
-	local opts = GetOptions()
-
-	if type(key) == "number" then
-		local i = 0
-		for name, _ in pairs(opts) do
-			i = i + 1
-			if i == key then
-				SelectOption(name)
-				return
-			end
-		end
-	elseif type(key) == "string" then
-		if opts[key] then
-			SelectOption(key)
-		end
-	end
+function Dropdown:Refresh(newOptions, deleteOld)
+    newOptions = newOptions or {}
+    local list = newOptions
+    
+    if deleteOld then
+        local opts = GetOptions()
+        for name, _ in pairs(opts) do
+            RemoveOption(name)
+        end
+    end
+    
+    for _, option in ipairs(list) do
+        AddOption(option)
+    end
+    
+    if not DMultiSelect then
+        local currentValue = Selected
+        if currentValue then
+            self:Select(currentValue)
+        end
+    end
+    
+    if type(CalculateSize) == "function" then
+        pcall(CalculateSize)
+    end
 end
-	function Dropdown:Set(Val1, Clear)
-		if type(Val1) == "table" then
-			AddNewOptions(Val1, not Clear)
-		elseif type(Val1) == "function" then
-			Callback = Val1
-		elseif type(Val1) == "number" then
-			self:Select(Val1)
-		end
-	end
+function Dropdown:Select(key)
+    local opts = GetOptions()
+    
+    if opts[key] then
+        SelectOption(key)
+        return
+    end
+    
+    for name, optionData in pairs(opts) do
+        if optionData.Value == key or tostring(optionData.Value) == tostring(key) then
+            SelectOption(name)
+            return
+        end
+    end
+    
+    if type(key) == "number" then
+        local i = 0
+        for name, _ in pairs(opts) do
+            i = i + 1
+            if i == key then
+                SelectOption(name)
+                return
+            end
+        end
+    end
+end
+function Dropdown:Set(Val1, Clear)
+    if type(Val1) == "table" then
+        AddNewOptions(Val1, not Clear)
+
+    elseif type(Val1) == "function" then
+        Callback = Val1
+
+    elseif type(Val1) == "number" then
+        self:Select(Val1)
+
+    elseif type(Val1) == "string" then
+        local opts = GetOptions() or {}
+        if opts[Val1] then
+            self:Select(Val1)
+        end
+    end
+
+    if type(UpdateSelected) == "function" then
+        pcall(UpdateSelected)
+    end
+end
+
 	Dropdown.GetValue = function()
 		if MultiSelect then
 			local selectedIndices = {}
@@ -3642,7 +3868,7 @@ local function LoadSliderFlag(flag)
     return nil
 end
 function Tab:AddSlider(Configs)
-    local SName = Configs[1] or Configs.Name or Configs.Title or "Slider!"
+    local SName = Configs[1] or Configs.Name or Configs.Title or "Slider"
     local SDesc = Configs.Desc or Configs.ValueName or Configs.Description or ""
     local Min = Configs[2] or Configs.MinValue or Configs.Min or 10
     local Max = Configs[3] or Configs.MaxValue or Configs.Max or 100
@@ -3668,7 +3894,7 @@ function Tab:AddSlider(Configs)
 
     local Button, LabelFunc = ButtonFrame(Container, SName, SDesc, UDim2.new(1, -20))
     local SliderHolder = Create("TextButton", Button, {
-        Size = UDim2.new(0.45, 0, 1),
+        Size = UDim2.new(0.40, 0, 1),
         Position = UDim2.new(1),
         AnchorPoint = Vector2.new(1, 0),
         AutoButtonColor = false,
@@ -3704,7 +3930,7 @@ function Tab:AddSlider(Configs)
         BackgroundTransparency = 1,
         TextColor3 = Theme["Color Text"],
         Font = Enum.Font.FredokaOne,
-        TextSize = 12
+        TextSize = 11
     }), "Text")
     local UIScale = Create("UIScale", LabelVal)
     local BaseMousePos = Create("Frame", SliderBar, { Position = UDim2.new(0,0,0.5,0), Visible = false })
@@ -3869,6 +4095,16 @@ function Tab:AddTextbox(Configs)
     }), "Stroke")
     Make("Corner", SelectedFrame, UDim.new(0, 4))
 
+local function updateSelectedFrame2Size()
+    local scale = isPC and 0.23 or 0.15
+    local mineWidth = isPC and 80 or 60
+    local newWidth = math.clamp(Button.AbsoluteSize.X * scale, mineWidth, 150)
+    SelectedFrame.Size = UDim2.new(0, newWidth, 0, 18)
+end
+
+Button:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateSelectedFrame2Size)
+updateSelectedFrame2Size()
+
     local TextBoxInput = InsertTheme(Create("TextBox", SelectedFrame, {
         Size = UDim2.new(1, 0, 1, 0),
         Position = UDim2.new(0, 0, 0, 0),
@@ -3894,7 +4130,7 @@ function Tab:AddTextbox(Configs)
     local function UpdateSize()
         local padding = 20
         local textWidth = TextBoxInput.TextBounds.X
-        local minWidth, maxWidth = 100, 400
+        local minWidth, maxWidth = 60, 300
         local newWidth = math.clamp(textWidth * 0.55 + padding, minWidth, maxWidth)
 
         TweenService:Create(
@@ -4035,7 +4271,7 @@ Make("Gradient", CustomColorFrame, {Rotation = 60})
 
 local ColorCodeBox = Create("TextBox", CustomColorFrame, {
     Name = "ColorCodeBox",
-    Size = UDim2.new(0.40, -10, 0, 20),
+    Size = UDim2.new(0.30, -10, 0, 20),
     Position = UDim2.new(0, 10, 1, -40),
     BackgroundColor3 = Color3.fromRGB(50, 50, 50),
     TextColor3 = Color3.fromRGB(255, 255, 255),
@@ -4139,16 +4375,48 @@ Make("Corner", HueSelection)
         ImageColor3 = Color3.fromRGB(255, 255, 255),
         ZIndex = 6
     })
- 
-    local presetColors = {
-        Color3.fromRGB(255, 255, 255), -- White
-        Color3.fromRGB(  0,   0,   0), -- Black
-        Color3.fromRGB(255,   0,   0), -- Red
-        Color3.fromRGB(255, 242,   0), -- Yellow
-        Color3.fromRGB(  0, 162, 232), -- Blue
-        Color3.fromRGB(128,   0, 128), -- Purple
-        "Rainbow",
-    }
+
+local PresetsList = Create("ScrollingFrame", Frame, {
+    Size = UDim2.new(1, -110, 0, 25),
+    Position = UDim2.new(0, 59, 0, 0),
+    BackgroundTransparency = 1,
+    ScrollBarThickness = 1,
+    ScrollBarImageTransparency = 0.7,
+    ScrollBarImageColor3 = Theme["Color Theme"],
+    ScrollingDirection = "X" 
+})
+Make("Corner", PresetsList, UDim.new(0, 4))
+InsertTheme(PresetsList, "Stroke")
+
+PresetsList.ScrollingDirection = Enum.ScrollingDirection.X
+PresetsList.ClipsDescendants = true
+
+local ListLayout = Create("UIListLayout", PresetsList, {
+    FillDirection = Enum.FillDirection.Horizontal,
+    HorizontalAlignment = Enum.HorizontalAlignment.Left,
+    VerticalAlignment = Enum.VerticalAlignment.Center,
+    SortOrder = Enum.SortOrder.LayoutOrder,
+    Padding = UDim.new(0, 5)
+})
+
+ListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    PresetsList.CanvasSize = UDim2.new(0, ListLayout.AbsoluteContentSize.X + 6, 0, 0)
+end)
+
+local presetColors = {
+    Color3.fromRGB(255, 255, 255), -- White
+    Color3.fromRGB(  0,   0,   0), -- Black
+    Color3.fromRGB(255,   0,   0), -- Red
+    Color3.fromRGB(255, 242,   0), -- Yellow
+    Color3.fromRGB(  0, 162, 232), -- Blue
+    Color3.fromRGB(128,   0, 128), -- Purple
+    Color3.fromRGB(  0, 255, 127), -- Spring Green
+    Color3.fromRGB(255, 105, 180), -- Hot Pink
+    Color3.fromRGB(255, 140,   0), -- Orange
+    Color3.fromRGB( 75,   0, 130), -- Indigo
+    Color3.fromRGB( 64, 224, 208), -- Turquoise
+    "Rainbow",
+}
 
 local RunS = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
@@ -4211,7 +4479,6 @@ ColorCodeBox.FocusLost:Connect(function()
 	end
 end)
 
-
 ColorCodeBoxUD.FocusLost:Connect(function()
 	local newColor = rgbStringToColor3(ColorCodeBoxUD.Text)
 	if newColor then
@@ -4223,8 +4490,7 @@ ColorCodeBoxUD.FocusLost:Connect(function()
 end)
 
 ColorCanvas.InputBegan:Connect(function(inp)
-    if inp.UserInputType == Enum.UserInputType.MouseButton1
-    or inp.UserInputType == Enum.UserInputType.Touch then
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 then
         local conn = RunS.RenderStepped:Connect(function()
             local m = UIS:GetMouseLocation()
             local x = math.clamp((m.X - ColorCanvas.AbsolutePosition.X) / ColorCanvas.AbsoluteSize.X, 0, 1)
@@ -4241,8 +4507,7 @@ ColorCanvas.InputBegan:Connect(function(inp)
 end)
 
 HueBar.InputBegan:Connect(function(inp)
-    if inp.UserInputType == Enum.UserInputType.MouseButton1
-    or inp.UserInputType == Enum.UserInputType.Touch then
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 then
         local conn = RunS.RenderStepped:Connect(function()
             local m = UIS:GetMouseLocation()
             local y = math.clamp((m.Y - HueBar.AbsolutePosition.Y) / HueBar.AbsoluteSize.Y, 0, 1)
@@ -4289,44 +4554,63 @@ local Colorpicker = {
     Value = TDefault,
     Type = "Colorpicker"
 }
-    local function closeColors()
-        local total = #buttons
-        for k = 1, total do
-            local idx = total - k + 1
-            local b   = buttons[idx]
-            local xO  = -53 - (idx-1) * 25 + 10
- 
-            delay((k-1) * 0.05, function()
-                CreateTween({b, "Size", UDim2.new(0, 0, 0, 18), 0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out})
-                CreateTween({b, "BackgroundTransparency", 1, 0.2})
-                CreateTween({b, "Position", UDim2.new(1, xO, 0, 3), 0.2})
-                delay(0.2, function() b:Destroy() end)
+
+local cooldownTime = .6
+local lastActionTime = 0
+
+local function closeColors()
+if tick() - lastActionTime < cooldownTime then
+    return
+end
+lastActionTime = tick()
+
+    local total = #buttons
+    for k = 1, total do
+        local idx = total - k + 1
+        local b = buttons[idx]
+
+        delay((k-1) * 0.05, function()
+            CreateTween({b, "Size", UDim2.new(0, 0, 0, 18), 0.2})
+            CreateTween({b, "BackgroundTransparency", 1, 0.2})
+            delay(0.2, function()
+                if b and b.Parent then
+                    b:Destroy()
+                end
             end)
-        end
-        delay((#buttons-1) * 0.05 + 0.2, function()
-            buttons = {}
         end)
     end
- 
+
+    delay((#buttons-1) * 0.05 + 0.2, function()
+        buttons = {}
+        PresetsList.Visible = false
+    end)
+end
+
 local function openColors()
+
+if tick() - lastActionTime < cooldownTime then
+    return
+end
+lastActionTime = tick()
+
+    if #buttons > 0 then return end
+
     buttons = {}
+    PresetsList.Visible = true
 
     for i, col in ipairs(presetColors) do
-        local xOffset = -53 - (i - 1) * 25
-
-        local btn = Create("TextButton", Frame, {
+        local btn = Create("TextButton", PresetsList, {
             Name = "ChooseColor" .. i,
-            Size = UDim2.new(0, 0, 0, 18),
-            Position = UDim2.new(1, xOffset + 10, 0, 3),
-            AnchorPoint = Vector2.new(1, 0),
+            Size = UDim2.new(0, 20, 0, 18),
             BackgroundColor3 = (typeof(col) == "string") and Color3.new(1,1,1) or col,
             BackgroundTransparency = 1,
             Text = "",
             BorderSizePixel = 0,
             ZIndex = 5,
+            LayoutOrder = i
         })
+
         Make("Corner", btn, UDim.new(0.25, 0))
-        table.insert(buttons, btn)
 
         if col == "Rainbow" then
             local gradient = Instance.new("UIGradient")
@@ -4342,89 +4626,87 @@ local function openColors()
             gradient.Rotation = 45
             gradient.Parent = btn
 
+            btn.Activated:Connect(function()
+                CalculateCustomColorPos()
+                ColorCodeBox.Visible = false
+                ColorCodeBoxUD.Visible = false
+                ColorCanvas.Visible = false
+                ColorSelection.Visible = false
+                HueBar.Visible = false
+                HueSelection.Visible = false
+                
+                if isCooldown then return end
+                isCooldown = true
+                WaitClick = true
 
-btn.Activated:Connect(function()
-    CalculateCustomColorPos()
-        ColorCodeBox.Visible = false
-        ColorCodeBoxUD.Visible = false
-        ColorCanvas.Visible = false
-        ColorSelection.Visible = false
-        HueBar.Visible = false
-        HueSelection.Visible = false
-	if isCooldown then return end
-	isCooldown = true
-	WaitClick = true
-
-	if NoClickFrame.Visible then
-		CreateTween({CustomColorFrame, "Size", UDim2.new(0, 260, 0, 0), 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out})
-
-		task.delay(0.2, function()
-			CustomColorFrame.Visible = false
-			NoClickFrame.Visible = false
-			isCooldown = false
-			WaitClick = false
-		end)
-	else
-		CustomColorFrame.Size = UDim2.new(0, 260, 0, 0)
-		CustomColorFrame.Visible = true
-		NoClickFrame.Visible = true
-        ColorCodeBox.Visible = true
-        ColorCodeBoxUD.Visible = true
-        ColorCanvas.Visible = true
-        ColorSelection.Visible = true
-        HueBar.Visible = true
-        HueSelection.Visible = true
-		CreateTween({CustomColorFrame, "Size", UDim2.new(0, 260, 0, 220), 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out})
-
-		task.delay(0.2, function()
-			isCooldown = false
-			WaitClick = false
-		end)
-	end
-end)
+                if NoClickFrame.Visible then
+                    CreateTween({CustomColorFrame, "Size", UDim2.new(0, 260, 0, 0), 0.25})
+                    task.delay(0.2, function()
+                        CustomColorFrame.Visible = false
+                        NoClickFrame.Visible = false
+                        isCooldown = false
+                        WaitClick = false
+                    end)
+                else
+                    CustomColorFrame.Size = UDim2.new(0, 260, 0, 0)
+                    CustomColorFrame.Visible = true
+                    NoClickFrame.Visible = true
+                    ColorCodeBox.Visible = true
+                    ColorCodeBoxUD.Visible = true
+                    ColorCanvas.Visible = true
+                    ColorSelection.Visible = true
+                    HueBar.Visible = true
+                    HueSelection.Visible = true
+                    CreateTween({CustomColorFrame, "Size", UDim2.new(0, 260, 0, 220), 0.25})
+                    task.delay(0.2, function()
+                        isCooldown = false
+                        WaitClick = false
+                    end)
+                end
+            end)
         else
-btn.Activated:Connect(function()
-	if Flag then
-		SaveColorPickerFlag(Flag, col)
-	end
-	Colorpicker:SetColor(col)
-end)
-end
+            btn.Activated:Connect(function()
+                if Flag then SaveColorPickerFlag(Flag, col) end
+                Colorpicker:SetColor(col)
+                CreateTween({Arrow, "Rotation", -90, 0.25})
+                CreateTween({Arrow, "ImageColor3", Color3.fromRGB(255, 255, 255), 0.25})
+            end)
+        end
+
+        table.insert(buttons, btn)
 
         delay((i - 1) * 0.05, function()
-            CreateTween({btn, "Size", UDim2.new(0, 20, 0, 18), 0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out})
-            CreateTween({btn, "BackgroundTransparency", 0,  0.2})
-            CreateTween({btn, "Position", UDim2.new(1, xOffset, 0, 3), 0.2})
+            CreateTween({btn, "Size", UDim2.new(0, 20, 0, 18), 0.2})
+            CreateTween({btn, "BackgroundTransparency", 0, 0.2})
         end)
     end
 end
 
-
-    ColorBox.Activated:Connect(function()
+ColorBox.Activated:Connect(function()
         if isCooldown then return end
         isCooldown = true
- 
-        local isOpen = buttons[1] and buttons[1].Parent
- 
-        if isOpen then
-            closeColors()
-            CreateTween({Arrow, "Rotation", -90, 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out})
-            CreateTween({Arrow, "ImageColor3", Color3.fromRGB(255, 255, 255), 0.25})
-        else
-            openColors()
-            CreateTween({Arrow, "Rotation", 90, 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out})
-            CreateTween({Arrow, "ImageColor3", Theme["Color Theme"], 0.25})
-        end
- 
-        task.delay(0.3, function()
-            isCooldown = false
-        end)
+
+    local isOpen = #buttons > 0
+
+    if isOpen then
+        closeColors()
+        CreateTween({Arrow, "Rotation", -90, 0.25})
+        CreateTween({Arrow, "ImageColor3", Color3.fromRGB(255, 255, 255), 0.25})
+    else
+        openColors()
+        CreateTween({Arrow, "Rotation", 90, 0.25})
+        CreateTween({Arrow, "ImageColor3", Theme["Color Theme"], 0.25})
+    end
+
+    task.delay(0.3, function()
+        isCooldown = false
     end)
+end)
 
     Frame.Activated:Connect(function()
         if isCooldown then return end
         isCooldown = true
- 
+
         local isOpen = buttons[1] and buttons[1].Parent
  
         if isOpen then
@@ -4574,10 +4856,10 @@ if ScreenFind and ScreenFind ~= ScreenGui then
     end
     table.clear(bindConnections)
 
-    redzlib:ClearAllBinds()
+    splib:ClearAllBinds()
 
 if shouldClearToggles then
-    redzlib:ClearAllToggles()
+    splib:ClearAllToggles()
 end
 
     ScreenFind:Destroy()
@@ -4598,11 +4880,11 @@ Tab:AddDropdown({
     Callback = function(v)
         local offset = isMobile and -200 or 0
         if v == "Small" then
-            redzlib:SetScale(700 + offset)
+            splib:SetScale(700 + offset)
         elseif v == "Medium" then
-            redzlib:SetScale(600 + offset)
+            splib:SetScale(600 + offset)
         elseif v == "Large" then
-            redzlib:SetScale(500 + offset)
+            splib:SetScale(500 + offset)
         end
     end,
     __force_container = SettingTab
@@ -4610,18 +4892,18 @@ Tab:AddDropdown({
 
 Tab:AddDropdown({
     Name = "UI Theme",
-    Options = {"Red", "Darker", "Dark", "Purple"},
-    Default = redzlib.Save.Theme or "Red",
+    Options = {"Red", "Darker", "Dark", "Purple","NeonBlue", "Sunset", "Ocean", "RoseGold", "Matrix", "Green", "Orange", "Pink", "Gold", "Cyan"},
+    Default = splib.Save.Theme or "Red",
     Callback = function(selectedTheme)
-        redzlib:SetTheme(selectedTheme)
-        redzlib.Save.Theme = selectedTheme
-        SaveJson("redz library V5.json", redzlib.Save)
+        splib:SetTheme(selectedTheme)
+        splib.Save.Theme = selectedTheme
+        SaveJson("sp library v2.json", splib.Save)
     end,
     __force_container = SettingTab
 })
 
 Tab:AddToggle({
-  Name    = "Toggle UI Icon Protection",
+  Name = "Toggle UI Icon Protection",
   Default = true,
   Flag = "UIProtection",
   Callback = function(enabled)
@@ -4657,4 +4939,4 @@ Tab:AddToggle({
 	return Window
 end
 
-return redzlib
+return splib
