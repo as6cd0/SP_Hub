@@ -1655,6 +1655,8 @@ function splib:SetScale(NewScale)
 	UIScale, ScreenGui.Scale.Scale = NewScale, NewScale
 end
 
+local SaveChangesEnabled = true
+
 function splib:MakeWindow(Configs)
 
     local ToggleIcon = tostring(Configs.ToggleIcon or "rbxassetid://83114982417764")
@@ -1668,6 +1670,10 @@ function splib:MakeWindow(Configs)
     local WMiniText  = Configs[2] or Configs.SubTitle or Configs.SubName or "by : SP Hub"
 
     Settings.ScriptFile = Configs[3] or Configs.ConfigFolder or Configs.SaveFolder or false
+
+    Settings.RainbowMainFrameDefault = Configs.RainbowMainFrameDefault or false
+    Settings.RainbowTitleDefault = Configs.RainbowTitleDefault or false
+    Settings.RainbowSubTitleDefault = Configs.RainbowSubTitleDefault or false
     
    local EnableSetting = (Configs.Setting or Configs.ShowSetting) == true
    local ToggleIcon = tostring(Configs.ToggleIcon or "rbxassetid://83114982417764")
@@ -1778,6 +1784,7 @@ end
 	
 	local MainCorner = Make("Corner", MainFrame)
 	
+
 	local Components = Create("Folder", MainFrame, {
 		Name = "Components"
 	})
@@ -1823,6 +1830,7 @@ end
 			Name = "SubTitle"
 		}), "DarkText")
 	}), "Text")
+
 	
 	local MainScroll = InsertTheme(Create("ScrollingFrame", Components, {
 		Size = UDim2.new(0, splib.Save.TabSize, 1, -TopBar.Size.Y.Offset),
@@ -4928,6 +4936,103 @@ Tab:AddToggle({
             tweenControlSizeX(minClamp)
         else
             disableSidebarHover()
+        end
+    end,
+    __force_container = SettingTab
+})
+
+Tab:AddSection({
+    Name = "UI",
+    __force_container = SettingTab
+})
+
+local rainbowStroke
+
+rainbowStroke = Make("Stroke", MainFrame, {
+    Thickness = 2
+})
+
+local rainbowColors = {
+    Red = Color3.fromRGB(255, 0, 0),
+    Orange = Color3.fromRGB(255, 165, 0),
+    Yellow = Color3.fromRGB(255, 255, 0),
+    Green = Color3.fromRGB(0, 255, 0),
+    Blue = Color3.fromRGB(0, 0, 255),
+    Purple = Color3.fromRGB(128, 0, 128),
+    Pink = Color3.fromRGB(255, 105, 180),
+    Cyan = Color3.fromRGB(0, 255, 255),
+    White = Color3.fromRGB(255, 255, 255),
+    Black = Color3.fromRGB(0, 0, 0)
+}
+
+task.spawn(function()
+    while rainbowStroke and rainbowStroke.Parent do
+        local t = tick() * 0.5
+        local r = math.sin(t) * 0.5 + 0.5
+        local g = math.sin(t + 2) * 0.5 + 0.5
+        local b = math.sin(t + 4) * 0.5 + 0.5
+        rainbowStroke.Color = Color3.new(r, g, b)
+        task.wait()
+    end
+end)
+
+Tab:AddToggle({
+    Name = "Rainbow MainFrame",
+    Flag = "RainbowMainFrame",
+    Default = Settings.RainbowMainFrameDefault,
+    Callback = function(enabled)
+        rainbowStroke.Transparency = enabled and 0 or 1
+    end,
+    __force_container = SettingTab
+})
+
+local SubTitle = Title:FindFirstChild("SubTitle")
+
+local titleRainbowEnabled = false
+local subtitleRainbowEnabled = false
+
+task.spawn(function()
+    while true do
+        local t = tick() * 0.5
+        local r = math.sin(t) * 0.5 + 0.5
+        local g = math.sin(t + 2) * 0.5 + 0.5
+        local b = math.sin(t + 4) * 0.5 + 0.5
+        local rainbowColor = Color3.new(r, g, b)
+
+        if titleRainbowEnabled and Title then
+            Title.TextColor3 = rainbowColor
+        end
+
+        if subtitleRainbowEnabled and SubTitle then
+            SubTitle.TextColor3 = rainbowColor
+        end
+
+        task.wait()
+    end
+end)
+
+
+Tab:AddToggle({
+    Name = "Rainbow Title",
+    Flag = "RainbowTitle",
+    Default = Settings.RainbowTitleDefault,
+    Callback = function(enabled)
+        titleRainbowEnabled = enabled
+        if not enabled and Title then
+            Title.TextColor3 = Theme["Color Text"]
+        end
+    end,
+    __force_container = SettingTab
+})
+
+Tab:AddToggle({
+    Name = "Rainbow SubTitle",
+    Flag = "RainbowSubTitle",
+    Default = Settings.RainbowSubTitleDefault,
+    Callback = function(enabled)
+        subtitleRainbowEnabled = enabled
+        if not enabled and SubTitle then
+            SubTitle.TextColor3 = Theme["Color Dark Text"]
         end
     end,
     __force_container = SettingTab
