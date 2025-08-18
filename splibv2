@@ -1019,6 +1019,8 @@ local splib = {
 }
 
 -- ok this is redz lib v5 but now its for sp cuz its has edited in full! and  big improvent and added more functions by sp to contact the the dev discord @nadermohamed22
+local Binds = {}
+local Toggles = {}
 
 local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 local isPC = not UserInputService.TouchEnabled and UserInputService.KeyboardEnabled
@@ -1028,7 +1030,6 @@ local UIScale = isPC and ViewportSize.Y / 550 or ViewportSize.Y / 425
 
 local Settings = splib.Settings
 local Flags = splib.Flags
-local Toggles = {}
 
 local SettingsFile = "sp library.json"
 local LoadedToggles = {}
@@ -1039,17 +1040,6 @@ if isfile(SettingsFile) then
     end
 end
 
-local DropdownsFile = "dropdowns.json"
-local LoadedDropdowns = {}
-if isfile(DropdownsFile) then
-    local ok, data = pcall(function()
-        return HttpService:JSONDecode(readfile(DropdownsFile))
-    end)
-
-    if ok and type(data) == "table" then
-        LoadedDropdowns = data
-    end
-end
 
 local function SaveCfg(filename)
     local data = {}
@@ -1076,7 +1066,7 @@ local function LoadCfg(filename)
     end
 end
 
-LoadCfg("sp library")
+LoadCfg("sp library.json")
 
 local SetProps, SetChildren, InsertTheme, Create do
 	InsertTheme = function(Instance, Type)
@@ -1289,14 +1279,18 @@ splib.Save = {
   Theme   = saved.Theme   or splib.Save.Theme,
 }
 
+local bindConnections = {}
+local shouldClearToggles = false
+
+local GUI_NAME = "sp Library"
 
 local ScreenGui = Create("ScreenGui", CoreGui, {
-	Name = "sp Library",
+    Name = GUI_NAME,
 }, {
-	Create("UIScale", {
-		Scale = UIScale,
-		Name = "Scale"
-	})
+    Create("UIScale", {
+        Scale = UIScale,
+        Name = "Scale"
+    })
 })
 
 local function GetStr(val)
@@ -1434,7 +1428,7 @@ AddEle("Corner", function(parent, CornerRadius)
 	}), props)
 	return New
 end)
-
+-- HUH?
 AddEle("Stroke", function(parent, props, ...)
 	local args = {...}
 	local New = InsertTheme(SetProps(Create("UIStroke", parent, {
@@ -1499,7 +1493,7 @@ local function ButtonFrame(parent, Title, Description, HolderSize, isBind)
         Text = Title or "",
         RichText = true
     }), "Text")
-
+-- made by sp
     local DescL = InsertTheme(Create("TextLabel", Frame, {
         Font = Enum.Font.Gotham,
         TextColor3 = Theme["Color Dark Text"],
@@ -1519,7 +1513,7 @@ task.defer(function()
     local newHeight = math.max(25, descHeight + 10)
     Frame.Size = UDim2.new(1, 0, 0, newHeight + 2)
 end)
-
+-- made by sp
     local LabelHolder = Create("Frame", Frame, {
         AutomaticSize = "Y",
         BackgroundTransparency = 1,
@@ -1549,7 +1543,7 @@ end)
             TextSize           = 14,
             TextColor3         = Color3.fromRGB(255,255,255),
             Size               = UDim2.new(0, 45, 0, 24),
-            Position           = UDim2.new(1, -10, 0, 3),
+            Position           = UDim2.new(1, -10, 0, 1.9),
             AnchorPoint        = Vector2.new(1, 0),
             BackgroundColor3   = Color3.fromRGB(0,0,0),
             BackgroundTransparency = 0,
@@ -1585,7 +1579,7 @@ Make("Corner", bindBox, UDim.new(0.25, 0))
     end
     Label:SetTitle(Title)
     Label:SetDesc(Description)
-
+-- made by sp
     return Frame, Label, bindBox, ColorBox
 end
 local function GetColor(Instance)
@@ -1656,7 +1650,7 @@ function splib:SetTheme(NewTheme)
 		end
 	end)
 end
-
+-- made by sp
 function splib:SetScale(NewScale)
 	NewScale = ViewportSize.Y / math.clamp(NewScale, 300, 2000)
 	UIScale, ScreenGui.Scale.Scale = NewScale, NewScale
@@ -1664,34 +1658,62 @@ end
 
 local SaveChangesEnabled = true
 
+local safeTitle = tostring(WTitle):gsub("[%s%p]", "_")
+
+
+local DropdownsFile = "dropdowns.json"
+local LoadedDropdowns = {}
+if isfile(DropdownsFile) then
+    local ok, data = pcall(function()
+        return HttpService:JSONDecode(readfile(DropdownsFile))
+    end)
+
+    if ok and type(data) == "table" then
+        LoadedDropdowns = data
+    end
+end
+
+local ToggleEnabled
+local EnableSetting
+
 function splib:MakeWindow(Configs)
 
     local ToggleIcon = tostring(Configs.ToggleIcon or "rbxassetid://83114982417764")
-    local WTitle     = Configs[1] or Configs.Name or Configs.Title or "SP Lib v2"
-    local WMiniText  = Configs[2] or Configs.SubTitle or Configs.SubName or "by : SP Hub"
-
+    local WTitle = Configs[1] or Configs.Name or Configs.Title or "SP Lib v2"
+    local WMiniText = Configs[2] or Configs.SubTitle or Configs.SubName or "by : SP Hub"
+    local RainbowMainFrameDefault = Configs.RainbowMainFrameDefault or Configs.RainbowMainFrame or false
+    local RainbowTitleDefault = Configs.RainbowTitleDefault or Configs.RainbowTitle or false
+    local RainbowSubTitleDefault = Configs.RainbowSubTitleDefault or Configs.RainbowSubTitle or false
+    ToggleEnabled = (Configs.Toggle == nil and Configs.EnableToggle == nil) 
+       or (Configs.Toggle == true or Configs.EnableToggle == true)
 
 function splib:MakeWindow(Configs)
 
-    local WTitle     = Configs[1] or Configs.Name or Configs.Title or "SP Lib v2"
-    local WMiniText  = Configs[2] or Configs.SubTitle or Configs.SubName or "by : SP Hub"
+    local WTitle = Configs[1] or Configs.Name or Configs.Title or "SP Lib v2"
+    local WMiniText = Configs[2] or Configs.SubTitle or Configs.SubName or "by : SP Hub"
 
     Settings.ScriptFile = Configs[3] or Configs.ConfigFolder or Configs.SaveFolder or false
-
-    Settings.RainbowMainFrameDefault = Configs.RainbowMainFrameDefault or Configs.RainbowMainFrame or false
-    Settings.RainbowTitleDefault = Configs.RainbowTitleDefault or Configs.RainbowTitle or false
-    Settings.RainbowSubTitleDefault = Configs.RainbowSubTitleDefault or Configs.RainbowSubTitle or false
+    local RainbowMainFrameDefault = Configs.RainbowMainFrameDefault or Configs.RainbowMainFrame or false
+    local RainbowTitleDefault = Configs.RainbowTitleDefault or Configs.RainbowTitle or false
+    local RainbowSubTitleDefault = Configs.RainbowSubTitleDefault or Configs.RainbowSubTitle or false
     
-   local EnableSetting = (Configs.Setting or Configs.ShowSetting) == true
-   local ToggleIcon = tostring(Configs.ToggleIcon or "rbxassetid://83114982417764")
-    local HidePremium  = Configs.HidePremium == true
-    local SaveConfig   = Configs.SaveConfig == true
+     EnableSetting = (Configs.Setting == nil and Configs.ShowSetting == nil)
+        or (Configs.Setting == true or Configs.ShowSetting == true)
+
+    ToggleEnabled = (Configs.Toggle == nil and Configs.EnableToggle == nil) 
+       or (Configs.Toggle == true or Configs.EnableToggle == true)
+    local ToggleIcon = tostring(Configs.ToggleIcon or "rbxassetid://83114982417764")
+    local HidePremium = Configs.HidePremium == true
     local Callback = Configs.Callback or function() end
     local CloseCallback = Configs.CloseCallback or false
+
+    shouldClearToggles = (Configs.CloseCallback == true)
+-- made by sp
 
     if Configs.IntroEnabled == nil then
         Configs.IntroEnabled = true
     end
+
     Configs.IntroText = Configs.IntroText or "SP Lib v2"
     Configs.IntroIcon = Configs.IntroIcon or "rbxassetid://8834748103"
 
@@ -1735,7 +1757,7 @@ function splib:MakeWindow(Configs)
     if Configs.IntroEnabled then
         LoadSequence()
     end
-
+-- made by sp
     local function LoadFile()
         local File = Settings.ScriptFile
         if type(File) ~= "string" then return end
@@ -1758,8 +1780,8 @@ function splib:MakeWindow(Configs)
 
     local function saveSettings()
         if not SaveConfig then return end
-        if not isfolder(Settings.ConfigFolder) then
-            makefolder(Settings.ConfigFolder)
+        if not isfolder(ConfigFolder) then
+            makefolder(ConfigFolder)
         end
         local filePath = Settings.ConfigFolder.."/config.json"
         writefile(filePath, HttpService:JSONEncode(Flags))
@@ -1779,18 +1801,63 @@ function splib:MakeWindow(Configs)
 end
 	
 	local UISizeX, UISizeY = unpack(splib.Save.UISize)
-	local MainFrame = InsertTheme(Create("ImageButton", ScreenGui, {
-		Size = UDim2.fromOffset(UISizeX, UISizeY),
-		Position = UDim2.new(0.5, -UISizeX/2, 0.5, -UISizeY/2),
-		BackgroundTransparency = 0.03,
-		Name = "Hub"
-	}), "Main")MakeDrag(MainFrame)
-	Make("Gradient", MainFrame, {
-		Rotation = 45
-	})
-	
-    local MainCorner = Make("Corner", MainFrame, UDim.new(0, 10))
-	
+local MainFrame = InsertTheme(Create("ImageButton", ScreenGui, {
+    Size = UDim2.fromOffset(UISizeX * 0.8, UISizeY * 0.8),
+    Position = UDim2.new(0.5, -UISizeX * 0.4, 0.5, -UISizeY * 0.4),
+    BackgroundTransparency = 0,
+    Name = "Hub",
+    Visible = true
+}), "Main")
+
+MakeDrag(MainFrame)
+Make("Gradient", MainFrame, {
+    Rotation = 45
+})
+
+local originalMainPos = MainFrame.Position
+
+local function isHalfOutside(frame)
+    local absPos = frame.AbsolutePosition
+    local absSize = frame.AbsoluteSize
+    local screenSize = workspace.CurrentCamera.ViewportSize
+
+    local halfW = absSize.X / 2
+    local halfH = absSize.Y / 2
+
+    if absPos.X + absSize.X < halfW then
+        return true
+    elseif absPos.Y + absSize.Y < halfH then
+        return true
+    elseif absPos.X > screenSize.X - halfW then
+        return true
+    elseif absPos.Y > screenSize.Y - halfH then
+        return true
+    end
+    return false
+end
+
+task.spawn(function()
+    while task.wait(1) do
+        if isHalfOutside(MainFrame) then
+            local leftTime = 2
+            while leftTime > 0 do
+                task.wait(1)
+                if not isHalfOutside(MainFrame) then
+                    break
+                end
+                leftTime -= 1
+            end
+            if isHalfOutside(MainFrame) then
+                TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+                    Position = originalMainPos
+                }):Play()
+            end
+        end
+    end
+end)
+
+local MainCorner = Make("Corner", MainFrame, UDim.new(0, 10))
+
 
 	local Components = Create("Folder", MainFrame, {
 		Name = "Components"
@@ -1940,10 +2007,10 @@ ControlSize1:GetPropertyChangedSignal("Position"):Connect(ControlSize)
 ControlSize2:GetPropertyChangedSignal("Position"):Connect(ControlSize)
 
 local hoverConnections = {}
-local originalSizeX    = 30
-local expandedSizeX    = 160
-local userSizeX        = originalSizeX
-local minClamp         = isPC and 50 or 100
+local originalSizeX = 30
+local expandedSizeX = 160
+local userSizeX = originalSizeX
+local minClamp = isPC and 50 or 100
 
 local function tweenControlSizeX(toX)
     local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
@@ -1995,7 +2062,7 @@ end
 ConnectSave(ControlSize1, function()
     if not Minimized then
         splib.Save.UISize = {MainFrame.Size.X.Offset, MainFrame.Size.Y.Offset}
-        SaveJson("sp library .json", splib.Save)
+        SaveJson("sp library.json", splib.Save)
     end
 end)
 
@@ -2019,7 +2086,6 @@ end)
 		Name = "Close"
 	})
 
-local EnableSetting = (Configs.Setting or Configs.ShowSetting) == true
 
 local SettingButton = SetProps(CloseButton:Clone(), {
     Position = UDim2.new(1, -60, 0.5),
@@ -2044,10 +2110,9 @@ local SettingButton = SetProps(CloseButton:Clone(), {
 	local Minimized, SaveSize, WaitClick
 	local Window, FirstTab = {}, false
 
-local bindConnections = {}
 local shouldClearToggles = Configs.CloseCallback == true
 
-CloseButton.Activated:Connect(function()
+local function CloseUI()
     for _, conn in ipairs(bindConnections) do
         if typeof(conn) == "RBXScriptConnection" and conn.Connected then
             conn:Disconnect()
@@ -2055,14 +2120,21 @@ CloseButton.Activated:Connect(function()
     end
     table.clear(bindConnections)
 
-    splib:ClearAllBinds()
-
-if shouldClearToggles then
-    splib:ClearAllToggles()
-end
+    if splib.ClearAllBinds then
+        splib:ClearAllBinds()
+    end
+    if shouldClearToggles and splib.ClearAllToggles then
+        splib:ClearAllToggles()
+    end
 
     ScreenGui:Destroy()
-end)
+end
+
+function splib:Destroy()
+CloseUI()
+end
+
+CloseButton.Activated:Connect(CloseUI)
 
 SettingButton.MouseButton1Click:Connect(function()
 	for _, container in ipairs(ContainerList) do
@@ -2166,9 +2238,10 @@ end)
 local boundaryConnections = {}
 local originalMainPos = MainFrame.Position
 
-local T = Instance.new("ImageButton", ScreenGui) 
+local T = Instance.new("ImageButton", ScreenGui)
 local sizeValue = isPC and 50 or 38
 T.Size = UDim2.new(0, sizeValue, 0, sizeValue)
+T.Visible = ToggleEnabled
 local xPos = isPC and 0.10 or (isMobile and 0.10 or 0.10)
 T.Position = UDim2.new(xPos, 0, 0.1, 0)
 T.Image = tostring(ToggleIcon)
@@ -2352,6 +2425,14 @@ end)
 		local DText = Configs[2] or Configs.Text or "This is a Dialog"
 		local DOptions = Configs[3] or Configs.Options or {}
 		
+    if Configs.IsMobile and not isMobile then
+        return nil
+    end
+
+    if Configs.IsPC and not isPC then
+        return nil
+    end
+
 		local Frame = Create("Frame", {
 			Active = true,
 			Size = UDim2.fromOffset(250 * 1.08, 150 * 1.08),
@@ -2566,27 +2647,40 @@ function Window:MakeTab(paste, Configs)
 		
 		local Tab = { Enabled = (FirstTab == false) }
 		
-		local function Tabs()
-			if Container.Parent then return end
-			for _,Frame in pairs(ContainerList) do
-				if Frame:IsA("ScrollingFrame") and Frame ~= Container then
-					Frame.Parent = nil
-				end
-			end
-			Container.Parent = Containers
-			Container.Size = UDim2.new(1, 0, 1, 150)
-			table.foreach(splib.Tabs, function(_,Tab)
-				if Tab.Cont ~= Container then
-					Tab.func:Disable()
-				end
-			end)
-			Tab.Enabled = true
-			CreateTween({Container, "Size", UDim2.new(1, 0, 1, 0), 0.5})
-			CreateTween({LabelTitle, "TextTransparency", 0, 0.35})
-			CreateTween({LabelIcon, "ImageTransparency", 0, 0.35})
-			CreateTween({Selected, "Size", UDim2.new(0, 4, 0, 13), 0.50})
-			CreateTween({Selected, "BackgroundTransparency", 0, 0.50})
-		end
+local function Tabs()
+    if Container.Parent then return end
+    for _,Frame in pairs(ContainerList) do
+        if Frame:IsA("ScrollingFrame") and Frame ~= Container then
+            Frame.Parent = nil
+        end
+    end
+    Container.Parent = Containers
+    Container.Size = UDim2.new(1, 0, 1, 150)
+    table.foreach(splib.Tabs, function(_,Tab)
+        if Tab.Cont ~= Container then
+            Tab.func:Disable()
+        end
+    end)
+    Tab.Enabled = true
+    CreateTween({Container, "Size", UDim2.new(1, 0, 1, 0), 0.5})
+    CreateTween({LabelTitle, "TextTransparency", 0, 0.35})
+    CreateTween({LabelIcon, "ImageTransparency", 0, 0.35})
+    
+    local originalPosition = Selected.Position
+    
+    local downPosition = UDim2.new(originalPosition.X.Scale, originalPosition.X.Offset, originalPosition.Y.Scale, originalPosition.Y.Offset + 5)
+    
+    local tweenInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tweenInfo2 = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    
+    TweenService:Create(Selected, tweenInfo, { Position = downPosition }):Play()
+    
+    task.delay(0.1, function()
+        TweenService:Create(Selected, tweenInfo2, { Position = originalPosition }):Play()
+    end)
+    CreateTween({Selected, "Size", UDim2.new(0, 4, 0, 13), 0.50})
+    CreateTween({Selected, "BackgroundTransparency", 0, 0.50})
+end
 		TabSelect.Activated:Connect(Tabs)
 		
         FirstTab = true
@@ -2607,6 +2701,7 @@ function SettingTabHandler:Enable()
             Frame.Parent = nil
         end
     end
+-- made by sp
     SettingTab.Parent = Containers
     SettingTab.Size = UDim2.new(1, 0, 1, 150)
     table.foreach(splib.Tabs, function(_, tab)
@@ -2741,7 +2836,7 @@ local function SaveDropdownFlag(flag, value)
 			data = existing
 		end
 	end
-
+-- made by sp
 	data[flag] = value
 
 	local ok, encoded = pcall(function()
@@ -2824,7 +2919,7 @@ function splib:MakeNotification(Configs)
 local holder = self.NotificationHolder
 if not holder then
     local isMobileSize = isMobile and 150 or 225
-
+-- made by sp
     holder = Create("Frame", ScreenGui, {
         Name                    = "NotificationHolder",
         AnchorPoint             = Vector2.new(1, 1),
@@ -2866,7 +2961,7 @@ end
         Color    = Theme["Color Text"],
         Thickness= 1.2,
     })
-
+-- made by sp
     Create("UIPadding", notifFrame, {
         PaddingLeft   = UDim.new(0, 12),
         PaddingTop    = UDim.new(0, 8),
@@ -2931,38 +3026,43 @@ end
 end
 
 function Tab:AddLabel(Configs)
-           if type(Configs) == "string" then
-              Configs = { Configs }
-           end
-            local PName = Configs[1] or Configs.Title or "Label"
-            local PDesc = Configs[2] or Configs.Text or ""
+    if type(Configs) == "string" then
+        Configs = { Configs }
+    end
+    local PName = Configs[1] or Configs.Title or "Label"
+    local PDesc = Configs[2] or Configs.Text or ""
 
-            if Configs.IsMobile and not isMobile then
-                return nil
-            end
+    if Configs.IsMobile and not isMobile then
+        return nil
+    end
 
-            if Configs.IsPC and not isPC then
-                return nil
-            end
+    if Configs.IsPC and not isPC then
+        return nil
+    end
 
-			local container = Configs.__force_container or Container
-			local Frame, LabelFunc = ButtonFrame(container, PName, PDesc, UDim2.new(1, -20))
-			
-			local Label = {}
-			function Label:Visible(...) Funcs:ToggleVisible(Frame, ...) end
-			function Label:Destroy() Frame:Destroy() end
-			function Label:SetTitle(Val)
-				LabelFunc:SetTitle(GetStr(Val))
-			end
-			function Label:Set(Val1, Val2)
-				if Val1 then
-					LabelFunc:SetTitle(GetStr(Val1))
-				end
-			end
-			return Label
-		end
+    local container = Configs.__force_container or Container
+    local Frame, LabelFunc = ButtonFrame(container, PName, PDesc, UDim2.new(1, -20))
+    -- made by sp
+    local Label = {}
+    function Label:Visible(...) Funcs:ToggleVisible(Frame, ...) end
+    function Label:Destroy() Frame:Destroy() end
+    function Label:SetTitle(Val)
+        LabelFunc:SetTitle(GetStr(Val))
+    end
+    function Label:SetDesc(Val)
+        LabelFunc:SetDesc(GetStr(Val))
+    end
+    function Label:Set(Val1, Val2)
+        if Val1 then
+            LabelFunc:SetTitle(GetStr(Val1))
+        end
+        if Val2 then
+            LabelFunc:SetDesc(GetStr(Val2))
+        end
+    end
+    return Label
+end
 
-local Binds = {}
 
 function Tab:AddBind(Configs)
     if type(Configs) == "string" then
@@ -3107,9 +3207,27 @@ table.insert(bindConnections, inputConnection)
 end
 
 function splib:ClearAllBinds()
-	for i, bind in ipairs(Binds) do
-		bind:Set(Enum.KeyCode.Unknown)
-	end
+    for _, bind in ipairs(Binds) do
+        if bind.Set then
+            bind:Set(Enum.KeyCode.Unknown)
+        end
+    end
+end
+
+local oldGui = CoreGui:FindFirstChild(GUI_NAME)
+if oldGui then
+    for _, conn in ipairs(bindConnections) do
+        if typeof(conn) == "RBXScriptConnection" and conn.Connected then
+            conn:Disconnect()
+        end
+    end
+    table.clear(bindConnections)
+
+    if splib.ClearAllBinds then
+        splib:ClearAllBinds()
+    end
+
+    oldGui:Destroy()
 end
 
 function Tab:AddImageLabel(Configs)
@@ -3366,15 +3484,30 @@ local function SetToggle(Val)
 
         Funcs:FireCallback(Callback, Default)
 
-        if Default then
-            CreateTween({Toggle, "Position",           UDim2.new(1, 0, 0.5), 0.25})
-            CreateTween({Toggle, "BackgroundTransparency",    0,    0.25})
-            CreateTween({Toggle, "AnchorPoint",        Vector2.new(1, 0.5),  0.25})
-        else
-            CreateTween({Toggle, "Position",           UDim2.new(0, 0, 0.5), 0.25})
-            CreateTween({Toggle, "BackgroundTransparency", 0.8,    0.25})
-            CreateTween({Toggle, "AnchorPoint",        Vector2.new(0, 0.5),  0.25})
+local tweenInfoOn = TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local tweenInfoOff = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+
+if Default then
+    TweenService:Create(Toggle, tweenInfoOn, {
+        Position = UDim2.new(1, 0, 0.5),
+        BackgroundTransparency = 0,
+        AnchorPoint = Vector2.new(1, 0.5),
+        Size = UDim2.new(0, 14, 0, 14)
+    }):Play()
+    task.delay(0.1, function()
+        if Default and Toggle and Toggle.Parent then
+            TweenService:Create(Toggle, TweenInfo.new(0.1, Enum.EasingStyle.Quad), {
+                Size = UDim2.new(0, 12, 0, 12)
+            }):Play()
         end
+    end)
+else
+    TweenService:Create(Toggle, tweenInfoOff, {
+        Position = UDim2.new(0, 0, 0.5),
+        BackgroundTransparency = 0.8,
+        AnchorPoint = Vector2.new(0, 0.5)
+    }):Play()
+end
 
         WaitClick = false
     end
@@ -3426,7 +3559,7 @@ end
 
 function splib:ClearAllToggles()
     for _, entry in ipairs(Toggles) do
-        if entry.object and type(entry.object.Set) == "function" then
+        if entry.object and type(entry.object.ForceCallback) == "function" then
             entry.object:ForceCallback(false)
         end
     end
@@ -4037,13 +4170,25 @@ function Tab:AddSlider(Configs)
         BorderSizePixel = 0
     }), "Theme") Make("Corner", Indicator)
 
-    local SliderIcon = Create("Frame", SliderBar, {
-        Size = UDim2.new(0, 6, 0, 12),
-        BackgroundColor3 = Color3.fromRGB(220, 220, 220),
-        Position = UDim2.fromScale(0.3, 0.5),
+    local SliderHandle = Create("Frame", SliderBar, {
+        Size = UDim2.new(0, 16, 0, 16),
+        BackgroundColor3 = Color3.fromRGB(69, 69, 69),
+        Position = UDim2.fromScale(0, 0.5),
         AnchorPoint = Vector2.new(0.5, 0.5),
-        BackgroundTransparency = 0.2
-    }) Make("Corner", SliderIcon)
+        BackgroundTransparency = 0,
+        Active = true
+    })
+    Make("Corner", SliderHandle, UDim.new(1, 0))
+
+    local HandleInner = Create("Frame", SliderHandle, {
+        Size = UDim2.new(1, -6, 1, -6),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = Theme["Color Theme"],
+        BackgroundTransparency = 0,
+        BorderSizePixel = 0
+    })
+    Make("Corner", HandleInner, UDim.new(1, 0))
 
     local LabelVal = InsertTheme(Create("TextBox", SliderHolder, {
         Size = UDim2.new(0, 14, 0, 14),
@@ -4074,7 +4219,7 @@ LabelVal.FocusLost:Connect(function(enterPressed)
 				SetSlider(input)
 			else
 				local pos = (input - Min) / (Max - Min)
-				AnimateIcon(math.clamp(pos, 0, 1))
+				AnimateHandle(math.clamp(pos, 0, 1))
 			end
 		else
 			LabelVal.Text = string.format("%.1f", Default)
@@ -4089,29 +4234,29 @@ end)
         Funcs:FireCallback(Callback, NewValue)
     end
 
-    local function AnimateIcon(toScale)
+    local function AnimateHandle(toScale)
         local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        TweenService:Create(SliderIcon, tweenInfo, { Position = UDim2.new(toScale, 0, 0.5, 0) }):Play()
+        TweenService:Create(SliderHandle, tweenInfo, { Position = UDim2.new(toScale, 0, 0.5, 0) }):Play()
     end
 
     local function UpdateValues()
-        local scale = SliderIcon.Position.X.Scale
+        local scale = SliderHandle.Position.X.Scale
         TweenService:Create(Indicator, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.new(scale, 0, 1, 0) }):Play()
         local NewValue = scale * (Max - Min) + Min
         UpdateLabel(NewValue)
     end
 
     SliderHolder.MouseButton1Down:Connect(function()
-        CreateTween({SliderIcon, "Transparency", 0, 0.3})
+        TweenService:Create(SliderHandle, TweenInfo.new(0.1, Enum.EasingStyle.Quad), { Size = UDim2.new(0, 14, 0, 14) }):Play()
         Container.ScrollingEnabled = false
         while UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
             local mouseX = Player:GetMouse().X
             local rel = (mouseX - BaseMousePos.AbsolutePosition.X) / SliderBar.AbsoluteSize.X
             local clamped = math.clamp(rel, 0, 1)
-            AnimateIcon(clamped)
+            AnimateHandle(clamped)
             task.wait()
         end
-        CreateTween({SliderIcon, "Transparency", 0.2, 0.3})
+        TweenService:Create(SliderHandle, TweenInfo.new(0.1, Enum.EasingStyle.Quad), { Size = UDim2.new(0, 16, 0, 16) }):Play()
         Container.ScrollingEnabled = true
         if Flag then SaveSliderFlag(Flag, Default) end
     end)
@@ -4128,10 +4273,10 @@ end)
         if type(NewValue) ~= "number" then return end
         UpdateLabel(NewValue)
         local pos = (NewValue - Min) / (Max - Min)
-        AnimateIcon(math.clamp(pos, 0, 1))
+        AnimateHandle(math.clamp(pos, 0, 1))
     end; SetSlider(Default)
 
-    SliderIcon:GetPropertyChangedSignal("Position"):Connect(UpdateValues)
+    SliderHandle:GetPropertyChangedSignal("Position"):Connect(UpdateValues)
 
     local Slider = {}
     function Slider:Set(a, b)
@@ -4379,102 +4524,173 @@ local NoClickFrame = Create("TextButton", CustomColorHolder, {
 })
 
 local CustomColorFrame = Create("Frame", NoClickFrame, {
-	Size = UDim2.new(0, 80, 0, 60),
-	Position = UDim2.new(1, -23, 0, 25),
-	AnchorPoint = Vector2.new(1, 0),
-	BackgroundColor3 = Color3.fromRGB(30, 30, 30),
+	Size = UDim2.new(0, 260, 0, 160),
+	Position = UDim2.new(0.5, 0, 0.5, 0),
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	BackgroundColor3 = Color3.fromRGB(25, 25, 25),
+	BackgroundTransparency = 0.1,
 	Name = "CustomColorFrame",
 	Visible = false,
 	ZIndex = 5
 })
-Make("Corner", CustomColorFrame)
-Make("Stroke", CustomColorFrame)
-Make("Gradient", CustomColorFrame, {Rotation = 60})
+Make("Corner", CustomColorFrame, UDim.new(0, 6))
+Make("Stroke", CustomColorFrame, {
+	Color = Color3.fromRGB(80, 80, 80),
+	Transparency = 0.3,
+	Thickness = 1.5
+})
+local TopBar = Create("Frame", CustomColorFrame, {
+	Size = UDim2.new(1, 0, 0, 25),
+	Position = UDim2.new(0, 0, 0, 0),
+	BackgroundColor3 = Color3.fromRGB(40, 40, 40),
+	BackgroundTransparency = 0.2
+})
+Make("Corner", TopBar, UDim.new(0, 6))
 
-local CloseButton = Create("TextButton", CustomColorFrame, {
+local TitleLabel = Create("TextLabel", TopBar, {
+	Size = UDim2.new(1, -30, 1, 0),
+	Position = UDim2.new(0, 10, 0, 0),
+	BackgroundTransparency = 1,
+	Text = "Custom Color",
+	TextColor3 = Color3.fromRGB(240, 240, 240),
+	TextSize = 12,
+	Font = Enum.Font.GothamSemibold,
+	TextXAlignment = Enum.TextXAlignment.Left
+})
+
+local CloseButton = Create("TextButton", TopBar, {
     Size = UDim2.new(0, 20, 0, 20),
-    Position = UDim2.new(1, -25, 0, 5),
+    Position = UDim2.new(1, -5, 0.5, 0),
+    AnchorPoint = Vector2.new(1, 0.5),
     BackgroundColor3 = Color3.fromRGB(200, 50, 50),
     Text = "X",
     TextColor3 = Color3.fromRGB(255, 255, 255),
     Font = Enum.Font.GothamBold,
     TextSize = 14,
-    ZIndex = 7
+    ZIndex = 7,
+    AutoButtonColor = false
 })
 Make("Corner", CloseButton, UDim.new(0, 4))
-Make("Stroke", CloseButton)
+Make("Stroke", CloseButton, {
+	Color = Color3.fromRGB(150, 30, 30),
+	Thickness = 1
+})
 
+local ColorPreview = Create("Frame", CustomColorFrame, {
+	Size = UDim2.new(0, 40, 0, 40),
+	Position = UDim2.new(0, 15, 0, 35),
+	BackgroundColor3 = TDefault,
+	BackgroundTransparency = 0,
+	ZIndex = 6
+})
+Make("Corner", ColorPreview, UDim.new(0, 4))
+Make("Stroke", ColorPreview, {
+	Color = Color3.fromRGB(100, 100, 100),
+	Transparency = 0.4,
+	Thickness = 1
+})
 
 local ColorCodeBox = Create("TextBox", CustomColorFrame, {
     Name = "ColorCodeBox",
-    Size = UDim2.new(0.35, -10, 0, 20),
-    Position = UDim2.new(0, 10, 1, -40),
-    BackgroundColor3 = Color3.fromRGB(50, 50, 50),
-    TextColor3 = Color3.fromRGB(255, 255, 255),
+    Size = UDim2.new(0, 120, 0, 22),
+    Position = UDim2.new(0, 65, 0, 35),
+    BackgroundColor3 = Color3.fromRGB(45, 45, 45),
+    TextColor3 = Color3.fromRGB(230, 230, 230),
     Font = Enum.Font.Gotham,
-    TextSize = 14,
-    TextXAlignment = Enum.TextXAlignment.Center,
+    TextSize = 13,
+    TextXAlignment = Enum.TextXAlignment.Left,
     ClearTextOnFocus = false,
     ZIndex = 6,
-    Text  = "",
+    Text = "",
+    PlaceholderText = "HEX Color Code",
+    PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
 })
 Make("Corner", ColorCodeBox, UDim.new(0, 4))
+Make("Stroke", ColorCodeBox, {
+	Color = Color3.fromRGB(70, 70, 70),
+	Thickness = 1
+})
+
+ColorCodeBox.Text = LoadFlagValue("ColorCodeBoxText") or ""
+ColorCodeBox.FocusLost:Connect(function()
+    SaveFlagValue("ColorCodeBoxText", ColorCodeBox.Text)
+end)
 
 local ColorCodeBoxUD = Create("TextBox", CustomColorFrame, {
     Name = "ColorCodeBoxUD",
-    Size = UDim2.new(0.35, -10, 0, 20),
-    Position = UDim2.new(0, 130, 1, -40),
-    BackgroundColor3 = Color3.fromRGB(50, 50, 50),
-    TextColor3 = Color3.fromRGB(255, 255, 255),
+    Size = UDim2.new(0, 120, 0, 22),
+    Position = UDim2.new(0, 65, 0, 65),
+    BackgroundColor3 = Color3.fromRGB(45, 45, 45),
+    TextColor3 = Color3.fromRGB(230, 230, 230),
     Font = Enum.Font.Gotham,
-    TextSize = 14,
-    TextXAlignment = Enum.TextXAlignment.Center,
+    TextSize = 13,
+    TextXAlignment = Enum.TextXAlignment.Left,
     ClearTextOnFocus = false,
     ZIndex = 6,
-    Text  = "",
+    Text = "",
+    PlaceholderText = "RGB Values",
+    PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
 })
 Make("Corner", ColorCodeBoxUD, UDim.new(0, 4))
+Make("Stroke", ColorCodeBoxUD, {
+	Color = Color3.fromRGB(70, 70, 70),
+	Thickness = 1
+})
+
+ColorCodeBoxUD.Text = LoadFlagValue("ColorCodeBoxUDText") or ""
+ColorCodeBoxUD.FocusLost:Connect(function()
+    SaveFlagValue("ColorCodeBoxUDText", ColorCodeBoxUD.Text)
+end)
 
 local ColorCanvas = Create("Frame", CustomColorFrame, {
     Name = "ColorCanvas",
-    Size = UDim2.new(.60, -2, .60, -2),
-    Position = UDim2.new(0, 15, 0, 15),
+    Size = UDim2.new(0, 150, 0, 100),
+    Position = UDim2.new(0, 15, 0, 95),
     BackgroundColor3 = Color3.fromHSV(ColorH, 1, 1),
     BackgroundTransparency = 0,
     ZIndex = 6
 })
-Make("Corner", ColorCanvas)
+Make("Corner", ColorCanvas, UDim.new(0, 4))
+Make("Stroke", ColorCanvas, {
+	Color = Color3.fromRGB(70, 70, 70),
+	Thickness = 1
+})
+-- made by sp
+local satImage = Create("ImageLabel", ColorCanvas, {
+    Name = "SaturationValueImage",
+    Size = UDim2.new(1, 0, 1, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    Position = UDim2.new(0.5, 0, 0.5, 0),
+    BackgroundTransparency = 1,
+    Image = "rbxassetid://4155801252",
+    ScaleType = Enum.ScaleType.Stretch,
+    ZIndex = 8
+})
+Make("Corner", satImage, UDim.new(0, 3.99))
 
 local ColorSelection = Create("ImageLabel", ColorCanvas, {
     Name = "ColorSelection",
-    Size = UDim2.new(0, 12, 0, 12),
+    Size = UDim2.new(0, 14, 0, 14),
     AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.new(ColorS, 0, 1 - ColorV, 0),
     BackgroundTransparency = 1,
     Image = "rbxassetid://4805639000",
-    ZIndex = 7
+    ZIndex = 9,
+    ImageColor3 = Color3.fromRGB(255, 255, 255)
 })
 Make("Corner", ColorSelection)
 
 local HueBar = Create("Frame", CustomColorFrame, {
     Name = "HueBar",
-    Size = UDim2.new(0, 15, .60, -15),
-    Position = UDim2.new(1, -20, 0, 35),
+    Size = UDim2.new(0, 18, 0, 100),
+    Position = UDim2.new(1, -30, 0, 95),
     BackgroundTransparency = 0,
     ZIndex = 8
 })
-Make("Corner", HueBar)
-
-local satGrad = Create("UIGradient", ColorCanvas, {
-    Rotation = 90,
-    Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
-        ColorSequenceKeypoint.new(1, Color3.new(1, 1, 1)),
-    },
-    Transparency = NumberSequence.new{
-        NumberSequenceKeypoint.new(0, 0),
-        NumberSequenceKeypoint.new(1, 1),
-    }
+Make("Corner", HueBar, UDim.new(0, 4))
+Make("Stroke", HueBar, {
+	Color = Color3.fromRGB(70, 70, 70),
+	Thickness = 1
 })
 
 local HueGradient = Create("UIGradient", HueBar, {
@@ -4492,14 +4708,31 @@ local HueGradient = Create("UIGradient", HueBar, {
 
 local HueSelection = Create("ImageLabel", HueBar, {
     Name = "HueSelection",
-    Size = UDim2.new(0, 12, 0, 12),
+    Size = UDim2.new(0, 16, 0, 16),
     AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.new(0.5, 0, 1 - ColorH, 0),
     BackgroundTransparency = 1,
     Image = "rbxassetid://4805639000",
-    ZIndex = 9
+    ZIndex = 9,
+    ImageColor3 = Color3.fromRGB(255, 255, 255)
 })
 Make("Corner", HueSelection)
+
+local RandomButton = Create("ImageButton", TopBar, {
+    Name = "RandomButton",
+    Size = UDim2.new(0, 20, 0, 20),
+    Position = UDim2.new(1, -30, 0.5, 0),
+    AnchorPoint = Vector2.new(1, 0.5),
+    BackgroundTransparency = 1,
+    Image = "rbxassetid://7484765651",
+    ScaleType = Enum.ScaleType.Fit,
+    ZIndex = 8
+})
+Make("Corner", RandomButton, UDim.new(0, 3))
+Make("Stroke", RandomButton, {
+    Color = Color3.fromRGB(100, 100, 100),
+    Thickness = 1
+})
 
     local Arrow = Create("ImageLabel", ColorBox, {
         Size = UDim2.new(0, 12, 0, 12),
@@ -4516,7 +4749,7 @@ local PresetsList = Create("ScrollingFrame", Frame, {
     Size = UDim2.new(1, -140, 0, 32),
     Position = UDim2.new(0, 87, -0.2, 0),
     BackgroundTransparency = 1,
-    ScrollBarThickness = 1,
+    ScrollBarThickness = 7,
     ScrollBarImageTransparency = 0.7,
     ScrollBarImageColor3 = Theme["Color Theme"],
     ScrollingDirection = "X" 
@@ -4526,6 +4759,8 @@ InsertTheme(PresetsList, "Stroke")
 
 CloseButton.Activated:Connect(function()
      CloseButton.Visible = false
+     ColorPreview.Visible = false
+     TopBar.Visible = false
      ColorCodeBox.Visible = false
      ColorCodeBoxUD.Visible = false
      ColorCanvas.Visible = false
@@ -4555,6 +4790,7 @@ ListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 end)
 
 local presetColors = {
+    "Rainbow",
     Color3.fromRGB(255, 255, 255), -- White
     Color3.fromRGB(  0,   0,   0), -- Black
     Color3.fromRGB(255,   0,   0), -- Red
@@ -4566,12 +4802,11 @@ local presetColors = {
     Color3.fromRGB(255, 140,   0), -- Orange
     Color3.fromRGB( 75,   0, 130), -- Indigo
     Color3.fromRGB( 64, 224, 208), -- Turquoise
-    "Rainbow",
 }
 
 local RunS = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
- 
+
 local isCooldown = false
 local WaitClick  = false
 local ScrollSize = 0
@@ -4607,11 +4842,12 @@ local function rgbStringToColor3(text)
 	if r > 255 or g > 255 or b > 255 then return nil end
 	return Color3.fromRGB(r, g, b)
 end
-
+-- made by sp
 local function updateColor()
     ColorCanvas.BackgroundColor3 = Color3.fromHSV(ColorH, 1, 1)
     local newC = Color3.fromHSV(ColorH, ColorS, ColorV)
     ColorBox.BackgroundColor3 = newC
+    ColorPreview.BackgroundColor3 = newC
     ColorCodeBox.Text = rgbToHex(newC)
     ColorCodeBoxUD.Text = rgbToRGBString(newC)
     if Flag then
@@ -4640,34 +4876,104 @@ ColorCodeBoxUD.FocusLost:Connect(function()
 	end
 end)
 
-ColorCanvas.InputBegan:Connect(function(inp)
-    if inp.UserInputType == Enum.UserInputType.MouseButton1 then
-        local conn = RunS.RenderStepped:Connect(function()
-            local m = UIS:GetMouseLocation()
-            local x = math.clamp((m.X - ColorCanvas.AbsolutePosition.X) / ColorCanvas.AbsoluteSize.X, 0, 1)
-            local y = math.clamp((m.Y - ColorCanvas.AbsolutePosition.Y) / ColorCanvas.AbsoluteSize.Y, 0, 1)
+ColorCanvas.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        local function updateColorCanvas()
+            local inputPosition = input.Position or UserInputService:GetMouseLocation()
+            local relativeX = inputPosition.X - ColorCanvas.AbsolutePosition.X
+            local relativeY = inputPosition.Y - ColorCanvas.AbsolutePosition.Y
+            local x = math.clamp(relativeX / ColorCanvas.AbsoluteSize.X, 0, 1)
+            local y = math.clamp(relativeY / ColorCanvas.AbsoluteSize.Y, 0, 1)
             ColorSelection.Position = UDim2.new(x, 0, y, 0)
             ColorS = x
             ColorV = 1 - y
             updateColor()
+        end
+
+        updateColorCanvas()
+
+        local updateConnection
+        local function stopUpdating()
+            if updateConnection and updateConnection.Connected then
+                updateConnection:Disconnect()
+                updateConnection = nil
+            end
+        end
+
+        updateConnection = UserInputService.InputChanged:Connect(function(changedInput)
+            if (changedInput.UserInputType == Enum.UserInputType.MouseMovement or 
+                changedInput.UserInputType == Enum.UserInputType.Touch) and 
+               (UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or
+                UserInputService:IsTouchPressed()) then
+                
+                local inputPosition = changedInput.Position or UserInputService:GetMouseLocation()
+                local relativeX = inputPosition.X - ColorCanvas.AbsolutePosition.X
+                local relativeY = inputPosition.Y - ColorCanvas.AbsolutePosition.Y
+                local x = math.clamp(relativeX / ColorCanvas.AbsoluteSize.X, 0, 1)
+                local y = math.clamp(relativeY / ColorCanvas.AbsoluteSize.Y, 0, 1)
+                ColorSelection.Position = UDim2.new(x, 0, y, 0)
+                ColorS = x
+                ColorV = 1 - y
+                updateColor()
+            end
         end)
-        ColorCanvas.InputEnded:Connect(function(e)
-            if e.UserInputType == Enum.UserInputType.MouseButton1 then conn:Disconnect() end
+
+        local endConnection = UserInputService.InputEnded:Connect(function(endInput)
+            if endInput.UserInputType == Enum.UserInputType.MouseButton1 or 
+               endInput.UserInputType == Enum.UserInputType.Touch then
+                stopUpdating()
+                if endConnection and endConnection.Connected then
+                    endConnection:Disconnect()
+                end
+            end
         end)
     end
 end)
 
-HueBar.InputBegan:Connect(function(inp)
-    if inp.UserInputType == Enum.UserInputType.MouseButton1 then
-        local conn = RunS.RenderStepped:Connect(function()
-            local m = UIS:GetMouseLocation()
-            local y = math.clamp((m.Y - HueBar.AbsolutePosition.Y) / HueBar.AbsoluteSize.Y, 0, 1)
+HueBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        local function updateHueBar()
+            local inputPosition = input.Position or UserInputService:GetMouseLocation()
+            local relativeY = inputPosition.Y - HueBar.AbsolutePosition.Y
+            local y = math.clamp(relativeY / HueBar.AbsoluteSize.Y, 0, 1)
             HueSelection.Position = UDim2.new(0.5, 0, y, 0)
             ColorH = 1 - y
             updateColor()
+        end
+
+        updateHueBar()
+
+        local updateConnection
+        local function stopUpdating()
+            if updateConnection and updateConnection.Connected then
+                updateConnection:Disconnect()
+                updateConnection = nil
+            end
+        end
+
+        updateConnection = UserInputService.InputChanged:Connect(function(changedInput)
+            if (changedInput.UserInputType == Enum.UserInputType.MouseMovement or 
+                changedInput.UserInputType == Enum.UserInputType.Touch) and 
+               (UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or
+                UserInputService:IsTouchPressed()) then
+                
+                local inputPosition = changedInput.Position or UserInputService:GetMouseLocation()
+                local relativeY = inputPosition.Y - HueBar.AbsolutePosition.Y
+                local y = math.clamp(relativeY / HueBar.AbsoluteSize.Y, 0, 1)
+                HueSelection.Position = UDim2.new(0.5, 0, y, 0)
+                ColorH = 1 - y
+                updateColor()
+            end
         end)
-        HueBar.InputEnded:Connect(function(e)
-            if e.UserInputType == Enum.UserInputType.MouseButton1 then conn:Disconnect() end
+
+        local endConnection = UserInputService.InputEnded:Connect(function(endInput)
+            if endInput.UserInputType == Enum.UserInputType.MouseButton1 or 
+               endInput.UserInputType == Enum.UserInputType.Touch then
+                stopUpdating()
+                if endConnection and endConnection.Connected then
+                    endConnection:Disconnect()
+                end
+            end
         end)
     end
 end)
@@ -4780,6 +5086,8 @@ lastActionTime = tick()
             btn.Activated:Connect(function()
                 CalculateCustomColorPos()
                 ColorCodeBox.Visible = false
+                ColorPreview.Visible = false
+                TopBar.Visible = false
                 CloseButton.Visible = false
                 ColorCodeBoxUD.Visible = false
                 ColorCanvas.Visible = false
@@ -4805,12 +5113,14 @@ lastActionTime = tick()
                     CustomColorFrame.Visible = true
                     NoClickFrame.Visible = true
                     ColorCodeBox.Visible = true
+                    ColorPreview.Visible = true
+                    TopBar.Visible = true
                     ColorCodeBoxUD.Visible = true
                     ColorCanvas.Visible = true
                     ColorSelection.Visible = true
                     HueBar.Visible = true
                     HueSelection.Visible = true
-                    CreateTween({CustomColorFrame, "Size", UDim2.new(0, 200, 0, 160), 0.25})
+                    CreateTween({CustomColorFrame, "Size", UDim2.new(0, 200, 0, 200), 0.25})
                     task.delay(0.2, function()
                         isCooldown = false
                         WaitClick = false
@@ -4821,8 +5131,17 @@ lastActionTime = tick()
             btn.Activated:Connect(function()
                 if Flag then SaveColorPickerFlag(Flag, col) end
                 Colorpicker:SetColor(col)
-                CreateTween({Arrow, "Rotation", -90, 0.25})
-                CreateTween({Arrow, "ImageColor3", Color3.fromRGB(255, 255, 255), 0.25})
+    local h, s, v = Color3.toHSV(col)
+    ColorH, ColorS, ColorV = h, s, v
+    
+    ColorPreview.BackgroundColor3 = col
+    ColorBox.BackgroundColor3 = col
+    ColorCodeBox.Text = rgbToHex(col)
+    ColorCodeBoxUD.Text = rgbToRGBString(col)
+    ColorCanvas.BackgroundColor3 = Color3.fromHSV(ColorH, 1, 1)
+    ColorSelection.Position = UDim2.new(ColorS, 0, 1 - ColorV, 0)
+    HueSelection.Position = UDim2.new(0.5, 0, 1 - ColorH, 0)
+
             end)
         end
 
@@ -4834,6 +5153,50 @@ lastActionTime = tick()
         end)
     end
 end
+
+local function updateRandomButtonHover(isHovering)
+    if isHovering then
+        RandomButton.ImageColor3 = Color3.fromRGB(230, 230, 230)
+        RandomButton.Stroke.Color = Color3.fromRGB(150, 150, 150)
+    else
+        RandomButton.ImageColor3 = Color3.fromRGB(200, 200, 200)
+        RandomButton.Stroke.Color = Color3.fromRGB(100, 100, 100)
+    end
+end
+
+RandomButton.MouseButton1Click:Connect(function()
+    if isRainbowActive then
+        stopRainbowEffect()
+    end
+    
+    local randomColor = Color3.new(math.random(), math.random(), math.random())
+    
+    local h, s, v = Color3.toHSV(randomColor)
+    ColorH, ColorS, ColorV = h, s, v
+    
+    ColorPreview.BackgroundColor3 = randomColor
+    ColorBox.BackgroundColor3 = randomColor
+    ColorCodeBox.Text = rgbToHex(randomColor)
+    ColorCodeBoxUD.Text = rgbToRGBString(randomColor)
+    ColorCanvas.BackgroundColor3 = Color3.fromHSV(ColorH, 1, 1)
+    ColorSelection.Position = UDim2.new(ColorS, 0, 1 - ColorV, 0)
+    HueSelection.Position = UDim2.new(0.5, 0, 1 - ColorH, 0)
+    
+    if typeof(Callback) == "function" then
+        Callback(randomColor)
+    end
+    
+    if Flag then
+        SaveColorPickerFlag(Flag, randomColor)
+    end
+end)
+
+RandomButton.MouseEnter:Connect(function()
+    updateRandomButtonHover(true)
+end)
+RandomButton.MouseLeave:Connect(function()
+    updateRandomButtonHover(false)
+end)
 
 ColorBox.Activated:Connect(function()
         if isCooldown then return end
@@ -5000,23 +5363,6 @@ end
 			return DiscordInvite
 		end
 
-local ScreenFind = CoreGui:FindFirstChild(ScreenGui.Name)
-if ScreenFind and ScreenFind ~= ScreenGui then
-    for _, conn in ipairs(bindConnections) do
-        if typeof(conn) == "RBXScriptConnection" and conn.Connected then
-            conn:Disconnect()
-        end
-    end
-
-if shouldClearToggles then
-    splib:ClearAllToggles()
-end
-
-    table.clear(bindConnections)
-    splib:ClearAllBinds()
-    ScreenFind:Destroy()
-end
-
 -- local SettingTab
 
 Tab:AddSection({
@@ -5027,7 +5373,7 @@ Tab:AddSection({
 Tab:AddDropdown({
     Name     = "UI Size",
     Options  = {"Small", "Medium", "Large"},
-    Default  = savedSize,
+    Default  = "Medium",
     Flag = "UISize",
     Callback = function(v)
         local offset = isMobile and -200 or 0
@@ -5085,6 +5431,21 @@ Tab:AddToggle({
     __force_container = SettingTab
 })
 
+Tab:AddToggle({
+    Name = "Sidebar Hover Expand",
+    Flag = "SidebarHoverMobile",
+    Default = true,
+    IsMobile = true,
+    Callback = function(enabled)
+        if enabled then
+            tweenControlSizeX(minClamp)
+        else
+            tweenControlSizeX(expandedSizeX)
+        end
+    end,
+    __force_container = SettingTab
+})
+
 Tab:AddSection({
     Name = "UI",
     __force_container = SettingTab
@@ -5123,7 +5484,7 @@ end)
 Tab:AddToggle({
     Name = "Rainbow MainFrame",
     Flag = "RainbowMainFrame",
-    Default = Settings.RainbowMainFrameDefault,
+    Default = tostring(RainbowMainFrameDefault),
     Callback = function(enabled)
         rainbowStroke.Transparency = enabled and 0 or 1
     end,
@@ -5159,7 +5520,7 @@ end)
 Tab:AddToggle({
     Name = "Rainbow Title",
     Flag = "RainbowTitle",
-    Default = Settings.RainbowTitleDefault,
+    Default = tostring(RainbowTitleDefault),
     Callback = function(enabled)
         titleRainbowEnabled = enabled
         if not enabled and Title then
@@ -5172,7 +5533,7 @@ Tab:AddToggle({
 Tab:AddToggle({
     Name = "Rainbow SubTitle",
     Flag = "RainbowSubTitle",
-    Default = Settings.RainbowSubTitleDefault,
+    Default = tostring(RainbowSubTitleDefault),
     Callback = function(enabled)
         subtitleRainbowEnabled = enabled
         if not enabled and SubTitle then
@@ -5186,24 +5547,6 @@ Tab:AddToggle({
 	end
 	MinimizeButton.Activated:Connect(Window.MinimizeBtn)
 	return Window
-end
-function splib:Destroy()
-    for _, conn in ipairs(self.bindConnections or {}) do
-        if typeof(conn) == "RBXScriptConnection" and conn.Connected then
-            conn:Disconnect()
-        end
-    end
-    table.clear(self.bindConnections or {})
-
-    if self.ClearAllBinds then
-        self:ClearAllBinds()
-    end
-
-    if self.shouldClearToggles and self.ClearAllToggles then
-        self:ClearAllToggles()
-    end
-
-        ScreenGui:Destroy()
 end
 
 return splib
