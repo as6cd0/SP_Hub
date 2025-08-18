@@ -1658,8 +1658,6 @@ end
 
 local SaveChangesEnabled = true
 
-local safeTitle = tostring(WTitle):gsub("[%s%p]", "_")
-
 
 local DropdownsFile = "dropdowns.json"
 local LoadedDropdowns = {}
@@ -1697,9 +1695,7 @@ function splib:MakeWindow(Configs)
     local RainbowTitleDefault = Configs.RainbowTitleDefault or Configs.RainbowTitle or false
     local RainbowSubTitleDefault = Configs.RainbowSubTitleDefault or Configs.RainbowSubTitle or false
     
-     EnableSetting = (Configs.Setting == nil and Configs.ShowSetting == nil)
-        or (Configs.Setting == true or Configs.ShowSetting == true)
-
+     EnableSetting = Configs.Setting or Configs.EnableSetting or true
     ToggleEnabled = (Configs.Toggle == nil and Configs.EnableToggle == nil) 
        or (Configs.Toggle == true or Configs.EnableToggle == true)
     local ToggleIcon = tostring(Configs.ToggleIcon or "rbxassetid://83114982417764")
@@ -2086,7 +2082,6 @@ end)
 		Name = "Close"
 	})
 
-
 local SettingButton = SetProps(CloseButton:Clone(), {
     Position = UDim2.new(1, -60, 0.5),
     Size = UDim2.new(0, 14, 0, 14),
@@ -2425,14 +2420,6 @@ end)
 		local DText = Configs[2] or Configs.Text or "This is a Dialog"
 		local DOptions = Configs[3] or Configs.Options or {}
 		
-    if Configs.IsMobile and not isMobile then
-        return nil
-    end
-
-    if Configs.IsPC and not isPC then
-        return nil
-    end
-
 		local Frame = Create("Frame", {
 			Active = true,
 			Size = UDim2.fromOffset(250 * 1.08, 150 * 1.08),
