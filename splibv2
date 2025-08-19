@@ -2016,7 +2016,7 @@ local function ControlSize()
     )
 
     local Pos2 = ControlSize2.Position
-    local minClamp = isPC and 50 or 100
+    local minClamp = 50
     ControlSize2.Position = UDim2.new(0, math.clamp(Pos2.X.Offset, minClamp, 100), 1, 0)
 
     MainScroll.Size = UDim2.new(0, ControlSize2.Position.X.Offset, 1, -TopBar.Size.Y.Offset)
@@ -2031,7 +2031,7 @@ local hoverConnections = {}
 local originalSizeX = 30
 local expandedSizeX = 160
 local userSizeX = originalSizeX
-local minClamp = isPC and 50 or 100
+local minClamp = 50
 
 local function tweenControlSizeX(toX)
     local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
