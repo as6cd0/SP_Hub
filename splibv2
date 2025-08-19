@@ -1040,6 +1040,17 @@ if isfile(SettingsFile) then
     end
 end
 
+local DropdownsFile = "dropdowns.json"
+local LoadedDropdowns = {}
+if isfile(DropdownsFile) then
+    local ok, data = pcall(function()
+        return HttpService:JSONDecode(readfile(DropdownsFile))
+    end)
+
+    if ok and type(data) == "table" then
+        LoadedDropdowns = data
+    end
+end
 
 local function SaveCfg(filename)
     local data = {}
@@ -1066,7 +1077,7 @@ local function LoadCfg(filename)
     end
 end
 
-LoadCfg("sp library.json")
+LoadCfg("sp library")
 
 local SetProps, SetChildren, InsertTheme, Create do
 	InsertTheme = function(Instance, Type)
@@ -1283,6 +1294,24 @@ local bindConnections = {}
 local shouldClearToggles = false
 
 local GUI_NAME = "sp Library"
+local oldGui = CoreGui:FindFirstChild(GUI_NAME)
+if oldGui then
+    for _, conn in ipairs(bindConnections) do
+        if typeof(conn) == "RBXScriptConnection" and conn.Connected then
+            conn:Disconnect()
+        end
+    end
+    table.clear(bindConnections)
+
+    if splib and type(splib.ClearAllBinds) == "function" then
+        splib:ClearAllBinds()
+    end
+    if shouldClearToggles and splib and type(splib.ClearAllToggles) == "function" then
+        splib:ClearAllToggles()
+    end
+
+    oldGui:Destroy()
+end
 
 local ScreenGui = Create("ScreenGui", CoreGui, {
     Name = GUI_NAME,
@@ -1428,7 +1457,7 @@ AddEle("Corner", function(parent, CornerRadius)
 	}), props)
 	return New
 end)
--- HUH?
+
 AddEle("Stroke", function(parent, props, ...)
 	local args = {...}
 	local New = InsertTheme(SetProps(Create("UIStroke", parent, {
@@ -1493,7 +1522,7 @@ local function ButtonFrame(parent, Title, Description, HolderSize, isBind)
         Text = Title or "",
         RichText = true
     }), "Text")
--- made by sp
+
     local DescL = InsertTheme(Create("TextLabel", Frame, {
         Font = Enum.Font.Gotham,
         TextColor3 = Theme["Color Dark Text"],
@@ -1513,7 +1542,7 @@ task.defer(function()
     local newHeight = math.max(25, descHeight + 10)
     Frame.Size = UDim2.new(1, 0, 0, newHeight + 2)
 end)
--- made by sp
+
     local LabelHolder = Create("Frame", Frame, {
         AutomaticSize = "Y",
         BackgroundTransparency = 1,
@@ -1579,7 +1608,7 @@ Make("Corner", bindBox, UDim.new(0.25, 0))
     end
     Label:SetTitle(Title)
     Label:SetDesc(Description)
--- made by sp
+
     return Frame, Label, bindBox, ColorBox
 end
 local function GetColor(Instance)
@@ -1650,7 +1679,7 @@ function splib:SetTheme(NewTheme)
 		end
 	end)
 end
--- made by sp
+
 function splib:SetScale(NewScale)
 	NewScale = ViewportSize.Y / math.clamp(NewScale, 300, 2000)
 	UIScale, ScreenGui.Scale.Scale = NewScale, NewScale
@@ -1658,32 +1687,22 @@ end
 
 local SaveChangesEnabled = true
 
-
-local DropdownsFile = "dropdowns.json"
-local LoadedDropdowns = {}
-if isfile(DropdownsFile) then
-    local ok, data = pcall(function()
-        return HttpService:JSONDecode(readfile(DropdownsFile))
-    end)
-
-    if ok and type(data) == "table" then
-        LoadedDropdowns = data
-    end
-end
-
 local ToggleEnabled
 local EnableSetting
 
 function splib:MakeWindow(Configs)
 
+    ToggleEnabled = (Configs.Toggle == nil and Configs.EnableToggle == nil) 
+       or (Configs.Toggle == true or Configs.EnableToggle == true)
+    EnableSetting = (Configs.Setting == nil and Configs.EnableSetting == nil)
+       or (Configs.Setting == true or Configs.EnableSetting == true)
     local ToggleIcon = tostring(Configs.ToggleIcon or "rbxassetid://83114982417764")
     local WTitle = Configs[1] or Configs.Name or Configs.Title or "SP Lib v2"
     local WMiniText = Configs[2] or Configs.SubTitle or Configs.SubName or "by : SP Hub"
     local RainbowMainFrameDefault = Configs.RainbowMainFrameDefault or Configs.RainbowMainFrame or false
     local RainbowTitleDefault = Configs.RainbowTitleDefault or Configs.RainbowTitle or false
     local RainbowSubTitleDefault = Configs.RainbowSubTitleDefault or Configs.RainbowSubTitle or false
-    ToggleEnabled = (Configs.Toggle == nil and Configs.EnableToggle == nil) 
-       or (Configs.Toggle == true or Configs.EnableToggle == true)
+
 
 function splib:MakeWindow(Configs)
 
@@ -1691,12 +1710,15 @@ function splib:MakeWindow(Configs)
     local WMiniText = Configs[2] or Configs.SubTitle or Configs.SubName or "by : SP Hub"
 
     Settings.ScriptFile = Configs[3] or Configs.ConfigFolder or Configs.SaveFolder or false
+
     local RainbowMainFrameDefault = Configs.RainbowMainFrameDefault or Configs.RainbowMainFrame or false
     local RainbowTitleDefault = Configs.RainbowTitleDefault or Configs.RainbowTitle or false
     local RainbowSubTitleDefault = Configs.RainbowSubTitleDefault or Configs.RainbowSubTitle or false
     
-     EnableSetting = Configs.Setting or Configs.EnableSetting or true
-    ToggleEnabled = (Configs.Toggle == nil and Configs.EnableToggle == nil) 
+    EnableSetting = (Configs.Setting == nil and Configs.EnableSetting == nil)
+       or (Configs.Setting == true or Configs.EnableSetting == true)
+
+    ToggleEnabled = (Configs.Toggle == nil and Configs.EnableToggle == nil)
        or (Configs.Toggle == true or Configs.EnableToggle == true)
     local ToggleIcon = tostring(Configs.ToggleIcon or "rbxassetid://83114982417764")
     local HidePremium = Configs.HidePremium == true
@@ -1704,7 +1726,7 @@ function splib:MakeWindow(Configs)
     local CloseCallback = Configs.CloseCallback or false
 
     shouldClearToggles = (Configs.CloseCallback == true)
--- made by sp
+
 
     if Configs.IntroEnabled == nil then
         Configs.IntroEnabled = true
@@ -1753,7 +1775,7 @@ function splib:MakeWindow(Configs)
     if Configs.IntroEnabled then
         LoadSequence()
     end
--- made by sp
+
     local function LoadFile()
         local File = Settings.ScriptFile
         if type(File) ~= "string" then return end
@@ -1776,8 +1798,8 @@ function splib:MakeWindow(Configs)
 
     local function saveSettings()
         if not SaveConfig then return end
-        if not isfolder(ConfigFolder) then
-            makefolder(ConfigFolder)
+        if not isfolder(Settings.ConfigFolder) then
+            makefolder(Settings.ConfigFolder)
         end
         local filePath = Settings.ConfigFolder.."/config.json"
         writefile(filePath, HttpService:JSONEncode(Flags))
@@ -2688,7 +2710,6 @@ function SettingTabHandler:Enable()
             Frame.Parent = nil
         end
     end
--- made by sp
     SettingTab.Parent = Containers
     SettingTab.Size = UDim2.new(1, 0, 1, 150)
     table.foreach(splib.Tabs, function(_, tab)
@@ -2823,7 +2844,7 @@ local function SaveDropdownFlag(flag, value)
 			data = existing
 		end
 	end
--- made by sp
+
 	data[flag] = value
 
 	local ok, encoded = pcall(function()
@@ -2906,7 +2927,7 @@ function splib:MakeNotification(Configs)
 local holder = self.NotificationHolder
 if not holder then
     local isMobileSize = isMobile and 150 or 225
--- made by sp
+
     holder = Create("Frame", ScreenGui, {
         Name                    = "NotificationHolder",
         AnchorPoint             = Vector2.new(1, 1),
@@ -2948,7 +2969,7 @@ end
         Color    = Theme["Color Text"],
         Thickness= 1.2,
     })
--- made by sp
+
     Create("UIPadding", notifFrame, {
         PaddingLeft   = UDim.new(0, 12),
         PaddingTop    = UDim.new(0, 8),
@@ -3029,7 +3050,7 @@ function Tab:AddLabel(Configs)
 
     local container = Configs.__force_container or Container
     local Frame, LabelFunc = ButtonFrame(container, PName, PDesc, UDim2.new(1, -20))
-    -- made by sp
+    
     local Label = {}
     function Label:Visible(...) Funcs:ToggleVisible(Frame, ...) end
     function Label:Destroy() Frame:Destroy() end
@@ -3194,27 +3215,12 @@ table.insert(bindConnections, inputConnection)
 end
 
 function splib:ClearAllBinds()
+    print("Clearing Binds, count:", #Binds)
     for _, bind in ipairs(Binds) do
         if bind.Set then
             bind:Set(Enum.KeyCode.Unknown)
         end
     end
-end
-
-local oldGui = CoreGui:FindFirstChild(GUI_NAME)
-if oldGui then
-    for _, conn in ipairs(bindConnections) do
-        if typeof(conn) == "RBXScriptConnection" and conn.Connected then
-            conn:Disconnect()
-        end
-    end
-    table.clear(bindConnections)
-
-    if splib.ClearAllBinds then
-        splib:ClearAllBinds()
-    end
-
-    oldGui:Destroy()
 end
 
 function Tab:AddImageLabel(Configs)
@@ -3545,6 +3551,7 @@ end
 end
 
 function splib:ClearAllToggles()
+    print("Clearing Toggles, count:", #Toggles)
     for _, entry in ipairs(Toggles) do
         if entry.object and type(entry.object.ForceCallback) == "function" then
             entry.object:ForceCallback(false)
@@ -4642,7 +4649,7 @@ Make("Stroke", ColorCanvas, {
 	Color = Color3.fromRGB(70, 70, 70),
 	Thickness = 1
 })
--- made by sp
+
 local satImage = Create("ImageLabel", ColorCanvas, {
     Name = "SaturationValueImage",
     Size = UDim2.new(1, 0, 1, 0),
@@ -4829,7 +4836,7 @@ local function rgbStringToColor3(text)
 	if r > 255 or g > 255 or b > 255 then return nil end
 	return Color3.fromRGB(r, g, b)
 end
--- made by sp
+
 local function updateColor()
     ColorCanvas.BackgroundColor3 = Color3.fromHSV(ColorH, 1, 1)
     local newC = Color3.fromHSV(ColorH, ColorS, ColorV)
