@@ -1980,9 +1980,10 @@ Make("Corner", SearchBox)
 	})
 	
 	local ControlSize1, ControlSize2 = MakeDrag(Create("ImageButton", MainFrame, {
-		Size = UDim2.new(0, 35, 0, 35),
+		Size = UDim2.new(0, 10, 0, 10),
 		Position = MainFrame.Size,
 		Active = true,
+        Image = "rbxassetid://6153965696",
 		AnchorPoint = Vector2.new(0.8, 0.8),
 		BackgroundTransparency = 1,
 		Name = "Control Hub Size"
@@ -2003,11 +2004,11 @@ local function ControlSize()
     local minY, maxY
 
     if isPC then
-        minX, maxX = 300, 550
-        minY, maxY = 250, 400
+        minX, maxX = 350, 550
+        minY, maxY = 300, 400
     else
-        minX, maxX = 250, 400
-        minY, maxY = 150, 250
+        minX, maxX = 300, 400
+        minY, maxY = 200, 260
     end
 
     ControlSize1.Position = UDim2.fromOffset(
@@ -3521,11 +3522,11 @@ end
         SetToggle(not Default)
     end)
 
-    local ToggleAPI = {}
-    function ToggleAPI:Visible(...) Funcs:ToggleVisible(Button, ...) end
-    function ToggleAPI:Destroy()     Button:Destroy()           end
-    function ToggleAPI:Callback(...) Funcs:InsertCallback(Callback, ...)() end
-function ToggleAPI:Set(Val1, control)
+    local Toggle = {}
+    function Toggle:Visible(...) Funcs:ToggleVisible(Button, ...) end
+    function Toggle:Destroy()     Button:Destroy()           end
+    function Toggle:Callback(...) Funcs:InsertCallback(Callback, ...)() end
+function Toggle:Set(Val1, control)
     if type(Val1) == "string" and type(control) == "string" then
         LabelFunc:SetTitle(Val1)
         LabelFunc:SetDesc(control)
@@ -3541,16 +3542,25 @@ function ToggleAPI:Set(Val1, control)
     end
 end
 
-function ToggleAPI:ForceCallback(val)
+function Toggle:ForceCallback(val)
     Funcs:FireCallback(Callback, val)
 end
 
-ToggleAPI.GetValue = function()
+Toggle.GetValue = function()
     return Default
 end
 
-   table.insert(Toggles, { object = ToggleAPI, default = Default })
-    return ToggleAPI
+function Toggle:SetText(newTitle, newDesc)
+    if newTitle then 
+        LabelFunc:SetTitle(newTitle) 
+    end
+    if newDesc then 
+        LabelFunc:SetDesc(newDesc) 
+    end
+end
+
+   table.insert(Toggles, { object = Toggle, default = Default })
+    return Toggle
 end
 
 function splib:ClearAllToggles()
@@ -4140,7 +4150,6 @@ function Tab:AddSlider(Configs)
         Default = (Min + Max) / 2
     end
 
-
     if Configs.IsMobile and not isMobile then return nil end
     if Configs.IsPC and not isPC then return nil end
 
@@ -4199,36 +4208,24 @@ function Tab:AddSlider(Configs)
     local UIScale = Create("UIScale", LabelVal)
     local BaseMousePos = Create("Frame", SliderBar, { Position = UDim2.new(0,0,0.5,0), Visible = false })
 
-LabelVal.ClearTextOnFocus = false
-LabelVal.TextEditable = true
+    LabelVal.ClearTextOnFocus = false
+    LabelVal.TextEditable = true
 
-LabelVal.FocusLost:Connect(function(enterPressed)
-	if enterPressed then
-		local input = tonumber(LabelVal.Text)
-		if input then
-            if Flag then SaveSliderFlag(Flag, input) end
-			input = math.clamp(input, Min, Max)
-			input = math.floor(input / Increase + 0.5) * Increase
+    local value = Default
 
-			LabelVal.Text = string.format("%.1f", input)
-
-			if input ~= Default then
-				SetSlider(input)
-			else
-				local pos = (input - Min) / (Max - Min)
-				AnimateHandle(math.clamp(pos, 0, 1))
-			end
-		else
-			LabelVal.Text = string.format("%.1f", Default)
-		end
-	end
-end)
+    local function quantize(v)
+        v = math.clamp(v, Min, Max)
+        if Increase and Increase ~= 0 then
+            v = math.floor(v / Increase + 0.5) * Increase
+        end
+        return v
+    end
 
     local function UpdateLabel(NewValue)
-        Default = NewValue
+        value = NewValue
         LabelVal.Text = string.format("%.1f", NewValue)
-        if Flag then SaveSliderFlag(Flag, NewValue) end
-        Funcs:FireCallback(Callback, NewValue)
+        if Flag then pcall(function() SaveSliderFlag(Flag, NewValue) end) end
+        pcall(function() Funcs:FireCallback(Callback, NewValue) end)
     end
 
     local function AnimateHandle(toScale)
@@ -4238,8 +4235,11 @@ end)
 
     local function UpdateValues()
         local scale = SliderHandle.Position.X.Scale
-        TweenService:Create(Indicator, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.new(scale, 0, 1, 0) }):Play()
+        pcall(function()
+            TweenService:Create(Indicator, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.new(scale, 0, 1, 0) }):Play()
+        end)
         local NewValue = scale * (Max - Min) + Min
+        NewValue = quantize(NewValue)
         UpdateLabel(NewValue)
     end
 
@@ -4255,7 +4255,7 @@ end)
         end
         TweenService:Create(SliderHandle, TweenInfo.new(0.1, Enum.EasingStyle.Quad), { Size = UDim2.new(0, 16, 0, 16) }):Play()
         Container.ScrollingEnabled = true
-        if Flag then SaveSliderFlag(Flag, Default) end
+        if Flag then SaveSliderFlag(Flag, value) end
     end)
 
     LabelVal:GetPropertyChangedSignal("Text"):Connect(function()
@@ -4266,12 +4266,40 @@ end)
         CreateTween({LabelVal, "Rotation", 0, 0.1})
     end)
 
-    function SetSlider(NewValue)
+    local function SetSlider(NewValue)
         if type(NewValue) ~= "number" then return end
+        NewValue = quantize(NewValue)
         UpdateLabel(NewValue)
         local pos = (NewValue - Min) / (Max - Min)
         AnimateHandle(math.clamp(pos, 0, 1))
-    end; SetSlider(Default)
+    end
+
+    do
+        local pos = (Default - Min) / (Max - Min)
+        SliderHandle.Position = UDim2.new(math.clamp(pos,0,1), 0, 0.5, 0)
+        Indicator.Size = UDim2.new(math.clamp(pos,0,1), 0, 1, 0)
+        LabelVal.Text = string.format("%.1f", Default)
+    end
+
+LabelVal.FocusLost:Connect(function(enterPressed)
+        if enterPressed then
+            local input = tonumber(LabelVal.Text)
+            if input then
+                if Flag then pcall(function() SaveSliderFlag(Flag, input) end) end
+                input = quantize(input)
+                LabelVal.Text = string.format("%.1f", input)
+
+                if input ~= value then
+                    SetSlider(input)
+                else
+                    local pos = (input - Min) / (Max - Min)
+                    AnimateHandle(math.clamp(pos, 0, 1))
+                end
+            else
+                LabelVal.Text = string.format("%.1f", value)
+            end
+        end
+    end)
 
     SliderHandle:GetPropertyChangedSignal("Position"):Connect(UpdateValues)
 
@@ -4283,11 +4311,12 @@ end)
         elseif type(a) == "number" then SetSlider(a)
         end
     end
-    function Slider:Callback(...) Funcs:InsertCallback(Callback, ...)(tonumber(Default)) end
+    function Slider:Callback(...) Funcs:InsertCallback(Callback, ...)(tonumber(value)) end
     function Slider:Visible(...) Funcs:ToggleVisible(Button, ...) end
     function Slider:Destroy() Button:Destroy() end
     return Slider
 end
+
 local TextBoxesFile = "textboxes.json"
 local function SaveTextBoxFlag(flag, value)
     local data = {}
@@ -5367,19 +5396,53 @@ Tab:AddSection({
     __force_container = SettingTab
 })
 
+local uiSizeMode = "Medium"
+
+-- قيمة الـ Custom الحالية
+local customUIsize = 600
+
+-- (لو محتاج أوفست للموبايل)
+local function mobileOffset()
+    return isMobile and -200 or 0
+end
+
 Tab:AddDropdown({
-    Name     = "UI Size",
-    Options  = {"Small", "Medium", "Large"},
-    Default  = "Medium",
+    Name = "UI Size",
+    Options = {"Small", "Medium", "Large", "Custom"},
+    Default = "Medium",
     Flag = "UISize",
     Callback = function(v)
-        local offset = isMobile and -200 or 0
+        uiSizeMode = v
+        local offset = mobileOffset()
+
         if v == "Small" then
             splib:SetScale(700 + offset)
+
         elseif v == "Medium" then
             splib:SetScale(600 + offset)
+
         elseif v == "Large" then
             splib:SetScale(500 + offset)
+
+        elseif v == "Custom" then
+            -- طبّق القيمة الحالية للسلايدر فورًا
+            splib:SetScale(customUIsize + offset)
+        end
+    end,
+    __force_container = SettingTab
+})
+
+Tab:AddSlider({
+    Name = "Custom Size",
+    Min = 400,
+    Max = 800,
+    Default = customUIsize,
+    Flag = "CustomUISize",
+    Callback = function(value)
+        customUIsize = value
+        -- لو المستخدم حالياً مختار "Custom" طبّق التغيير مباشرة
+        if uiSizeMode == "Custom" then
+            splib:SetScale(customUIsize + mobileOffset())
         end
     end,
     __force_container = SettingTab
