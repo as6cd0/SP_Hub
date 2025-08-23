@@ -4153,7 +4153,8 @@ function Tab:AddSlider(Configs)
     if Configs.IsMobile and not isMobile then return nil end
     if Configs.IsPC and not isPC then return nil end
 
-    local Button, LabelFunc = ButtonFrame(Container, SName, SDesc, UDim2.new(1, -20))
+    local container = Configs.__force_container or Container
+    local Button, LabelFunc = ButtonFrame(container, SName, SDesc, UDim2.new(1, -20))
     local SliderHolder = Create("TextButton", Button, {
         Size = UDim2.new(0.40, 0, 1),
         Position = UDim2.new(1),
@@ -5398,10 +5399,8 @@ Tab:AddSection({
 
 local uiSizeMode = "Medium"
 
--- قيمة الـ Custom الحالية
 local customUIsize = 600
 
--- (لو محتاج أوفست للموبايل)
 local function mobileOffset()
     return isMobile and -200 or 0
 end
@@ -5425,7 +5424,6 @@ Tab:AddDropdown({
             splib:SetScale(500 + offset)
 
         elseif v == "Custom" then
-            -- طبّق القيمة الحالية للسلايدر فورًا
             splib:SetScale(customUIsize + offset)
         end
     end,
@@ -5440,12 +5438,11 @@ Tab:AddSlider({
     Flag = "CustomUISize",
     Callback = function(value)
         customUIsize = value
-        -- لو المستخدم حالياً مختار "Custom" طبّق التغيير مباشرة
         if uiSizeMode == "Custom" then
             splib:SetScale(customUIsize + mobileOffset())
         end
     end,
-    __force_container = SettingTab
+   __force_container = SettingTab
 })
 
 Tab:AddDropdown({
