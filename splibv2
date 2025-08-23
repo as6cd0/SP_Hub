@@ -3723,17 +3723,17 @@ local function Minimize()
 	isCooldown = true
  
 	if NoClickFrame.Visible then
-		CreateTween({Arrow, "Rotation", 0, 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out})
+		CreateTween({Arrow, "Rotation", 0, 0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out})
 		Arrow.Image = "rbxassetid://10709791523"
-		CreateTween({Arrow, "ImageColor3", Color3.fromRGB(255, 255, 255), 0.25})
-		CreateTween({DropFrame, "Size", UDim2.new(0, 152, 0, 0), 0.25, true})
+		CreateTween({Arrow, "ImageColor3", Color3.fromRGB(255, 255, 255), 0.15})
+		CreateTween({DropFrame, "Size", UDim2.new(0, 152, 0, 0), 0.15, true})
 		NoClickFrame.Visible = false
 	else
 		NoClickFrame.Visible = true
 		Arrow.Image = "rbxassetid://10709791523"
-		CreateTween({Arrow, "Rotation", 180, 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out})
-		CreateTween({Arrow, "ImageColor3", Theme["Color Theme"], 0.25})
-		CreateTween({DropFrame, "Size", GetFrameSize(), 0.25, true})
+		CreateTween({Arrow, "Rotation", 180, 0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out})
+		CreateTween({Arrow, "ImageColor3", Theme["Color Theme"], 0.15})
+		CreateTween({DropFrame, "Size", GetFrameSize(), 0.15, true})
 	end
  
 	task.delay(0.11, function()
@@ -3754,197 +3754,257 @@ end
 				DropFrame.AnchorPoint = Vector2.new(0, AnchorPoint)
 				CreateTween({DropFrame, "Position", NewPos, 0.1})
 			end
-			local AddNewOptions, GetOptions, AddOption, RemoveOption, Selected do
-                local saved = CheckFlag(Flag) and GetFlag(Flag)
-				local Default = type(OpDefault) ~= "table" and {OpDefault} or OpDefault
-				local MultiSelect = DMultiSelect
-				local Options = {}
+local AddNewOptions, GetOptions, AddOption, RemoveOption, Selected, SelectOption, UpdateSelected
+local Options, OptionList = {}, {}
+do
+    local saved = (type(CheckFlag) == "function" and CheckFlag(Flag) and GetFlag(Flag)) or nil
+    local Default = type(OpDefault) ~= "table" and {OpDefault} or OpDefault or {}
+    local MultiSelect = DMultiSelect
+    local InitialSelection = saved or Default[1]
+    Selected = MultiSelect and {} or InitialSelection
 
-
-                local InitialSelection = saved or Default[1]
-				Selected = MultiSelect and {} or InitialSelection
-if MultiSelect then
-	for index, Value in pairs(saved or Default) do
-		if type(index) == "string" and (DOptions[index] or table.find(DOptions, index)) then
-			Selected[index] = Value
-		elseif DOptions[Value] then
-			Selected[Value] = true
-		end
-	end
-end
-
-				local function CallbackSelected()
-					SaveDropdownFlag(Flag, MultiSelect and Selected or tostring(Selected))
-					Funcs:FireCallback(Callback, Selected)
-				end
-
-
-	local function UpdateLabel()
-		if MultiSelect then
-			local list = {}
-			for index, Value in pairs(Selected) do
-				if Value then
-					table.insert(list, index)
-				end
-			end
-			ActiveLabel.Text = #list > 0 and table.concat(list, ", ") or Dropdown:Select(saved) or "..."
-		else
-			ActiveLabel.Text = tostring(Selected or "...")
-		end
-	end
- 
-				local function UpdateSelected()
-					if MultiSelect then
-						for _,v in pairs(Options) do
-							local nodes, Stats = v.nodes, v.Stats
-							CreateTween({nodes[2], "BackgroundTransparency", Stats and 0 or 0.8, 0.35})
-							CreateTween({nodes[2], "Size", Stats and UDim2.fromOffset(4, 12) or UDim2.fromOffset(4, 4), 0.35})
-							CreateTween({nodes[3], "TextTransparency", Stats and 0 or 0.4, 0.35})
-						end
-					else
-						for _,v in pairs(Options) do
-							local Slt = v.Value == Selected
-							local nodes = v.nodes
-							CreateTween({nodes[2], "BackgroundTransparency", Slt and 0 or 1, 0.35})
-							CreateTween({nodes[2], "Size", Slt and UDim2.fromOffset(4, 14) or UDim2.fromOffset(4, 4), 0.35})
-							CreateTween({nodes[3], "TextTransparency", Slt and 0 or 0.4, 0.35})
-						end
-					end
-					UpdateLabel()
-				end
- 
-				local function Select(Option)
-					if MultiSelect then
-						Option.Stats = not Option.Stats
-						Option.LastCB = tick()
- 
-						Selected[Option.Name] = Option.Stats
-						CallbackSelected()
-					else
-						Option.LastCB = tick()
- 
-						Selected = Option.Value
-						CallbackSelected()
-					end
-					UpdateSelected()
-				end
- 
-AddOption = function(index, Value)
-    if type(index) == "table" then
-        Value = index[2]
-        index = index[1]
+    if MultiSelect then
+        for _, v in ipairs(saved or Default or {}) do
+            if type(v) == "string" then Selected[v] = true end
+        end
     end
 
-    local Name
-    if type(index) == "string" then
-        Name = index
-    elseif Value ~= nil then
-        Name = tostring(Value)
+    local function normalizeNameValue(index, Value)
+        if type(index) == "table" then
+            Value = index[2]; index = index[1]
+        end
+        local Name
+        if type(index) == "string" then
+            Name = index
+        elseif Value ~= nil then
+            Name = tostring(Value)
+        else
+            Name = tostring(index)
+        end
+        if Value == nil then Value = Name end
+        return Name, Value
+    end
+
+    local function CallbackSelected()
+        pcall(function()
+            if Flag and type(SaveDropdownFlag) == "function" then
+                if MultiSelect then
+                    local list = {}
+                    for _, nm in ipairs(OptionList) do if Selected[nm] then table.insert(list, nm) end end
+                    SaveDropdownFlag(Flag, list)
+                else
+                    SaveDropdownFlag(Flag, tostring(Selected))
+                end
+            end
+        end)
+        pcall(function() Funcs:FireCallback(Callback, Selected) end)
+    end
+
+    local function UpdateLabel()
+        if MultiSelect then
+            local list = {}
+            for _, name in ipairs(OptionList) do
+                if Selected[name] then table.insert(list, name) end
+            end
+            ActiveLabel.Text = #list > 0 and table.concat(list, ", ") or "..."
+        else
+            ActiveLabel.Text = tostring(Selected or "...")
+        end
+    end
+
+    UpdateSelected = function()
+        for _, name in ipairs(OptionList) do
+            local v = Options[name]
+            if v and v.nodes then
+                local nodes, Stats = v.nodes, v.Stats
+                local isSel
+                if MultiSelect then
+                    isSel = (Selected[name] == true)
+                else
+                    isSel = (v.Value == Selected) or (v.Name == Selected)
+                end
+                pcall(function()
+                    CreateTween({nodes[2], "BackgroundTransparency", isSel and 0 or (MultiSelect and 0.8 or 1), 0.35})
+                    CreateTween({nodes[2], "Size", isSel and UDim2.fromOffset(4, (MultiSelect and 12 or 14)) or UDim2.fromOffset(4, 4), 0.35})
+                    CreateTween({nodes[3], "TextTransparency", isSel and 0 or 0.4, 0.35})
+                end)
+            end
+        end
+        UpdateLabel()
+    end
+
+    local function SelectByObject(optionObj)
+        if not optionObj then return end
+        if MultiSelect then
+            optionObj.Stats = not optionObj.Stats
+            Selected[optionObj.Name] = optionObj.Stats
+            CallbackSelected()
+        else
+            optionObj.LastCB = tick()
+            Selected = optionObj.Value
+            CallbackSelected()
+        end
+        UpdateSelected()
+    end
+
+    AddOption = function(index, Value)
+        if type(index) == "table" then
+            Value = index[2]; index = index[1]
+        end
+
+        local Name
+        if type(index) == "string" then Name = index
+        elseif Value ~= nil then Name = tostring(Value)
+        else Name = tostring(index) end
+
+        if not Name or Name == "" then return end
+        if Value == nil then Value = Name end
+        if Options[Name] then return end
+
+        local opt = {
+            index = index,
+            Value = Value,
+            Name = Name,
+            Stats = false,
+            LastCB = 0,
+            nodes = nil
+        }
+        Options[Name] = opt
+        table.insert(OptionList, Name)
+
+        if MultiSelect then
+            local stat = Selected[Name]
+            Selected[Name] = stat or false
+            opt.Stats = stat or false
+        end
+
+        local Button = Make("Button", ScrollFrame, {
+            Name = "Option",
+            Size = UDim2.new(1, 0, 0, 21),
+            Position = UDim2.new(0, 0, 0.5),
+            AnchorPoint = Vector2.new(0, 0.5)
+        }) Make("Corner", Button, UDim.new(0,4))
+
+        local IsSelected = InsertTheme(Create("Frame", Button, {
+            Position = UDim2.new(0, 1, 0.5),
+            Size = UDim2.new(0, 4, 0, 4),
+            BackgroundColor3 = Theme["Color Theme"],
+            BackgroundTransparency = 1,
+            AnchorPoint = Vector2.new(0, 0.5)
+        }), "Theme") Make("Corner", IsSelected, UDim.new(0.5, 0))
+
+        local OptioneName = InsertTheme(Create("TextLabel", Button, {
+            Size = UDim2.new(1, 0, 1, 0),
+            Position = UDim2.new(0, 10),
+            Text = Name,
+            TextColor3 = Theme["Color Text"],
+            Font = Enum.Font.GothamBold,
+            TextXAlignment = "Left",
+            BackgroundTransparency = 1,
+            TextTransparency = 0.4
+        }), "Text")
+
+        Button.Activated:Connect(function()
+            SelectByObject(opt)
+        end)
+
+        opt.nodes = {Button, IsSelected, OptioneName}
+
+        pcall(CalculateSize)
+        UpdateSelected()
+    end
+
+    RemoveOption = function(index, Value)
+        local Name
+        if type(index) == "number" then Name = OptionList[index]
+        elseif type(index) == "string" then Name = index
+        elseif Value ~= nil then Name = tostring(Value)
+        else Name = tostring(index) end
+
+        if not Name or not Options[Name] then return end
+
+        local opt = Options[Name]
+        if opt.nodes and opt.nodes[1] then pcall(function() opt.nodes[1]:Destroy() end) end
+
+        Options[Name] = nil
+        for i, nm in ipairs(OptionList) do
+            if nm == Name then table.remove(OptionList, i); break end
+        end
+
+        if MultiSelect then
+            Selected[Name] = nil
+        else
+            if Selected == opt.Value or Selected == Name then
+                Selected = nil
+            end
+        end
+
+        UpdateSelected()
+        pcall(CalculateSize)
+    end
+
+    SelectOption = function(key)
+        if key == nil then return end
+        if type(key) == "number" then
+            key = OptionList[key]
+            if not key then return end
+        end
+        local opt = Options[key]
+        if not opt then
+            for _, name in ipairs(OptionList) do
+                local o = Options[name]
+                if o and (o.Value == key or tostring(o.Value) == tostring(key) or o.Name == key) then
+                    opt = o; break
+                end
+            end
+        end
+        if not opt then return end
+        if MultiSelect then
+            opt.Stats = not opt.Stats
+            Selected[opt.Name] = opt.Stats
+        else
+            Selected = opt.Value
+        end
+        CallbackSelected()
+        UpdateSelected()
+    end
+
+    GetOptions = function() return Options end
+
+    AddNewOptions = function(List, Clear)
+        if Clear then
+            for i = #OptionList, 1, -1 do
+                RemoveOption(OptionList[i])
+            end
+        end
+        for _, v in ipairs(List or {}) do AddOption(v) end
+        CallbackSelected()
+        UpdateSelected()
+    end
+
+    for _, v in ipairs(DOptions or {}) do AddOption(v) end
+
+    if InitialSelection ~= nil then
+        if MultiSelect and type(InitialSelection) == "table" then
+            for _, want in ipairs(InitialSelection) do
+                for _, nm in ipairs(OptionList) do
+                    local o = Options[nm]
+                    if o and (o.Value == want or o.Name == want or tostring(o.Value) == tostring(want)) then
+                        o.Stats = true
+                        Selected[o.Name] = true
+                        break
+                    end
+                end
+            end
+            CallbackSelected()
+            UpdateSelected()
+        else
+            SelectOption(InitialSelection)
+        end
     else
-        Name = tostring(index)
+        UpdateSelected()
     end
-
-    if not Name or Name == "" then return end
-
-    if Value == nil then
-        Value = Name
-    end
-
-    if Options[Name] then return end
-
-    Options[Name] = {
-        index = index,
-        Value = Value,
-        Name = Name,
-        Stats = false,
-        LastCB = 0
-    }
- 
-					if MultiSelect then
-						local Stats = Selected[Name]
-						Selected[Name] = Stats or false
-						Options[Name].Stats = Stats
-					end
- 
-					local Button = Make("Button", ScrollFrame, {
-						Name = "Option",
-						Size = UDim2.new(1, 0, 0, 21),
-						Position = UDim2.new(0, 0, 0.5),
-						AnchorPoint = Vector2.new(0, 0.5)
-					})Make("Corner", Button, UDim.new(0, 4))
- 
-					local IsSelected = InsertTheme(Create("Frame", Button, {
-						Position = UDim2.new(0, 1, 0.5),
-						Size = UDim2.new(0, 4, 0, 4),
-						BackgroundColor3 = Theme["Color Theme"],
-						BackgroundTransparency = 1,
-						AnchorPoint = Vector2.new(0, 0.5)
-					}), "Theme")Make("Corner", IsSelected, UDim.new(0.5, 0))
- 
-					local OptioneName = InsertTheme(Create("TextLabel", Button, {
-						Size = UDim2.new(1, 0, 1),
-						Position = UDim2.new(0, 10),
-						Text = Name,
-						TextColor3 = Theme["Color Text"],
-						Font = Enum.Font.GothamBold,
-						TextXAlignment = "Left",
-						BackgroundTransparency = 1,
-						TextTransparency = 0.4
-					}), "Text")
- 
-					Button.Activated:Connect(function()
-						Select(Options[Name])
-					end)
- 
-					Options[Name].nodes = {Button, IsSelected, OptioneName}
-				end
- 
-				RemoveOption = function(index, Value)
-					local Name = tostring(type(index) == "string" and index or Value)
-					if Options[Name] then
-						if MultiSelect then Selected[Name] = nil else Selected = nil end
-						Options[Name].nodes[1]:Destroy()
-						table.clear(Options[Name])
-						Options[Name] = nil
-					end
-				end
-
-SelectOption = function(indexOrName)
-	local name = tostring(indexOrName)
-
-	local opt = Options[name]
-	if not opt then
-		return
-	end
-
-	if MultiSelect then
-		opt.Stats = not opt.Stats
-		Selected[opt.Name] = opt.Stats
-	else
-		Selected = opt.Value
-	end
-
-	CallbackSelected()
-	UpdateSelected()
 end
- 
-				GetOptions = function()
-					return Options
-				end
- 
-				AddNewOptions = function(List, Clear)
-					if Clear then
-						table.foreach(Options, RemoveOption)
-					end
-					table.foreach(List, AddOption)
-					CallbackSelected()
-					UpdateSelected()
-				end
- 
-				table.foreach(DOptions, AddOption)
-				CallbackSelected()
-				UpdateSelected()
-			end
  
 			Button.Activated:Connect(Minimize)
 			NoClickFrame.MouseButton1Down:Connect(Disable)
@@ -3958,144 +4018,36 @@ end
 			CalculatePos()
 			CalculateSize()
 
-            local Dropdown = {}
-			function Dropdown:Visible(...) Funcs:ToggleVisible(Button, ...) end
-			function Dropdown:Destroy() Button:Destroy() end
-			function Dropdown:Callback(...) Funcs:InsertCallback(Callback, ...)(Selected) end
- 
-function Dropdown:Add(...)
-    local NewOptions = {...}
-    local list = {}
+    local Dropdown = {}
 
-    if type(NewOptions[1]) == "table" and NewOptions[1][1] ~= nil then
-        list = NewOptions[1]
-    else
-        list = NewOptions
-    end
-
-    for _, v in ipairs(list) do
-        AddOption(v)
-    end
-end
-function Dropdown:Remove(key)
-    local opts = GetOptions()
-
-    if type(key) == "number" then
-        local i = 0
-        for name, _ in pairs(opts) do
-            i = i + 1
-            if i == key then
-                RemoveOption(name)
-                break
-            end
-        end
-
-    elseif type(key) == "string" then
-        if opts[key] then
-            RemoveOption(key)
-        end
-    end
-end
-function Dropdown:Refresh(newOptions, deleteOld)
-    newOptions = newOptions or {}
-    local list = newOptions
-    
-    if deleteOld then
-        local opts = GetOptions()
-        for name, _ in pairs(opts) do
-            RemoveOption(name)
-        end
-    end
-    
-    for _, option in ipairs(list) do
-        AddOption(option)
-    end
-    
-    if not DMultiSelect then
-        local currentValue = Selected
-        if currentValue then
-            self:Select(currentValue)
-        end
-    end
-    
-    if type(CalculateSize) == "function" then
-        pcall(CalculateSize)
-    end
-end
-function Dropdown:Select(key)
-    local opts = GetOptions()
-    
-    if opts[key] then
-        SelectOption(key)
-        return
-    end
-    
-    for name, optionData in pairs(opts) do
-        if optionData.Value == key or tostring(optionData.Value) == tostring(key) then
-            SelectOption(name)
-            return
-        end
-    end
-    
-    if type(key) == "number" then
-        local i = 0
-        for name, _ in pairs(opts) do
-            i = i + 1
-            if i == key then
-                SelectOption(name)
-                return
-            end
-        end
-    end
-end
-function Dropdown:Set(Val1, Clear)
-    if type(Val1) == "table" then
-        AddNewOptions(Val1, not Clear)
-
-    elseif type(Val1) == "function" then
-        Callback = Val1
-
-    elseif type(Val1) == "number" then
-        self:Select(Val1)
-
-    elseif type(Val1) == "string" then
-        local opts = GetOptions() or {}
-        if opts[Val1] then
-            self:Select(Val1)
-        end
-    end
-
-    if type(UpdateSelected) == "function" then
+    function Dropdown:Visible(...) Funcs:ToggleVisible(Button, ...) end
+    function Dropdown:Destroy() pcall(function() Button:Destroy() end); pcall(function() DropFrame:Destroy() end) end
+    function Dropdown:Callback(...) Funcs:InsertCallback(Callback, ...)(Selected) end
+    function Dropdown:Add(...) local args = {...}; local list = {}; if type(args[1]) == "table" and args[1][1] ~= nil then list = args[1] else list = args end for _, v in ipairs(list) do AddOption(v) end UpdateSelected() end
+    function Dropdown:Remove(key) RemoveOption(key) end
+    function Dropdown:Refresh(newOptions, deleteOld) AddNewOptions(newOptions or {}, not not deleteOld); UpdateSelected() end
+    function Dropdown:Select(val) SelectOption(val) end
+    function Dropdown:Set(val, Clear)
+        if type(val) == "table" then AddNewOptions(val, not Clear)
+        elseif type(val) == "function" then Callback = val
+        else SelectOption(val) end
         pcall(UpdateSelected)
     end
+function Dropdown:GetValue()
+    if DMultiSelect then
+        local res = {}
+        for i, nm in ipairs(OptionList) do
+            if Selected[nm] then table.insert(res, i) end
+        end
+        return res
+    else
+        return Selected
+    end
 end
 
-	Dropdown.GetValue = function()
-		if MultiSelect then
-			local selectedIndices = {}
-			local count = 1
-			for _, val in pairs(Options) do
-				if Selected[val.Name] then
-					table.insert(selectedIndices, count)
-				end
-				count += 1
-			end
-			return selectedIndices
-		else
-			local index = 1
-			for _, val in pairs(Options) do
-				if val.Name == Selected then
-					return index
-				end
-				index += 1
-			end
-		end
-	end
- 
-	Dropdown.Flag = Flag
- 
-			return Dropdown
-		end
+    Dropdown.Flag = Flag
+    return Dropdown
+end
 local SlidersFile = "sliders.json"
 local function SaveSliderFlag(flag, value)
     local data = {}
