@@ -2196,6 +2196,10 @@ end)
 local inputConnection = UserInputService.InputBegan:Connect(function(input, gp)
 	if state.Binding then return end
 
+    if UserInputService:GetFocusedTextBox() then
+        return
+    end
+
 	local match = false
 	if typeof(state.Value) == "EnumItem" then
 		if input.KeyCode == state.Value then
