@@ -83,6 +83,76 @@ pcall(function()
 end)
 
 if whitelisted then
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "WhitelistNotification"
+    gui.ResetOnSpawn = false
+    gui.Parent = game.CoreGui
+
+    local frame = Instance.new("Frame")
+    frame.Parent = gui
+    frame.Size = UDim2.new(0, 420, 0, 110)
+    frame.Position = UDim2.new(0.5, -210, -0.2, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    frame.BackgroundTransparency = 0
+    frame.BorderSizePixel = 0
+
+    local corner = Instance.new("UICorner", frame)
+    corner.CornerRadius = UDim.new(0, 12)
+
+    local avatar = Instance.new("ImageLabel")
+    avatar.Parent = frame
+    avatar.Size = UDim2.new(0, 70, 0, 70)
+    avatar.Position = UDim2.new(0, 15, 0.5, -35)
+    avatar.BackgroundTransparency = 1
+
+    local thumb = Players:GetUserThumbnailAsync(
+        player.UserId,
+        Enum.ThumbnailType.HeadShot,
+        Enum.ThumbnailSize.Size180x180
+    )
+    avatar.Image = thumb
+
+    local title = Instance.new("TextLabel")
+    title.Parent = frame
+    title.BackgroundTransparency = 1
+    title.Position = UDim2.new(0, 100, 0, 18)
+    title.Size = UDim2.new(1, -110, 0, 30)
+    title.Text = "✨ Welcome Premium User"
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 16
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.TextXAlignment = Enum.TextXAlignment.Left
+
+    local desc = Instance.new("TextLabel")
+    desc.Parent = frame
+    desc.BackgroundTransparency = 1
+    desc.Position = UDim2.new(0, 100, 0, 50)
+    desc.Size = UDim2.new(1, -110, 0, 40)
+    desc.Text = "Ads have been removed for your account\n@" .. player.Name
+    desc.Font = Enum.Font.Gotham
+    desc.TextSize = 13
+    desc.TextColor3 = Color3.fromRGB(180, 180, 180)
+    desc.TextWrapped = true
+    desc.TextXAlignment = Enum.TextXAlignment.Left
+
+    local showTween = TweenService:Create(
+        frame,
+        TweenInfo.new(0.6, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+        {Position = UDim2.new(0.5, -210, 0.05, 0)}
+    )
+    showTween:Play()
+
+    task.wait(3)
+
+    local hideTween = TweenService:Create(
+        frame,
+        TweenInfo.new(0.6, Enum.EasingStyle.Quint, Enum.EasingDirection.In),
+        {Position = UDim2.new(0.5, -210, -0.3, 0)}
+    )
+    hideTween:Play()
+
+    hideTween.Completed:Wait()
+    gui:Destroy()
     return
 end
 
