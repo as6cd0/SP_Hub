@@ -87,27 +87,11 @@ pcall(function()
     whitelisted = isWhitelisted()
 end)
 
-local function notifyNotRegistered()
-    StarterGui:SetCore("SendNotification", {
-        Title = "❌ Not Registered";
-        Text = "You are not registered. Go to the Discord server and register to remove the ad";
-        Duration = 4;
-        Button1 = "Copy Discord Link";
-        Callback = function(btn)
-            if btn == "Copy Discord" then
-                pcall(function()
-                    setclipboard("https://discord.gg/hrMtDwFvEG")
-                end)
-            end
-        end
-    })
-end
-
 if whitelisted then
     notify("✅ Registered", "You are already registered enjoy", 2)
     return
 else
-    notifyNotRegistered()
+    notify("❌ Not Registered", "You are not registered. Go to the Discord server and register to remove the ad", 4)
 end
 
 local ScreenGui = Instance.new("ScreenGui")
