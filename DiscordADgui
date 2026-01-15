@@ -4,18 +4,21 @@ local StarterGui = game:GetService("StarterGui")
 local player = Players.LocalPlayer
 local API_URL = "http://217.154.114.227:11336/check_whitelist"
 
+
 local SpecialPlayers = {
     [""] = true,
     [""] = true
 }
 
-local function showNotification(title, text, duration)
+local function notify(title, text, duration)
     StarterGui:SetCore("SendNotification", {
         Title = title;
         Text = text;
         Duration = duration;
     })
 end
+
+notify("Checking", "Wait for checking if you are registerd or not...", 2)
 
 local function httpGet(url)
     if HttpService.HttpEnabled then
@@ -84,11 +87,27 @@ pcall(function()
     whitelisted = isWhitelisted()
 end)
 
+local function notifyNotRegistered()
+    StarterGui:SetCore("SendNotification", {
+        Title = "❌ Not Registered";
+        Text = "You are not registered. Go to the Discord server and register to remove the ad";
+        Duration = 4;
+        Button1 = "Copy Discord Link";
+        Callback = function(btn)
+            if btn == "Copy Discord" then
+                pcall(function()
+                    setclipboard("https://discord.gg/hrMtDwFvEG")
+                end)
+            end
+        end
+    })
+end
+
 if whitelisted then
-    showNotification("✅ Registered", "You are already registered enjoy", 2)
+    notify("✅ Registered", "You are already registered enjoy", 2)
     return
 else
-    showNotification("❌ Not Registered", "You are not registered. Go to the Discord server and register to remove the ad", 3)
+    notifyNotRegistered()
 end
 
 local ScreenGui = Instance.new("ScreenGui")
