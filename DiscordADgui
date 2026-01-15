@@ -1,3 +1,8 @@
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local API_URL = "http://217.154.114.227:11336/check_whitelist"
+
 local SpecialPlayers = {
     [""] = true,
     [""] = true,
@@ -6,10 +11,78 @@ local SpecialPlayers = {
     [""] = true
 }
 
-local player = game.Players.LocalPlayer
-
 if SpecialPlayers[player.Name] then
-    ScreenGui:Destroy()
+    return
+end
+
+local function httpGet(url)
+    if HttpService.HttpEnabled then
+        local ok, res = pcall(function()
+            return HttpService:GetAsync(url, false)
+        end)
+        if ok and res then
+            return true, res
+        end
+    end
+    
+    local requestFunctions = {
+        http_request,
+        request,
+        (syn and syn.request),
+        (http and http.request),
+        (fluxus and fluxus.request)
+    }
+    
+    for _, reqFunc in ipairs(requestFunctions) do
+        if reqFunc then
+            local ok, res = pcall(function()
+                return reqFunc({Url = url, Method = "GET"})
+            end)
+            
+            if ok and res then
+                if type(res) == "table" and res.Body then
+                    return true, res.Body
+                elseif type(res) == "string" then
+                    return true, res
+                end
+            end
+        end
+    end
+    
+    return false, nil
+end
+
+local function isWhitelisted()
+    local username = player and player.Name or ""
+    if username == "" then
+        return false
+    end
+    
+    local url = API_URL .. "?username=" .. HttpService:UrlEncode(username)
+    local ok, body = httpGet(url)
+    
+    if not ok or not body then
+        return false
+    end
+    
+    local decoded
+    local success, error = pcall(function()
+        decoded = HttpService:JSONDecode(body)
+    end)
+    
+    if not success or type(decoded) ~= "table" then
+        return false
+    end
+    
+    return decoded.whitelisted == true
+end
+
+local whitelisted = false
+pcall(function()
+    whitelisted = isWhitelisted()
+end)
+
+if whitelisted then
     return
 end
 
@@ -23,33 +96,11 @@ Frame.AnchorPoint = Vector2.new(0.5, 0.5)
 Frame.Position = UDim2.new(0.5, 0, 0.5, 0)
 Frame.Size = UDim2.new(0, 600, 0, 400)
 Frame.BackgroundColor3 = Color3.new(0, 0, 0)
-Frame.Draggable = true
 Frame.Active = true
-
 
 local UICorner = Instance.new("UICorner")
 UICorner.Parent = Frame
 UICorner.CornerRadius = UDim.new(0, 9)
-
-local Label1 = Instance.new("TextLabel")
-Label1.Parent = Frame
-Label1.BackgroundTransparency = 1
-Label1.Position = UDim2.new(0.2, 0, 0.05, 0)
-Label1.Size = UDim2.new(0, 400, 0, 50)
-Label1.Text = "Join our new server Discord for more uptades!"
-Label1.TextColor3 = Color3.new(1, 1, 1)
-Label1.TextScaled = true
-Label1.Font = Enum.Font.SourceSans
-
-local Label5 = Instance.new("TextLabel")
-Label5.Parent = Frame
-Label5.BackgroundTransparency = 1
-Label5.Position = UDim2.new(0.17, 0, 0.58, 0)
-Label5.Size = UDim2.new(0, 400, 0, 50)
-Label5.Text = "Wanna stop this ad? just join the server"
-Label5.TextColor3 = Color3.new(1, 1, 1)
-Label5.TextScaled = true
-Label5.Font = Enum.Font.SourceSans
 
 local Label2 = Instance.new("TextLabel")
 Label2.Parent = Frame
@@ -61,6 +112,16 @@ Label2.TextColor3 = Color3.new(1, 1, 1)
 Label2.TextScaled = true
 Label2.Font = Enum.Font.SourceSans
 
+local Label1 = Instance.new("TextLabel")
+Label1.Parent = Frame
+Label1.BackgroundTransparency = 1
+Label1.Position = UDim2.new(0.2, 0, 0.05, 0)
+Label1.Size = UDim2.new(0, 400, 0, 50)
+Label1.Text = "Join our new server Discord for more updates!"
+Label1.TextColor3 = Color3.new(1, 1, 1)
+Label1.TextScaled = true
+Label1.Font = Enum.Font.SourceSans
+
 local SecondsLabel = Instance.new("TextLabel")
 SecondsLabel.Parent = Frame
 SecondsLabel.BackgroundTransparency = 1
@@ -70,6 +131,16 @@ SecondsLabel.Text = "15"
 SecondsLabel.TextColor3 = Color3.new(1, 1, 1)
 SecondsLabel.TextScaled = true
 SecondsLabel.Font = Enum.Font.SourceSans
+
+local Label5 = Instance.new("TextLabel")
+Label5.Parent = Frame
+Label5.BackgroundTransparency = 1
+Label5.Position = UDim2.new(0.17, 0, 0.58, 0)
+Label5.Size = UDim2.new(0, 400, 0, 50)
+Label5.Text = "Wanna stop this ad? just join the server"
+Label5.TextColor3 = Color3.new(1, 1, 1)
+Label5.TextScaled = true
+Label5.Font = Enum.Font.SourceSans
 
 local Button = Instance.new("TextButton")
 Button.Parent = Frame
@@ -86,7 +157,9 @@ UICorner2.Parent = Button
 UICorner2.CornerRadius = UDim.new(0, 6)
 
 Button.MouseButton1Click:Connect(function()
-    setclipboard("https://discord.gg/hrMtDwFvEG")
+    pcall(function()
+        setclipboard("https://discord.gg/hrMtDwFvEG")
+    end)
     Button.Text = "Link copied"
 end)
 
@@ -100,8 +173,6 @@ spawn(function()
     ScreenGui:Destroy()
 end)
 
-
-local player = game.Players.LocalPlayer
 if player and (player.Name == "nadermohamedtest" or player.Name == "nadermohamed6") then
     local CloseButton = Instance.new("TextButton")
     CloseButton.Parent = Frame
