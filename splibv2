@@ -1,6 +1,7 @@
 local MarketplaceService = game:GetService("MarketplaceService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local TextService = game:GetService("TextService")
 local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
@@ -159,25 +160,29 @@ local Funcs = {} do
 		return func
 	end
 	
-	function Funcs:FireCallback(tab, ...)
-		for _,v in ipairs(tab) do
-			if type(v) == "function" then
-				task.spawn(v, ...)
-			end
-		end
-	end
+function Funcs:FireCallback(tab, ...)
+    for _, v in ipairs(tab) do
+        if type(v) == "function" then
+            task.spawn(v, ...)
+        end
+    end
+end
 	
 	function Funcs:ToggleVisible(Obj, Bool)
-		Obj.Visible = Bool ~= nil and Bool or Obj.Visible
+		Obj.Visible = (Bool ~= nil) and Bool or Obj.Visible
 	end
 	
-	function Funcs:ToggleParent(Obj, Parent)
-		if Bool ~= nil then
-			Obj.Parent = Bool
-		else
-			Obj.Parent = not Obj.Parent and Parent
-		end
-	end
+function Funcs:ToggleParent(Obj, Parent, Bool)
+    if Bool ~= nil then
+        if Bool then
+            Obj.Parent = Parent
+        else
+            Obj.Parent = nil
+        end
+    else
+        Obj.Parent = Obj.Parent and nil or Parent
+    end
+end
 	
 	function Funcs:GetConnectionFunctions(ConnectedFuncs, func)
 		local Connected = { Function = func, Connected = true }
@@ -514,6 +519,8 @@ local function ButtonFrame(parent, Title, Description, HolderSize, isBind)
 
     local Frame = Make("Button", parent, {
         Size = UDim2.new(1, 0, 0, 29),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        TextWrapped = true,
         Name = "Option"
     })
     Make("Corner", Frame, UDim.new(0, 10))
@@ -547,12 +554,6 @@ local function ButtonFrame(parent, Title, Description, HolderSize, isBind)
         RichText = true
     }), "DarkText")
 
-task.defer(function()
-    local descHeight = DescL.TextBounds.Y
-    local newHeight = math.max(25, descHeight + 10)
-    Frame.Size = UDim2.new(1, 0, 0, newHeight + 2)
-end)
-
     local LabelHolder = Create("Frame", Frame, {
         AutomaticSize = "Y",
         BackgroundTransparency = 1,
@@ -575,32 +576,50 @@ end)
 
     local bindBox
     if isBind then
-        bindBox = InsertTheme(Create("TextButton", Frame, {
+        bindBox = Create("TextButton", Frame, {
             Name               = "BindBox",
-            Text               = "...",
+            Text               = "",
             Font               = Enum.Font.GothamBold,
             TextSize           = 14,
-            TextColor3         = Color3.fromRGB(255,255,255),
+            TextColor3         = Theme["Color Text"],
             Size               = UDim2.new(0, 45, 0, 24),
             Position           = UDim2.new(1, -10, 0, 1.9),
             AnchorPoint        = Vector2.new(1, 0),
             BackgroundColor3   = Color3.fromRGB(0,0,0),
             BackgroundTransparency = 0,
-        }), "Stroke")
+        })
+InsertTheme(bindBox, "Text")
+InsertTheme(bindBox, "Stroke")
 Make("Corner", bindBox, UDim.new(0.25, 0))
 
+        Frame.AutomaticSize = Enum.AutomaticSize.None
         Frame.Size = UDim2.new(1, 0, 0, 30)
+
+        bindBox:SetAttribute("Ready", false)
+        bindBox:SetAttribute("Displayed", false)
+
         bindBox:GetPropertyChangedSignal("Text"):Connect(function()
-            local newWidth = bindBox.TextBounds.X + 8
-            local tween = TweenService:Create(
-                bindBox,
-                TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-                {Size = UDim2.new(0, newWidth, 0, 24)}
-            )
-            tween:Play()
+            if not bindBox:GetAttribute("Ready") then
+                return
+            end
+
+            if not bindBox:GetAttribute("Displayed") then
+                bindBox:SetAttribute("Displayed", true)
+                bindBox.Size = UDim2.new(0, bindBox.TextBounds.X + 8, 0, 24)
+                return
+            end
+
+            task.defer(function()
+                local newWidth = bindBox.TextBounds.X + 8
+                local tween = TweenService:Create(
+                    bindBox,
+                    TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+                    {Size = UDim2.new(0, newWidth, 0, 24)}
+                )
+                tween:Play()
+            end)
         end)
     end
-
     local Label = {}
     function Label:SetTitle(nt)
         if type(nt)=="string" and nt:match("%S") then
@@ -724,7 +743,7 @@ function splib:MakeWindow(Configs)
     local WMiniText = Configs[2] or Configs.SubTitle or Configs.SubName or "by : SP Hub"
     local WIcon = Configs[4] or Configs.Icon or Configs.ScriptIcon
 
-    Settings.ScriptFile = Configs[3] or Configs.ConfigFolder or Configs.SaveFolder or false
+    local SaveConfig = Configs.SaveFolder or Configs.SaveConfig or WTitle
 
     RainbowMainFrameDefault = Configs.RainbowMainFrameDefault or Configs.RainbowMainFrame or false
     RainbowTitleDefault = Configs.RainbowTitleDefault or Configs.RainbowTitle or false
@@ -995,7 +1014,6 @@ local MainCorner = Make("Corner", MainFrame, UDim.new(0, 10))
 Make("Corner", SearchBox)
 ]]
 
-
 	local Containers = Create("Frame", Components, {
 		Size = UDim2.new(1, -MainScroll.Size.X.Offset, 1, -TopBar.Size.Y.Offset),
 		AnchorPoint = Vector2.new(1, 1),
@@ -1005,23 +1023,32 @@ Make("Corner", SearchBox)
 		Name = "Containers"
 	})
 	
-	local ControlSize1, ControlSize2 = MakeDrag(Create("ImageButton", MainFrame, {
-		Size = UDim2.new(0, 10, 0, 10),
-		Position = MainFrame.Size,
-		Active = true,
-        Image = "rbxassetid://6153965696",
-		AnchorPoint = Vector2.new(0.8, 0.8),
-		BackgroundTransparency = 1,
-		Name = "Control Hub Size"
-	})), MakeDrag(Create("ImageButton", MainFrame, {
-		Size = UDim2.new(0, 20, 1, -30),
-		Position = UDim2.new(0, MainScroll.Size.X.Offset, 1, 0),
-		AnchorPoint = Vector2.new(0.5, 1),
-		Active = true,
-		BackgroundTransparency = 1,
-		Name = "Control Tab Size"
-	}))
+local function TweenTransparency(obj, target)
+	if obj and obj:IsA("GuiObject") then
+		TweenService:Create(obj, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			BackgroundTransparency = target
+		}):Play()
+	end
+end
 
+local ControlSize1, ControlSize2 = MakeDrag(Create("ImageButton", MainFrame, {
+	Size = UDim2.new(0, 10, 0, 10),
+	Position = MainFrame.Size,
+	Active = true,
+    Image = "rbxassetid://6153965696",
+	AnchorPoint = Vector2.new(0.8, 0.8),
+	BackgroundTransparency = 1,
+	Name = "Control Hub Size"
+})), MakeDrag(Create("ImageButton", MainFrame, {
+	Size = UDim2.new(0, 15, 1, -20),
+	Position = UDim2.new(0, MainScroll.Size.X.Offset, 1, 0),
+	AnchorPoint = Vector2.new(0.5, 1),
+	Active = true,
+	BackgroundTransparency = 1,
+	Name = "Control Tab Size"
+}))
+Make("Corner", ControlSize1, UDim.new(0.10, 0))
+Make("Corner", ControlSize2)
 
 local function ControlSize()
     local Pos1, Pos2 = ControlSize1.Position, ControlSize2.Position
@@ -1042,7 +1069,6 @@ local function ControlSize()
         math.clamp(Pos1.Y.Offset, minY, maxY)
     )
 
-    local Pos2 = ControlSize2.Position
     local minClamp = 50
     ControlSize2.Position = UDim2.new(0, math.clamp(Pos2.X.Offset, minClamp, 100), 1, 0)
 
@@ -1050,7 +1076,24 @@ local function ControlSize()
     Containers.Size = UDim2.new(1, -MainScroll.Size.X.Offset, 1, -TopBar.Size.Y.Offset)
     MainFrame.Size = ControlSize1.Position
 end
-	
+
+local function SetupDragTransparency(control)
+	control.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			TweenTransparency(control, 0.5)
+		end
+	end)
+
+	control.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			TweenTransparency(control, 1)
+		end
+	end)
+end
+
+SetupDragTransparency(ControlSize1)
+SetupDragTransparency(ControlSize2)
+
 ControlSize1:GetPropertyChangedSignal("Position"):Connect(ControlSize)
 ControlSize2:GetPropertyChangedSignal("Position"):Connect(ControlSize)
 
@@ -1118,7 +1161,6 @@ ConnectSave(ControlSize2, function()
     splib.Save.TabSize = MainScroll.Size.X.Offset
     SaveJson("sp library.json", splib.Save)
 end)
-
 
 	local ButtonsFolder = Create("Folder", TopBar, {
 		Name = "Buttons"
@@ -1274,7 +1316,6 @@ local function ToggleUI()
     end
 end
 
-
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.KeyCode == Enum.KeyCode.RightShift then
@@ -1294,7 +1335,7 @@ T.Position = UDim2.new(xPos, 0, 0.1, 0)
 T.Image = tostring(ToggleIcon)
 T.Active = true 
 local Corner = Instance.new("UICorner", T)
-Corner.CornerRadius = UDim.new(0, 10)
+Corner.CornerRadius = UDim.new(0, 8)
 
 local isHolding    = false
 local didLongPress = false
@@ -1933,6 +1974,18 @@ local function LoadBindFlag(flag)
 end
 
 function splib:MakeNotification(Configs)
+	local function ToColor3(val)
+		if typeof(val) == "ColorSequence" then
+			local ok, kp = pcall(function() return val.Keypoints[1] end)
+			if ok and kp and kp.Value then
+				return kp.Value
+			end
+		elseif typeof(val) == "Color3" then
+			return val
+		end
+		return Color3.fromRGB(255, 255, 255)
+	end
+
 	if isNotificationCooldown then return end
 	isNotificationCooldown = true
 	task.delay(0.5, function()
@@ -1944,123 +1997,191 @@ function splib:MakeNotification(Configs)
 	elseif type(Configs) ~= "table" then
 		Configs = {}
 	end
-    Configs.Name     = Configs.Name     or "Notification"
-    Configs.Content  = Configs.Content  or "This is a test."
-    Configs.Image    = Configs.Image    or "rbxassetid://4384403532"
-    Configs.Time     = Configs.Time     or 4
-    Configs.IsMobile = Configs.IsMobile or false
-    Configs.IsPC     = Configs.IsPC     or false
+	Configs.Name     = Configs.Name     or "Notification"
+	Configs.Content  = Configs.Content  or "This is a test."
+	Configs.Image    = Configs.Image    or "rbxassetid://4384403532"
+	Configs.Time     = tonumber(Configs.Time) or 4
 
-    if Configs.IsMobile and not isMobile then return end
-    if Configs.IsPC     and not isPC     then return end
+	if Configs.IsMobile and not isMobile then return end
+	if Configs.IsPC     and not isPC     then return end
 
-local holder = self.NotificationHolder
-if not holder then
-    local isMobileSize = isMobile and 150 or 225
+	local holder = self.NotificationHolder
+	if not holder or not holder.Parent then
+		local isMobileSize = isMobile and 150 or 225
 
-    holder = Create("Frame", ScreenGui, {
-        Name                    = "NotificationHolder",
-        AnchorPoint             = Vector2.new(1, 1),
-        Position                = UDim2.new(1, -20, 1, -20),
-        Size                    = UDim2.new(0, isMobileSize, 0, 0),
-        BackgroundTransparency  = 1,
-        AutomaticSize           = Enum.AutomaticSize.Y,
-    })
+		holder = Create("Frame", ScreenGui, {
+			Name = "NotificationHolder",
+			AnchorPoint = Vector2.new(1, 1),
+			Position = UDim2.new(1, -20, 1, -20),
+			Size = UDim2.new(0, isMobileSize, 0, 0),
+			BackgroundTransparency = 1,
+			AutomaticSize = Enum.AutomaticSize.Y,
+			ZIndex = 9999,
+		})
 
-    Create("UIListLayout", holder, {
-        SortOrder               = Enum.SortOrder.LayoutOrder,
-        VerticalAlignment       = Enum.VerticalAlignment.Bottom,
-        Padding                 = UDim.new(0, 8),
-    })
+		Create("UIListLayout", holder, {
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			VerticalAlignment = Enum.VerticalAlignment.Bottom,
+			Padding = UDim.new(0, 8),
+		})
 
-    self.NotificationHolder = holder
-end
+		self.NotificationHolder = holder
+	end
 
-    local notifParent = Create("Frame", holder, {
-        Name              = "NotifContainer",
-        Size              = UDim2.new(1, 0, 0, 0),
-        BackgroundColor3  = Theme["Color Hub 2"],
-        BackgroundTransparency = 1,
-        AutomaticSize     = Enum.AutomaticSize.Y,
-        LayoutOrder       = #holder:GetChildren(),
-    })
+	local layoutOrder = (#holder:GetChildren() or 0) + 1
+	local notifParent = Create("Frame", holder, {
+		Name = "NotifContainer",
+		Size = UDim2.new(1, 0, 0, 0),
+		BackgroundTransparency = 1,
+		AutomaticSize = Enum.AutomaticSize.Y,
+		LayoutOrder = layoutOrder,
+	})
 
-    local notifFrame = Create("Frame", notifParent, {
-        Name              = "NotificationFrame",
-        BackgroundColor3  = Theme["Color Stroke"],
-        BackgroundTransparency = 0.,
-        Size              = UDim2.new(1, 0, 0, 0),
-        AutomaticSize     = Enum.AutomaticSize.Y,
-    })
-    InsertTheme(notifFrame, "Main")
-    Make("Corner", notifFrame, UDim.new(0.25, 0))
+	local hub1 = ToColor3(Theme and Theme["Color Hub 1"])
+	local strokeClr = ToColor3(Theme and Theme["Color Stroke"])
+	local textClr = ToColor3(Theme and Theme["Color Text"])
 
-    Create("UIStroke", notifFrame, {
-        Color    = Theme["Color Text"],
-        Thickness= 1.2,
-    })
+local notifFrame = Create("TextButton", notifParent, {
+    Name = "NotificationFrame",
+    BackgroundColor3 = hub1 or strokeClr or Color3.fromRGB(30,30,30),
+    BackgroundTransparency = 1,
+    Size = UDim2.new(1, 0, 0, 0),
+    AutomaticSize = Enum.AutomaticSize.Y,
+    ZIndex = 1000,
+    Text = "",
+})
+	InsertTheme(notifFrame, "Main")
+	Make("Corner", notifFrame, UDim.new(0.18, 0))
 
-    Create("UIPadding", notifFrame, {
-        PaddingLeft   = UDim.new(0, 12),
-        PaddingTop    = UDim.new(0, 8),
-        PaddingRight  = UDim.new(0, 12),
-        PaddingBottom = UDim.new(0, 8),
-    })
+	Create("UIStroke", notifFrame, {
+		Color = strokeClr or textClr or Color3.fromRGB(200,200,200),
+		Thickness = 1,
+		Transparency = 0,
+	})
 
-    local icon = Create("ImageLabel", notifFrame, {
-        Name                  = "Icon",
-        Size                  = UDim2.new(0, 24, 0, 24),
-        Image                 = Configs.Image,
-        BackgroundTransparency= 1,
-        ScaleType             = Enum.ScaleType.Fit,
-    })
+	Create("UIPadding", notifFrame, {
+		PaddingLeft = UDim.new(0, 12),
+		PaddingTop = UDim.new(0, 10),
+		PaddingRight = UDim.new(0, 12),
+		PaddingBottom = UDim.new(0, 10),
+	})
 
-    local title = Create("TextLabel", notifFrame, {
-        Name                  = "Title",
-        TextColor3 = Theme["Color Text"],
-        Position              = UDim2.new(0, 30, 0, 0),
-        Size                  = UDim2.new(1, -30, 0, 20),
-        Font                  = Enum.Font.GothamBold,
-        TextSize              = isPC and 16 or 12,
-        Text                  = Configs.Name,
-        BackgroundTransparency= 1,
-    })
-    InsertTheme(title, "Text")
+	local icon = Create("ImageLabel", notifFrame, {
+		Name = "Icon",
+		Size = UDim2.new(0, 36, 0, 36),
+		Image = Configs.Image,
+		BackgroundTransparency = 1,
+		ScaleType = Enum.ScaleType.Fit,
+		Position = UDim2.new(0, 0, 0, 0),
+		ZIndex = 1001,
+	})
+	Make("Corner", icon, UDim.new(0.3, 0))
 
-    local content = Create("TextLabel", notifFrame, {
-        Name                  = "Content",
-        TextColor3 = Theme["Color Text"],
-        Position              = UDim2.new(0, 0, 0, 26),
-        Size                  = UDim2.new(1, 0, 0, 0),
-        Font                  = Enum.Font.Gotham,
-        TextSize              = 14,
-        Text                  = Configs.Content,
-        TextWrapped           = true,
-        BackgroundTransparency= 1,
-        AutomaticSize         = Enum.AutomaticSize.Y,
-    })
-    InsertTheme(content, "Text")
+	local title = Create("TextLabel", notifFrame, {
+		Name = "Title",
+		TextColor3 = textClr or Color3.new(1,1,1),
+		Position = UDim2.new(0, 40, 0, 0),
+		Size = UDim2.new(1, -44 - 36, 0, 20),
+		Font = Enum.Font.GothamBold,
+		TextSize = (isPC and 12) or 10,
+		Text = Configs.Name,
+		BackgroundTransparency = 1,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextWrapped = true,
+        AutomaticSize = Enum.AutomaticSize.Y,
+		ZIndex = 1001,
+	})
+	InsertTheme(title, "Text")
 
-    notifFrame.Position = UDim2.new(1, 0, 0, 0)
-    TweenService:Create(
-        notifFrame,
-        TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-        { Position = UDim2.new(0, 0, 0, 0) }
-    ):Play()
+	local content = Create("TextLabel", notifFrame, {
+		Name = "Content",
+		TextColor3 = textClr or Color3.new(1,1,1),
+		Position = UDim2.new(0, 44, 0, title.Size.Y.Offset + 2),
+		Size = UDim2.new(1, -44 - 36, 0, 0),
+		Font = Enum.Font.Gotham,
+		TextSize = 14,
+		Text = tostring(Configs.Content),
+		TextWrapped = true,
+		BackgroundTransparency = 1,
+		AutomaticSize = Enum.AutomaticSize.Y,
+		ZIndex = 1001,
+	})
+	InsertTheme(content, "Text")
 
-    task.spawn(function()
-        wait(math.max(Configs.Time - 0.8, 0))
-        TweenService:Create(icon, TweenInfo.new(0.6), { ImageTransparency = 1 }):Play()
-        TweenService:Create(notifFrame, TweenInfo.new(0.6), { BackgroundTransparency = 0.7 }):Play()
-        wait(0.3)
-        TweenService:Create(
-            notifFrame,
-            TweenInfo.new(0.6, Enum.EasingStyle.Quint, Enum.EasingDirection.In),
-            { Position = UDim2.new(1, 0, 0, 0) }
-        ):Play()
-        wait(0.6)
-        notifParent:Destroy()
+	local timerText = Create("TextLabel", notifFrame, {
+		Name = "TimerText",
+		Size = UDim2.new(0, 34, 0, 20),
+		Position = UDim2.new(1, -25, 0, -6),
+		BackgroundTransparency = 1,
+		Font = Enum.Font.GothamBold,
+		TextSize = 14,
+		TextColor3 = textClr or Color3.new(1,1,1),
+		Text = tostring(math.ceil(Configs.Time)),
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextYAlignment = Enum.TextYAlignment.Center,
+		ZIndex = 1003,
+	})
+	InsertTheme(timerText, "Text")
+
+notifFrame.MouseButton1Click:Connect(function()
+    local closeTween = TweenService:Create(icon, TweenInfo.new(0.6), { ImageTransparency = 1 })
+    local frameTween = TweenService:Create(notifFrame, TweenInfo.new(0.6), { BackgroundTransparency = 0.75 })
+    
+    closeTween:Play()
+    frameTween:Play()
+    
+    task.delay(0.3, function()
+        local outTween = TweenService:Create(notifFrame, TweenInfo.new(0.6, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
+            Position = UDim2.new(1, 0, 0, 0),
+            BackgroundTransparency = 1,
+        })
+        outTween:Play()
+        task.delay(0.6, function()
+            pcall(function() notifParent:Destroy() end)
+        end)
     end)
+end)
+
+	notifFrame.Position = UDim2.new(1, 0, 0, 0)
+
+	TweenService:Create(notifFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+		Position = UDim2.new(0, 0, 0, 0),
+		BackgroundTransparency = 0,
+	}):Play()
+	TweenService:Create(icon, TweenInfo.new(0.32), { ImageTransparency = 0 }):Play()
+
+	task.spawn(function()
+		local total = math.max(0, tonumber(Configs.Time) or 4)
+		local t = total
+		local alive = true
+
+		local last = tick()
+		while t > 0 and alive do
+			local now = tick()
+			local dt = now - last
+			last = now
+			t = t - dt
+			pcall(function()
+				timerText.Text = tostring(math.ceil(math.max(0, t)))
+			end)
+			task.wait(0.1)
+		end
+
+		pcall(function()
+			if alive then
+				TweenService:Create(icon, TweenInfo.new(0.6), { ImageTransparency = 1 }):Play()
+				TweenService:Create(notifFrame, TweenInfo.new(0.6), { BackgroundTransparency = 0.75 }):Play()
+				task.wait(0.3)
+				local out = TweenService:Create(notifFrame, TweenInfo.new(0.6, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
+					Position = UDim2.new(1, 0, 0, 0),
+					BackgroundTransparency = 1,
+				})
+				out:Play()
+				task.wait(0.6)
+				pcall(function() notifParent:Destroy() end)
+			end
+		end)
+	end)
 end
 
 function Tab:AddLabel(Configs)
@@ -2101,7 +2222,6 @@ function Tab:AddLabel(Configs)
     return Label
 end
 
-
 function Tab:AddBind(Configs)
     if type(Configs) == "string" then
         Configs = { Name = Configs }
@@ -2130,7 +2250,17 @@ function Tab:AddBind(Configs)
     if Configs.IsMobile and not isMobile then return nil end
     if Configs.IsPC     and not isPC     then return nil end
 
-    local Frame, LabelFunc, BindBox = ButtonFrame(Container, Name, Desc, UDim2.new(1, -20), true)
+    local container = Configs.__force_container or Container
+    local Frame, LabelFunc, BindBox = ButtonFrame(container, Name, Desc, UDim2.new(1, -20), true)
+BindBox:GetPropertyChangedSignal("TextColor3"):Connect(function()
+    if Theme and Theme["Color Text"] then
+        if BindBox.TextColor3 ~= Theme["Color Text"] then
+            BindBox.TextColor3 = Theme["Color Text"]
+        end
+    end
+end)
+    Frame.AutomaticSize = Enum.AutomaticSize.None
+    Frame.Size = UDim2.new(1, 0, 0, 30)
 
     local state = {
         Value   = Default,
@@ -2138,89 +2268,134 @@ function Tab:AddBind(Configs)
         Hold    = Hold,
         Save    = Save,
     }
+
     local Holding = false
+    local recentlyBound = false
+    local bindConn = nil
+    local bindInputConn = nil
 
     local function updateDisplay()
+        if not BindBox or not BindBox.Parent then return end
+
         local nm = (typeof(state.Value) == "EnumItem" and state.Value.Name) or tostring(state.Value)
         BindBox.Text = nm
+
+        task.defer(function()
+            if BindBox and Theme and Theme["Color Text"] then
+                BindBox.TextColor3 = Theme["Color Text"]
+            end
+        end)
+
+        if not BindBox:GetAttribute("Ready") then
+            BindBox:SetAttribute("Ready", true)
+        end
     end
+
     updateDisplay()
 
-local recentlyBound = false
+    Frame:SetAttribute("LockVisibility", false)
 
-Frame.Activated:Connect(function()
-	if state.Binding then return end
-	state.Binding = true
-	BindBox.Text = "..."
+    Frame.Activated:Connect(function()
+        if state.Binding or recentlyBound then return end
 
-	local conn
-	conn = UserInputService.InputBegan:Connect(function(input, gp)
+        if not Frame.Visible then
+            Frame.Visible = true
+        end
 
-		if state.Binding then
-			if input.UserInputType ~= Enum.UserInputType.Keyboard then
-				BindBox.Text = "Invalid"
-				task.wait(0.5)
-				updateDisplay()
-				state.Binding = false
-				conn:Disconnect()
-				return
-			end
+        task.wait()
 
-			local newKey
-			if input.KeyCode and input.KeyCode ~= Enum.KeyCode.Unknown then
-				newKey = input.KeyCode
-			end
+        state.Binding = true
+        Frame:SetAttribute("LockVisibility", true)
 
-			if newKey then
-				state.Value = newKey
-				updateDisplay()
+        if BindBox and BindBox.Parent then
+            BindBox.Text = "..."
+            if Theme and Theme["Color Text"] then
+                BindBox.TextColor3 = Theme["Color Text"]
+            end
+        end
 
-		       if Flag then
-                   SaveBindFlag(Flag, newKey.Name)
-               end
+        if bindInputConn and bindInputConn.Connected then
+            bindInputConn:Disconnect()
+            bindInputConn = nil
+        end
 
-				recentlyBound = true
-                wait(.3)
-				recentlyBound = false
+        bindInputConn = UserInputService.InputBegan:Connect(function(input, gp)
+            if gp then return end
+            if not state.Binding then return end
 
-				if Flag then splib.Flags[Flag] = state end
-				if state.Save then SaveCfg(game.GameId) end
-			end
+            if input.UserInputType ~= Enum.UserInputType.Keyboard then
+                if BindBox and BindBox.Parent then
+                    BindBox.Text = "Invalid"
+                end
+                task.delay(0.4, updateDisplay)
+                state.Binding = false
+                Frame:SetAttribute("LockVisibility", false)
+                bindInputConn:Disconnect()
+                bindInputConn = nil
+                return
+            end
 
-			state.Binding = false
-			conn:Disconnect()
-		end
-	end)
-end)
+            if input.KeyCode and input.KeyCode ~= Enum.KeyCode.Unknown then
+                state.Value = input.KeyCode
+                updateDisplay()
 
-local inputConnection = UserInputService.InputBegan:Connect(function(input, gp)
-	if state.Binding then return end
+                if Flag then
+                    SaveBindFlag(Flag, input.KeyCode.Name)
+                    splib.Flags[Flag] = state
+                end
 
-    if UserInputService:GetFocusedTextBox() then
-        return
-    end
+                if state.Save then
+                    SaveCfg(game.GameId)
+                end
 
-	local match = false
-	if typeof(state.Value) == "EnumItem" then
-		if input.KeyCode == state.Value then
-			match = true
-		elseif input.UserInputType == state.Value then
-			match = true
-		end
-	end
+                recentlyBound = true
+                task.delay(0.25, function()
+                    recentlyBound = false
+                end)
+            end
 
-	if match then
-		if state.Hold then
-			Holding = true
-			Callback(Holding)
-		else
-			Callback()
-		end
-	end
-end)
+            state.Binding = false
+            Frame:SetAttribute("LockVisibility", false)
+            bindInputConn:Disconnect()
+            bindInputConn = nil
+        end)
 
-table.insert(bindConnections, inputConnection)
+        task.delay(6, function()
+            if state.Binding then
+                state.Binding = false
+                Frame:SetAttribute("LockVisibility", false)
+                if bindInputConn and bindInputConn.Connected then
+                    bindInputConn:Disconnect()
+                    bindInputConn = nil
+                end
+                updateDisplay()
+            end
+        end)
+    end)
 
+    bindConn = UserInputService.InputBegan:Connect(function(input, gp)
+        if gp or state.Binding or recentlyBound then return end
+
+        local match = false
+        if typeof(state.Value) == "EnumItem" then
+            if input.KeyCode == state.Value then
+                match = true
+            elseif input.UserInputType == state.Value then
+                match = true
+            end
+        end
+
+        if match then
+            if state.Hold then
+                Holding = true
+                Callback(Holding)
+            else
+                Callback()
+            end
+        end
+    end)
+
+    table.insert(bindConnections, bindConn)
 
     UserInputService.InputEnded:Connect(function(input)
         if state.Hold and input.KeyCode == state.Value then
@@ -2232,7 +2407,12 @@ table.insert(bindConnections, inputConnection)
     local objBind = {}
     function objBind:Get() return state.Value end
     function objBind:Visible(val) Funcs:ToggleVisible(Frame, val) end
-    function objBind:Destroy()  state.Value = Enum.KeyCode.Unknown  Frame:Destroy() end
+    function objBind:Destroy()
+        state.Value = Enum.KeyCode.Unknown
+        if bindConn and bindConn.Connected then bindConn:Disconnect() end
+        if bindInputConn and bindInputConn.Connected then bindInputConn:Disconnect() end
+        Frame:Destroy()
+    end
     function objBind:Callback(fn)
         if type(fn) == "function" then Callback = fn end
     end
@@ -2388,7 +2568,8 @@ function Tab:AddParagraph(...)
         return nil
      end
     
-    local Frame, LabelFunc = ButtonFrame(Container, PName, PDesc, UDim2.new(1, -20))
+    local container = Configs.__force_container or Container
+    local Frame, LabelFunc = ButtonFrame(container, PName, PDesc, UDim2.new(1, -20))
 
     local Paragraph = {}
     function Paragraph:Visible(...) Funcs:ToggleVisible(Frame, ...) end
@@ -2419,8 +2600,8 @@ function Tab:AddButton(Configs)
                 return nil
             end
 			
-
-			local FButton, LabelFunc = ButtonFrame(Container, BName, BDescription, UDim2.new(1, -20))
+            local container = Configs.__force_container or Container
+			local FButton, LabelFunc = ButtonFrame(container, BName, BDescription, UDim2.new(1, -20))
 			
 			local ButtonIcon = Create("ImageLabel", FButton, {
 				Size = UDim2.new(0, 14, 0, 14),
@@ -2877,6 +3058,8 @@ do
         UpdateSelected()
     end
 
+    local InBulkUpdate = false
+    
     AddOption = function(index, Value)
         if type(index) == "table" then
             Value = index[2]; index = index[1]
@@ -2940,8 +3123,10 @@ do
 
         opt.nodes = {Button, IsSelected, OptioneName}
 
-        pcall(CalculateSize)
-        UpdateSelected()
+        if not InBulkUpdate then
+            pcall(CalculateSize)
+            UpdateSelected()
+        end
     end
 
     RemoveOption = function(index, Value)
@@ -2969,8 +3154,10 @@ do
             end
         end
 
-        UpdateSelected()
-        pcall(CalculateSize)
+        if not InBulkUpdate then
+            UpdateSelected()
+            pcall(CalculateSize)
+        end
     end
 
     SelectOption = function(key)
@@ -3002,17 +3189,56 @@ do
     GetOptions = function() return Options end
 
     AddNewOptions = function(List, Clear)
+        local OldSelected
+        if MultiSelect then
+            OldSelected = {}
+            for k, v in pairs(Selected) do
+                if v then
+                    OldSelected[k] = true
+                end
+            end
+        else
+            OldSelected = Selected
+        end
+
+        InBulkUpdate = true
+
         if Clear then
             for i = #OptionList, 1, -1 do
                 RemoveOption(OptionList[i])
             end
         end
-        for _, v in ipairs(List or {}) do AddOption(v) end
+
+        for _, v in ipairs(List or {}) do
+            AddOption(v)
+        end
+
+        InBulkUpdate = false
+
+        if OldSelected ~= nil then
+            if MultiSelect and type(OldSelected) == "table" then
+                for name, _ in pairs(OldSelected) do
+                    local opt = Options[name]
+                    if opt then
+                        opt.Stats = true
+                        Selected[name] = true
+                    end
+                end
+            else
+                SelectOption(OldSelected)
+            end
+        end
+
         CallbackSelected()
         UpdateSelected()
+        pcall(CalculateSize)
     end
 
-    for _, v in ipairs(DOptions or {}) do AddOption(v) end
+    InBulkUpdate = true
+    for _, v in ipairs(DOptions or {}) do
+        AddOption(v)
+    end
+    InBulkUpdate = false
 
     if InitialSelection ~= nil then
         if MultiSelect and type(InitialSelection) == "table" then
@@ -3035,7 +3261,6 @@ do
         UpdateSelected()
     end
 end
- 
 			Button.Activated:Connect(Minimize)
 			NoClickFrame.MouseButton1Down:Connect(Disable)
 			NoClickFrame.MouseButton1Click:Connect(Disable)
@@ -3361,10 +3586,11 @@ function Tab:AddTextbox(Configs)
         TDefault = ""
     end
 
-    local Button, LabelFunc = ButtonFrame(Container, TName, TDesc, UDim2.new(1, -38))
+    local container = Configs.__force_container or Container
+    local Button, LabelFunc = ButtonFrame(container, TName, TDesc, UDim2.new(1, -38))
 
     local SelectedFrame = InsertTheme(Create("Frame", Button, {
-        Size = UDim2.new(0, 150, 0, 18),
+        Size = UDim2.new(0, 125, 0, 18),
         Position = UDim2.new(1, -10, 0.5, 0),
         AnchorPoint = Vector2.new(1, 0.5),
         BackgroundColor3 = Theme["Color Stroke"]
@@ -3372,9 +3598,9 @@ function Tab:AddTextbox(Configs)
     Make("Corner", SelectedFrame, UDim.new(0, 4))
 
 local function updateSelectedFrame2Size()
-    local scale = isPC and 0.23 or 0.15
-    local mineWidth = isPC and 80 or 60
-    local newWidth = math.clamp(Button.AbsoluteSize.X * scale, mineWidth, 150)
+    local scale = isPC and 0.22 or 0.14
+    local mineWidth = isPC and 60 or 50
+    local newWidth = math.clamp(Button.AbsoluteSize.X * scale, mineWidth, 125)
     SelectedFrame.Size = UDim2.new(0, newWidth, 0, 18)
 end
 
@@ -3505,9 +3731,10 @@ end
     if Configs.IsMobile and not isMobile then return end
     if Configs.IsPC     and not isPC     then return end
  
-    local ColorH, ColorS, ColorV = Color3.toHSV(TDefault)
+   local ColorH, ColorS, ColorV = Color3.toHSV(TDefault)
 
-   local Frame, LabelFunc = ButtonFrame(Container, TName, TDesc, UDim2.new(1, -25, 0, 25))
+   local container = Configs.__force_container or Container
+   local Frame, LabelFunc = ButtonFrame(container, TName, TDesc, UDim2.new(1, -25, 0, 25))
  
     local ColorBox = InsertTheme(Create("TextButton", Frame, {
         Name = "ColorBox",
@@ -4414,8 +4641,9 @@ Tab:AddDropdown({
 
 Tab:AddSlider({
     Name = "Custom Size",
-    Min = 400,
+    Min = 450,
     Max = 800,
+    Increment = 5,
     Default = customUIsize,
     Flag = "CustomUISize",
     Callback = function(value)
@@ -4554,7 +4782,6 @@ task.spawn(function()
         task.wait()
     end
 end)
-
 
 Tab:AddToggle({
     Name = "Rainbow Title",
