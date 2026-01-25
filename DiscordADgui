@@ -60,36 +60,35 @@ end
 local function isWhitelisted()
     local username = player and player.Name or ""
     if username == "" then
-        return false
+        return "offline", false
     end
-    
+
     local url = API_URL .. "?username=" .. HttpService:UrlEncode(username)
     local ok, body = httpGet(url)
-    
+
     if not ok or not body then
-        return false
+        return "offline", false
     end
-    
+
     local decoded
-    local success, error = pcall(function()
+    local success = pcall(function()
         decoded = HttpService:JSONDecode(body)
     end)
-    
+
     if not success or type(decoded) ~= "table" then
-        return false
+        return "offline", false
     end
-    
-    return decoded.whitelisted == true
+
+    return "ok", decoded.whitelisted == true
 end
 
-local whitelisted = false
-pcall(function()
-    whitelisted = isWhitelisted()
-end)
+local status, whitelisted = isWhitelisted()
 
-if whitelisted then
+if status == "ok" and whitelisted then
     notify("✅ Registered", "You are already registered enjoy", 2)
     return
+elseif status == "offline" then
+    notify("⚠️ Server Offline", "Server is currently offline, Sorry for that but if the server is offline he will not work properly so it will showyou the AD", 3)
 else
     notify("❌ Not Registered", "You are not registered. Go to the Discord server and register to remove the ad", 4)
 end
