@@ -10,9 +10,11 @@ local Player = Players.LocalPlayer
 local PlayerMouse = Player:GetMouse()
 
 local splib = {
+    IsPremium = false,
+    FlagsEnabled = true,
     Themes = loadstring(game:HttpGet("https://raw.githubusercontent.com/as6cd0/splibv2/main/Themes.lua"))(),
     Info = {
-        Version = "1.1.5"
+        Version = "1.2.0"
     },
     Save = {
         UISize = {550, 380},
@@ -25,13 +27,65 @@ local splib = {
     Elements = {},
     Options = {},
     Flags = {},
+    PremiumElements = {},
     Tabs = {},
     Icons = loadstring(game:HttpGet("https://raw.githubusercontent.com/as6cd0/splibv2/main/Icons.lua"))()
 }
 
+splib._PremiumChanged = Instance.new("BindableEvent")
+
+function splib:RegisterPremiumElement(instance)
+    if not instance then return end
+    table.insert(self.PremiumElements, instance)
+end
+
+local function ApplyPremiumVisual(self)
+    for _, inst in ipairs(self.PremiumElements) do
+        pcall(function()
+            if typeof(inst) == "Instance" then
+                if inst:IsA("GuiObject") then
+                    inst.Visible = self.IsPremium
+                else
+                    if inst.Parent and not self.IsPremium then
+                        inst._saved_parent = inst.Parent
+                        inst.Parent = nil
+                    elseif inst._saved_parent and self.IsPremium then
+                        inst.Parent = inst._saved_parent
+                        inst._saved_parent = nil
+                    end
+                end
+            end
+        end)
+    end
+end
+
+function splib:SetPremium(state)
+    state = state and true or false
+    if self.IsPremium == state then return end
+
+    self.IsPremium = state
+
+    pcall(function()
+        writefile("splib_premium.dat", state and "1" or "0")
+    end)
+
+    ApplyPremiumVisual(self)
+    self._PremiumChanged:Fire(state)
+end
+
+function splib:LoadPremium()
+    local ok, data = pcall(function()
+        return readfile("splib_premium.dat")
+    end)
+
+    self.IsPremium = (ok and data == "1") and true or false
+    ApplyPremiumVisual(self)
+end
+
 -- ok this is redz lib v5 but now its for sp cuz its has edited in full! and  big improvent and added more functions by sp to contact the the dev discord @nadermohamed22
 local Binds = {}
-local Toggles = {}
+_G.spLibToggles = _G.spLibToggles or {}
+local Toggles = _G.spLibToggles
 
 local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 local isPC = not UserInputService.TouchEnabled and UserInputService.KeyboardEnabled
@@ -305,24 +359,29 @@ splib.Save = {
   Theme   = saved.Theme   or splib.Save.Theme,
 }
 
-local bindConnections = {}
+_G.spLibConnections = _G.spLibConnections or {}
+local bindConnections = _G.spLibConnections
 local shouldClearToggles = false
 
 local GUI_NAME = "sp Library"
 local oldGui = CoreGui:FindFirstChild(GUI_NAME)
 if oldGui then
-    for _, conn in ipairs(bindConnections) do
-        if typeof(conn) == "RBXScriptConnection" and conn.Connected then
-            conn:Disconnect()
+    if _G.spLibConnections then
+        for _, conn in ipairs(_G.spLibConnections) do
+            if typeof(conn) == "RBXScriptConnection" and conn.Connected then
+                conn:Disconnect()
+            end
         end
+        table.clear(_G.spLibConnections)
     end
-    table.clear(bindConnections)
 
-    if splib and type(splib.ClearAllBinds) == "function" then
-        splib:ClearAllBinds()
-    end
-    if shouldClearToggles and splib and type(splib.ClearAllToggles) == "function" then
-        splib:ClearAllToggles()
+    if _G.spLibToggles then
+        for _, entry in ipairs(_G.spLibToggles) do
+            if entry.object and type(entry.object.ForceCallback) == "function" then
+                entry.object:ForceCallback(false)
+            end
+        end
+        table.clear(_G.spLibToggles)
     end
 
     oldGui:Destroy()
@@ -576,50 +635,32 @@ local function ButtonFrame(parent, Title, Description, HolderSize, isBind)
 
     local bindBox
     if isBind then
-        bindBox = Create("TextButton", Frame, {
+        bindBox = InsertTheme(Create("TextButton", Frame, {
             Name               = "BindBox",
-            Text               = "",
+            Text               = "...",
             Font               = Enum.Font.GothamBold,
             TextSize           = 14,
-            TextColor3         = Theme["Color Text"],
+            TextColor3         = Color3.fromRGB(255,255,255),
             Size               = UDim2.new(0, 45, 0, 24),
             Position           = UDim2.new(1, -10, 0, 1.9),
             AnchorPoint        = Vector2.new(1, 0),
             BackgroundColor3   = Color3.fromRGB(0,0,0),
             BackgroundTransparency = 0,
-        })
-InsertTheme(bindBox, "Text")
-InsertTheme(bindBox, "Stroke")
+        }), "Stroke")
 Make("Corner", bindBox, UDim.new(0.25, 0))
 
-        Frame.AutomaticSize = Enum.AutomaticSize.None
         Frame.Size = UDim2.new(1, 0, 0, 30)
-
-        bindBox:SetAttribute("Ready", false)
-        bindBox:SetAttribute("Displayed", false)
-
         bindBox:GetPropertyChangedSignal("Text"):Connect(function()
-            if not bindBox:GetAttribute("Ready") then
-                return
-            end
-
-            if not bindBox:GetAttribute("Displayed") then
-                bindBox:SetAttribute("Displayed", true)
-                bindBox.Size = UDim2.new(0, bindBox.TextBounds.X + 8, 0, 24)
-                return
-            end
-
-            task.defer(function()
-                local newWidth = bindBox.TextBounds.X + 8
-                local tween = TweenService:Create(
-                    bindBox,
-                    TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-                    {Size = UDim2.new(0, newWidth, 0, 24)}
-                )
-                tween:Play()
-            end)
+            local newWidth = bindBox.TextBounds.X + 8
+            local tween = TweenService:Create(
+                bindBox,
+                TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+                {Size = UDim2.new(0, newWidth, 0, 24)}
+            )
+            tween:Play()
         end)
     end
+
     local Label = {}
     function Label:SetTitle(nt)
         if type(nt)=="string" and nt:match("%S") then
@@ -723,7 +764,9 @@ local RainbowTitleDefault
 local RainbowSubTitleDefault
 
 function splib:MakeWindow(Configs)
-
+    if Configs and Configs.IsPremium ~= nil then
+        splib:SetPremium(Configs.IsPremium == true)
+    end
     ToggleEnabled = (Configs.Toggle == nil and Configs.EnableToggle == nil) 
        or (Configs.Toggle == true or Configs.EnableToggle == true)
     EnableSetting = (Configs.Setting == nil and Configs.EnableSetting == nil)
@@ -738,7 +781,9 @@ function splib:MakeWindow(Configs)
 
 
 function splib:MakeWindow(Configs)
-
+    if Configs and Configs.IsPremium ~= nil then
+        splib:SetPremium(Configs.IsPremium == true)
+    end
     local WTitle = Configs[1] or Configs.Name or Configs.Title or "SP Lib v2"
     local WMiniText = Configs[2] or Configs.SubTitle or Configs.SubName or "by : SP Hub"
     local WIcon = Configs[4] or Configs.Icon or Configs.ScriptIcon
@@ -755,12 +800,11 @@ function splib:MakeWindow(Configs)
     ToggleEnabled = (Configs.Toggle == nil and Configs.EnableToggle == nil)
        or (Configs.Toggle == true or Configs.EnableToggle == true)
     local ToggleIcon = tostring(Configs.ToggleIcon or "rbxassetid://83114982417764")
-    local HidePremium = Configs.HidePremium == true
+    splib.IsPremium = Configs.IsPremium == true
     local Callback = Configs.Callback or function() end
     local CloseCallback = Configs.CloseCallback or false
 
     shouldClearToggles = (Configs.CloseCallback == true)
-
 
     if Configs.IntroEnabled == nil then
         Configs.IntroEnabled = true
@@ -809,6 +853,10 @@ function splib:MakeWindow(Configs)
     if Configs.IntroEnabled then
         LoadSequence()
     end
+
+function Window:GetPremiumElements()
+    return splib.PremiumElements
+end
 
     local function LoadFile()
         local File = Settings.ScriptFile
@@ -944,6 +992,16 @@ local MainCorner = Make("Corner", MainFrame, UDim.new(0, 10))
         titlePosX = 37
     end
 
+local SubTitleText = WMiniText
+
+local function GetPremiumText()
+    if splib.IsPremium then
+        return SubTitleText .. "  <font color=\"#00aaff\">Premium</font>"
+    else
+        return SubTitleText
+    end
+end
+
     local Title = InsertTheme(Create("TextLabel", TopBar, {
         Position = UDim2.new(0, titlePosX, 0.5),
         AnchorPoint = Vector2.new(0, 0.5),
@@ -961,17 +1019,44 @@ local MainCorner = Make("Corner", MainFrame, UDim.new(0, 10))
             AutomaticSize = "X",
             AnchorPoint = Vector2.new(0, 1),
             Position = UDim2.new(1, 5, 0.9),
-            Text = WMiniText,
+            Text = GetPremiumText(),
             TextColor3 = Theme["Color Dark Text"],
             BackgroundTransparency = 1,
             TextXAlignment = "Left",
             TextYAlignment = "Bottom",
             TextSize = 8,
             Font = Enum.Font.Gotham,
+            RichText = true,
             Name = "SubTitle"
         }), "DarkText")
     }), "Text")
 
+local SubTitleLabel = Title:FindFirstChild("SubTitle")
+splib._SubTitleRef = SubTitleLabel
+
+splib._PremiumChanged.Event:Connect(function()
+    if splib._SubTitleRef then
+        splib._SubTitleRef.Text = GetPremiumText()
+    end
+end)
+
+task.spawn(function()
+    local lastState = splib.IsPremium
+    while Title and Title.Parent do
+        if splib.IsPremium ~= lastState then
+            lastState = splib.IsPremium
+            local sub = Title:FindFirstChild("SubTitle")
+            if sub then
+                if splib.IsPremium then
+                    sub.Text = SubTitleText .. "  <font color=\"#00aaff\">Premium</font>"
+                else
+                    sub.Text = SubTitleText
+                end
+            end
+        end
+        task.wait(0.2)
+    end
+end)
 	local MainScroll = InsertTheme(Create("ScrollingFrame", Components, {
 		Size = UDim2.new(0, splib.Save.TabSize, 1, -TopBar.Size.Y.Offset),
 		ScrollBarImageColor3 = Theme["Color Theme"],
@@ -1904,6 +1989,11 @@ local function LoadFlagValue(flag)
     return data[flag]
 end
 
+local masterFlag = LoadFlagValue("GlobalFlagsMaster")
+if masterFlag ~= nil then
+    splib.FlagsEnabled = masterFlag
+end
+
 local function SaveDropdownFlag(flag, value)
 	local data = {}
 
@@ -2086,9 +2176,7 @@ local notifFrame = Create("TextButton", notifParent, {
 		TextSize = (isPC and 12) or 10,
 		Text = Configs.Name,
 		BackgroundTransparency = 1,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextWrapped = true,
-        AutomaticSize = Enum.AutomaticSize.Y,
+		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 1001,
 	})
 	InsertTheme(title, "Text")
@@ -2096,7 +2184,7 @@ local notifFrame = Create("TextButton", notifParent, {
 	local content = Create("TextLabel", notifFrame, {
 		Name = "Content",
 		TextColor3 = textClr or Color3.new(1,1,1),
-		Position = UDim2.new(0, 44, 0, title.Size.Y.Offset + 2),
+		Position = UDim2.new(0, 44, 0, 22),
 		Size = UDim2.new(1, -44 - 36, 0, 0),
 		Font = Enum.Font.Gotham,
 		TextSize = 14,
@@ -2236,13 +2324,16 @@ function Tab:AddBind(Configs)
     local Save     = Configs.Save     or false
 
     if Flag then
-        local savedName = LoadBindFlag(Flag)
-        if savedName then
-            local ok, keyCode = pcall(function()
-                return Enum.KeyCode[savedName]
-            end)
-            if ok and keyCode then
-                Default = keyCode
+        local isInternalSetting = (Configs.__force_container ~= nil)
+        if splib.FlagsEnabled or isInternalSetting then
+            local savedName = LoadBindFlag(Flag)
+            if savedName then
+                local ok, keyCode = pcall(function()
+                    return Enum.KeyCode[savedName]
+                end)
+                if ok and keyCode then
+                    Default = keyCode
+                end
             end
         end
     end
@@ -2252,15 +2343,23 @@ function Tab:AddBind(Configs)
 
     local container = Configs.__force_container or Container
     local Frame, LabelFunc, BindBox = ButtonFrame(container, Name, Desc, UDim2.new(1, -20), true)
-BindBox:GetPropertyChangedSignal("TextColor3"):Connect(function()
-    if Theme and Theme["Color Text"] then
-        if BindBox.TextColor3 ~= Theme["Color Text"] then
-            BindBox.TextColor3 = Theme["Color Text"]
+
+    if Configs and Configs.PremiumOnly then
+        table.insert(splib.PremiumElements, Frame)
+
+        if Configs.HidePremium == true and not splib.IsPremium then
+            Frame.Visible = false
+        end
+
+        local originalDesc = Desc or ""
+        local premiumText = "<font color=\"#00aaff\">For Premium</font>"
+
+        if originalDesc ~= "" then
+            LabelFunc:SetDesc(originalDesc .. "\n" .. premiumText)
+        else
+            LabelFunc:SetDesc(premiumText)
         end
     end
-end)
-    Frame.AutomaticSize = Enum.AutomaticSize.None
-    Frame.Size = UDim2.new(1, 0, 0, 30)
 
     local state = {
         Value   = Default,
@@ -2268,113 +2367,74 @@ end)
         Hold    = Hold,
         Save    = Save,
     }
-
     local Holding = false
-    local recentlyBound = false
-    local bindConn = nil
-    local bindInputConn = nil
 
     local function updateDisplay()
-        if not BindBox or not BindBox.Parent then return end
-
         local nm = (typeof(state.Value) == "EnumItem" and state.Value.Name) or tostring(state.Value)
         BindBox.Text = nm
-
-        task.defer(function()
-            if BindBox and Theme and Theme["Color Text"] then
-                BindBox.TextColor3 = Theme["Color Text"]
-            end
-        end)
-
-        if not BindBox:GetAttribute("Ready") then
-            BindBox:SetAttribute("Ready", true)
-        end
     end
-
     updateDisplay()
 
-    Frame:SetAttribute("LockVisibility", false)
+    local recentlyBound = false
 
     Frame.Activated:Connect(function()
-        if state.Binding or recentlyBound then return end
 
-        if not Frame.Visible then
-            Frame.Visible = true
+        if Configs and Configs.PremiumOnly and not splib.IsPremium then
+            splib:MakeNotification{
+                Name = "Premium Only",
+                Image = "rbxassetid://10734966248",
+                Content = "This feature is for Premium users",
+                Time = 1.5
+            }
+            return
         end
 
-        task.wait()
-
+        if state.Binding then return end
         state.Binding = true
-        Frame:SetAttribute("LockVisibility", true)
+        BindBox.Text = "..."
 
-        if BindBox and BindBox.Parent then
-            BindBox.Text = "..."
-            if Theme and Theme["Color Text"] then
-                BindBox.TextColor3 = Theme["Color Text"]
-            end
-        end
+        local conn
+        conn = UserInputService.InputBegan:Connect(function(input, gp)
 
-        if bindInputConn and bindInputConn.Connected then
-            bindInputConn:Disconnect()
-            bindInputConn = nil
-        end
-
-        bindInputConn = UserInputService.InputBegan:Connect(function(input, gp)
-            if gp then return end
-            if not state.Binding then return end
-
-            if input.UserInputType ~= Enum.UserInputType.Keyboard then
-                if BindBox and BindBox.Parent then
-                    BindBox.Text = "Invalid"
-                end
-                task.delay(0.4, updateDisplay)
-                state.Binding = false
-                Frame:SetAttribute("LockVisibility", false)
-                bindInputConn:Disconnect()
-                bindInputConn = nil
-                return
-            end
-
-            if input.KeyCode and input.KeyCode ~= Enum.KeyCode.Unknown then
-                state.Value = input.KeyCode
-                updateDisplay()
-
-                if Flag then
-                    SaveBindFlag(Flag, input.KeyCode.Name)
-                    splib.Flags[Flag] = state
-                end
-
-                if state.Save then
-                    SaveCfg(game.GameId)
-                end
-
-                recentlyBound = true
-                task.delay(0.25, function()
-                    recentlyBound = false
-                end)
-            end
-
-            state.Binding = false
-            Frame:SetAttribute("LockVisibility", false)
-            bindInputConn:Disconnect()
-            bindInputConn = nil
-        end)
-
-        task.delay(6, function()
             if state.Binding then
-                state.Binding = false
-                Frame:SetAttribute("LockVisibility", false)
-                if bindInputConn and bindInputConn.Connected then
-                    bindInputConn:Disconnect()
-                    bindInputConn = nil
+                if input.UserInputType ~= Enum.UserInputType.Keyboard then
+                    BindBox.Text = "Invalid"
+                    task.wait(0.5)
+                    updateDisplay()
+                    state.Binding = false
+                    conn:Disconnect()
+                    return
                 end
-                updateDisplay()
+
+                local newKey
+                if input.KeyCode and input.KeyCode ~= Enum.KeyCode.Unknown then
+                    newKey = input.KeyCode
+                end
+
+                if newKey then
+                    state.Value = newKey
+                    updateDisplay()
+
+                    if Flag then
+                        SaveBindFlag(Flag, newKey.Name)
+                    end
+
+                    recentlyBound = true
+                    wait(.3)
+                    recentlyBound = false
+
+                    if Flag then splib.Flags[Flag] = state end
+                    if state.Save then SaveCfg(game.GameId) end
+                end
+
+                state.Binding = false
+                conn:Disconnect()
             end
         end)
     end)
 
-    bindConn = UserInputService.InputBegan:Connect(function(input, gp)
-        if gp or state.Binding or recentlyBound then return end
+    local inputConnection = UserInputService.InputBegan:Connect(function(input, gp)
+        if state.Binding then return end
 
         local match = false
         if typeof(state.Value) == "EnumItem" then
@@ -2386,6 +2446,16 @@ end)
         end
 
         if match then
+            if Configs and Configs.PremiumOnly and not splib.IsPremium then
+                splib:MakeNotification{
+                    Name = "Premium Only",
+                    Image = "rbxassetid://10734966248",
+                    Content = "This feature is for Premium users",
+                    Time = 1.5
+                }
+                return
+            end
+
             if state.Hold then
                 Holding = true
                 Callback(Holding)
@@ -2395,7 +2465,7 @@ end)
         end
     end)
 
-    table.insert(bindConnections, bindConn)
+    table.insert(bindConnections, inputConnection)
 
     UserInputService.InputEnded:Connect(function(input)
         if state.Hold and input.KeyCode == state.Value then
@@ -2407,12 +2477,7 @@ end)
     local objBind = {}
     function objBind:Get() return state.Value end
     function objBind:Visible(val) Funcs:ToggleVisible(Frame, val) end
-    function objBind:Destroy()
-        state.Value = Enum.KeyCode.Unknown
-        if bindConn and bindConn.Connected then bindConn:Disconnect() end
-        if bindInputConn and bindInputConn.Connected then bindInputConn:Disconnect() end
-        Frame:Destroy()
-    end
+    function objBind:Destroy()  state.Value = Enum.KeyCode.Unknown  Frame:Destroy() end
     function objBind:Callback(fn)
         if type(fn) == "function" then Callback = fn end
     end
@@ -2428,8 +2493,8 @@ end)
     return objBind
 end
 
+
 function splib:ClearAllBinds()
-    print("Clearing Binds, count:", #Binds)
     for _, bind in ipairs(Binds) do
         if bind.Set then
             bind:Set(Enum.KeyCode.Unknown)
@@ -2588,9 +2653,11 @@ function Tab:AddParagraph(...)
     return Paragraph
 end
 function Tab:AddButton(Configs)
-			local BName = Configs[1] or Configs.Name or Configs.Title or "Button!"
-			local BDescription = Configs.Desc or Configs.Description or ""
-			local Callback = Funcs:GetCallback(Configs, 2)
+            local BName = Configs[1] or Configs.Name or Configs.Title or "Button!"
+            local BDescription = Configs.Desc or Configs.Description or ""
+            local Callback = Funcs:GetCallback(Configs, 2)
+            local PremiumOnly = Configs.PremiumOnly == true
+            local HidePremium = Configs.HidePremium == true
 
             if Configs.IsMobile and not isMobile then
                 return nil
@@ -2599,38 +2666,66 @@ function Tab:AddButton(Configs)
             if Configs.IsPC and not isPC then
                 return nil
             end
-			
+            
             local container = Configs.__force_container or Container
-			local FButton, LabelFunc = ButtonFrame(container, BName, BDescription, UDim2.new(1, -20))
-			
-			local ButtonIcon = Create("ImageLabel", FButton, {
-				Size = UDim2.new(0, 14, 0, 14),
-				Position = UDim2.new(1, -10, 0.5),
-				AnchorPoint = Vector2.new(1, 0.5),
-				BackgroundTransparency = 1,
-				Image = "rbxassetid://10709791437"
-			})
+            local FButton, LabelFunc = ButtonFrame(container, BName, BDescription, UDim2.new(1, -20))
 
-		FButton.Activated:Connect(function()
-				Funcs:FireCallback(Callback)
-			end)
+            if PremiumOnly then
+                table.insert(splib.PremiumElements, FButton)
 
-			local Button = {}
-			function Button:Visible(...) Funcs:ToggleVisible(FButton, ...) end
-			function Button:Destroy() FButton:Destroy() end
-			function Button:Callback(...) Funcs:InsertCallback(Callback, ...) end
-			function Button:Set(Val1, Val2)
-				if type(Val1) == "string" and type(Val2) == "string" then
-					LabelFunc:SetTitle(Val1)
-					LabelFunc:SetDesc(Val2)
-				elseif type(Val1) == "string" then
-					LabelFunc:SetTitle(Val1)
-				elseif type(Val1) == "function" then
-					Callback = Val1
-				end
-			end
-			return Button
-		end
+                if HidePremium and not splib.IsPremium then
+                    FButton.Visible = false
+                end
+
+                local originalDesc = BDescription or ""
+                local premiumText = "<font color=\"#00aaff\">For Premium</font>"
+
+                if originalDesc ~= "" then
+                    LabelFunc:SetDesc(originalDesc .. "\n" .. premiumText)
+                else
+                    LabelFunc:SetDesc(premiumText)
+                end
+            end
+            
+            local ButtonIcon = Create("ImageLabel", FButton, {
+                Size = UDim2.new(0, 14, 0, 14),
+                Position = UDim2.new(1, -10, 0.5),
+                AnchorPoint = Vector2.new(1, 0.5),
+                BackgroundTransparency = 1,
+                Image = "rbxassetid://10709791437"
+            })
+
+            FButton.Activated:Connect(function()
+                if PremiumOnly and not splib.IsPremium then
+                    if splib.MakeNotification then
+                        splib:MakeNotification{
+                            Name = "Premium Only",
+                            Image = "rbxassetid://10734966248",
+                            Content = "This feature is for Premium users",
+                            Time = 1.5
+                        }
+                    end
+                    return
+                end
+                Funcs:FireCallback(Callback)
+            end)
+
+            local Button = {}
+            function Button:Visible(...) Funcs:ToggleVisible(FButton, ...) end
+            function Button:Destroy() FButton:Destroy() end
+            function Button:Callback(...) Funcs:InsertCallback(Callback, ...) end
+            function Button:Set(Val1, Val2)
+                if type(Val1) == "string" and type(Val2) == "string" then
+                    LabelFunc:SetTitle(Val1)
+                    LabelFunc:SetDesc(Val2)
+                elseif type(Val1) == "string" then
+                    LabelFunc:SetTitle(Val1)
+                elseif type(Val1) == "function" then
+                    Callback = Val1
+                end
+            end
+            return Button
+        end
 
 function Tab:AddToggle(Configs)
     local TName    = Configs[1] or Configs.Name or Configs.Title or "Toggle"
@@ -2639,10 +2734,22 @@ function Tab:AddToggle(Configs)
     local Flag     = Configs[4] or Configs.Flag or false
     local Default  = Configs[2] or Configs.Default or false
 
+    local PremiumOnly = Configs.PremiumOnly == true
+    local HidePremium = Configs.HidePremium == true
+
     if Flag then
-        local saved = LoadFlagValue(Flag)
-        if type(saved) == "boolean" then
-            Default = saved
+        local isInternalSetting = (Configs.__force_container ~= nil)
+        if splib.FlagsEnabled or isInternalSetting then
+            local saved = LoadFlagValue(Flag)
+            if saved ~= nil then
+                if type(saved) == "boolean" and type(Default) == "boolean" then
+                    Default = saved
+                elseif type(saved) == "string" and type(Default) == "string" then
+                    Default = saved
+                elseif type(saved) == "number" and type(Default) == "number" then
+                    Default = saved
+                end
+            end
         end
     end
 
@@ -2651,6 +2758,23 @@ function Tab:AddToggle(Configs)
 
     local container = Configs.__force_container or Container
     local Button, LabelFunc = ButtonFrame(container, TName, TDesc, UDim2.new(1, -38))
+
+    if PremiumOnly then
+        table.insert(splib.PremiumElements, Button)
+
+        if HidePremium and not splib.IsPremium then
+            Button.Visible = false
+        end
+
+        local originalDesc = TDesc or ""
+        local premiumText = "<font color=\"#00aaff\">For Premium</font>"
+
+        if originalDesc ~= "" then
+            LabelFunc:SetDesc(originalDesc .. "\n" .. premiumText)
+        else
+            LabelFunc:SetDesc(premiumText)
+        end
+    end
 
     local ToggleHolder = InsertTheme(Create("Frame", Button, {
         Size             = UDim2.new(0, 35, 0, 18),
@@ -2677,59 +2801,67 @@ function Tab:AddToggle(Configs)
     Make("Corner", Toggle, UDim.new(0.5, 0))
 
     local WaitClick
-local function SetToggle(Val)
-    if WaitClick then return end
-    WaitClick = true
-    Default = Val
-
-    if not (control and control.internal) then
+    local function SetToggle(Val)
+        if WaitClick then return end
+        WaitClick = true
         Default = Val
-    end
 
-    if Flag and not (control and control.internal) then
-        SaveFlagValue(Flag, Val)
-    end
+        if Flag then
+            SaveFlagValue(Flag, Val)
+        end
 
         Funcs:FireCallback(Callback, Default)
 
-local tweenInfoOn = TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-local tweenInfoOff = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+        local tweenInfoOn  = TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+        local tweenInfoOff = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
 
-if Default then
-    TweenService:Create(Toggle, tweenInfoOn, {
-        Position = UDim2.new(1, 0, 0.5),
-        BackgroundTransparency = 0,
-        AnchorPoint = Vector2.new(1, 0.5),
-        Size = UDim2.new(0, 14, 0, 14)
-    }):Play()
-    task.delay(0.1, function()
-        if Default and Toggle and Toggle.Parent then
-            TweenService:Create(Toggle, TweenInfo.new(0.1, Enum.EasingStyle.Quad), {
-                Size = UDim2.new(0, 12, 0, 12)
+        if Default then
+            TweenService:Create(Toggle, tweenInfoOn, {
+                Position = UDim2.new(1, 0, 0.5),
+                BackgroundTransparency = 0,
+                AnchorPoint = Vector2.new(1, 0.5),
+                Size = UDim2.new(0, 14, 0, 14)
+            }):Play()
+            task.delay(0.1, function()
+                if Default and Toggle and Toggle.Parent then
+                    TweenService:Create(Toggle, TweenInfo.new(0.1, Enum.EasingStyle.Quad), {
+                        Size = UDim2.new(0, 12, 0, 12)
+                    }):Play()
+                end
+            end)
+        else
+            TweenService:Create(Toggle, tweenInfoOff, {
+                Position = UDim2.new(0, 0, 0.5),
+                BackgroundTransparency = 0.8,
+                AnchorPoint = Vector2.new(0, 0.5)
             }):Play()
         end
-    end)
-else
-    TweenService:Create(Toggle, tweenInfoOff, {
-        Position = UDim2.new(0, 0, 0.5),
-        BackgroundTransparency = 0.8,
-        AnchorPoint = Vector2.new(0, 0.5)
-    }):Play()
-end
 
         WaitClick = false
     end
 
-if Flag then
-    splib.Flags[Flag] = {
-        Value = Default,
-        Save  = true,
-        Set   = SetToggle,
-    }
-end
+    if Flag then
+        splib.Flags[Flag] = {
+            Value = Default,
+            Save  = true,
+            Set   = SetToggle,
+        }
+    end
 
     task.spawn(SetToggle, Default)
+
     Button.Activated:Connect(function()
+        if PremiumOnly and not splib.IsPremium then
+            if splib.MakeNotification then
+                splib:MakeNotification{
+                    Name = "Premium Only",
+                    Image = "rbxassetid://10734966248",
+                    Content = "This feature is for Premium users",
+                    Time = 1.5
+                }
+            end
+            return
+        end
         SetToggle(not Default)
     end)
 
@@ -2737,571 +2869,619 @@ end
     function Toggle:Visible(...) Funcs:ToggleVisible(Button, ...) end
     function Toggle:Destroy()     Button:Destroy()           end
     function Toggle:Callback(...) Funcs:InsertCallback(Callback, ...)() end
-function Toggle:Set(Val1, control)
-    if type(Val1) == "string" and type(control) == "string" then
-        LabelFunc:SetTitle(Val1)
-        LabelFunc:SetDesc(control)
-    elseif type(Val1) == "string" then
-        LabelFunc:SetTitle(Val1, false, true)
-    elseif type(Val1) == "boolean" then
-        if WaitClick and (not control or not control.internal) then
-            repeat task.wait() until not WaitClick
+    function Toggle:Set(Val1, control)
+        if type(Val1) == "string" and type(control) == "string" then
+            LabelFunc:SetTitle(Val1)
+            LabelFunc:SetDesc(control)
+        elseif type(Val1) == "string" then
+            LabelFunc:SetTitle(Val1, false, true)
+        elseif type(Val1) == "boolean" then
+            if WaitClick and (not control or not control.internal) then
+                repeat task.wait() until not WaitClick
+            end
+            task.spawn(SetToggle, Val1, control)
+        elseif type(Val1) == "function" then
+            Callback = Val1
         end
-        task.spawn(SetToggle, Val1, control)
-    elseif type(Val1) == "function" then
-        Callback = Val1
     end
-end
 
-function Toggle:ForceCallback(val)
-    Funcs:FireCallback(Callback, val)
-end
-
-Toggle.GetValue = function()
-    return Default
-end
-
-function Toggle:SetText(newTitle, newDesc)
-    if newTitle then 
-        LabelFunc:SetTitle(newTitle) 
+    function Toggle:ForceCallback(val)
+        Funcs:FireCallback(Callback, val)
     end
-    if newDesc then 
-        LabelFunc:SetDesc(newDesc) 
-    end
-end
 
-   table.insert(Toggles, { object = Toggle, default = Default })
+    Toggle.GetValue = function()
+        return Default
+    end
+
+    function Toggle:SetText(newTitle, newDesc)
+        if newTitle then 
+            LabelFunc:SetTitle(newTitle) 
+        end
+        if newDesc then 
+            LabelFunc:SetDesc(newDesc) 
+        end
+    end
+
+    table.insert(Toggles, { object = Toggle, default = Default })
     return Toggle
 end
 
 function splib:ClearAllToggles()
-    print("Clearing Toggles, count:", #Toggles)
-    for _, entry in ipairs(Toggles) do
+    local targets = _G.spLibToggles or Toggles
+    for _, entry in ipairs(targets) do
         if entry.object and type(entry.object.ForceCallback) == "function" then
             entry.object:ForceCallback(false)
         end
     end
+    table.clear(targets)
 end
-		function Tab:AddDropdown(Configs)
-			local DName = Configs[1] or Configs.Name or Configs.Title or "Dropdown"
-			local DDesc = Configs.Desc or Configs.Description or ""
-			local DOptions = Configs[2] or Configs.Options or {}
-            local Flag = Configs[4] or Configs.Flag or false
-            local OpDefault = Configs[3] or Configs.Default
-			local DMultiSelect = Configs.MultiSelect or false
-			local Callback = Funcs:GetCallback(Configs, 4)
- 
-            if Configs.IsMobile and not isMobile then
-                return nil
+function Tab:AddDropdown(Configs)
+	local DName = Configs[1] or Configs.Name or Configs.Title or "Dropdown"
+	local DDesc = Configs.Desc or Configs.Description or ""
+	local DOptions = Configs[2] or Configs.Options or {}
+	local Flag = Configs[4] or Configs.Flag or false
+	local OpDefault = Configs[3] or Configs.Default
+	local DMultiSelect = Configs.MultiSelect or false
+	local Callback = Funcs:GetCallback(Configs, 4)
+
+	if Configs.IsMobile and not isMobile then
+		return nil
+	end
+
+	if Configs.IsPC and not isPC then
+		return nil
+	end
+
+    if not OpDefault and Flag then
+        local isInternalSetting = (Configs.__force_container ~= nil)
+        if splib.FlagsEnabled or isInternalSetting then
+            local loaded = LoadDropdownFlag(Flag)
+            if loaded then
+                OpDefault = loaded
             end
- 
-            if Configs.IsPC and not isPC then
-                return nil
+        end
+    end
+
+    if Flag then
+        local isInternalSetting = (Configs.__force_container ~= nil)
+        if splib.FlagsEnabled or isInternalSetting then
+            local saved = LoadDropdownFlag(Flag)
+            if saved ~= nil then
+                OpDefault = saved
             end
- 
-if not OpDefault and Flag then
-    local loaded = LoadDropdownFlag(Flag)
-    if loaded then
-        OpDefault = loaded
+        end
     end
-end
 
-if Flag then
-    local saved = LoadDropdownFlag(Flag)
-    if saved ~= nil then
-        OpDefault = saved
-    end
-end
+	local container = Configs.__force_container or Container
+	local Button, LabelFunc = ButtonFrame(container, DName, DDesc, UDim2.new(1, -20))
 
-			local container = Configs.__force_container or Container
-            local Button, LabelFunc = ButtonFrame(container, DName, DDesc, UDim2.new(1, -20))
- 
-			local SelectedFrame = InsertTheme(Create("Frame", Button, {
-				Size = UDim2.new(0, 150, 0, 18),
-				Position = UDim2.new(1, -10, 0.5),
-				AnchorPoint = Vector2.new(1, 0.5),
-				BackgroundColor3 = Theme["Color Stroke"]
-			}), "Stroke")Make("Corner", SelectedFrame, UDim.new(0, 4))
+	if Configs and Configs.PremiumOnly then
+		table.insert(splib.PremiumElements, Button)
 
-local function updateSelectedFrameSize()
-    local scale = isPC and 0.23 or 0.15
-    local mineWidth = isPC and 80 or 60
-    local newWidth = math.clamp(Button.AbsoluteSize.X * scale, mineWidth, 150)
-    SelectedFrame.Size = UDim2.new(0, newWidth, 0, 18)
-end
+		if Configs.HidePremium == true and not splib.IsPremium then
+			Button.Visible = false
+		end
 
-Button:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateSelectedFrameSize)
-updateSelectedFrameSize()
+		local originalDesc = DDesc or ""
+		local premiumText = "<font color=\"#00aaff\">For Premium</font>"
 
-			local ActiveLabel = InsertTheme(Create("TextLabel", SelectedFrame, {
-				Size = UDim2.new(0.85, 0, 0.85, 0),
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				Position = UDim2.new(0.5, 0, 0.5, 0),
-				BackgroundTransparency = 1,
-				Font = Enum.Font.GothamBold,
-				TextScaled = true,
-				TextColor3 = Theme["Color Text"],
-				Text = "..."
-			}), "Text")
- 
-			local Arrow = Create("ImageLabel", SelectedFrame, {
-				Size = UDim2.new(0, 15, 0, 15),
-				Position = UDim2.new(0, -5, 0.5),
-				AnchorPoint = Vector2.new(1, 0.5),
-				Image = "rbxassetid://10709791523",
-				BackgroundTransparency = 1
-			})
- 
-			local NoClickFrame = Create("TextButton", DropdownHolder, {
-				Name = "AntiClick",
-				Size = UDim2.new(1, 0, 1, 0),
-				BackgroundTransparency = 1,
-				Visible = false,
-				Text = ""
-			})
- 
-			local DropFrame = Create("Frame", NoClickFrame, {
-				Size = UDim2.new(SelectedFrame.Size.X, 0, 0),
-				BackgroundTransparency = 0.1,
-				BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-				AnchorPoint = Vector2.new(0, 1),
-				Name = "DropdownFrame",
-				ClipsDescendants = true,
-				Active = true
-			})Make("Corner", DropFrame)Make("Stroke", DropFrame)Make("Gradient", DropFrame, {Rotation = 60})
- 
-			local ScrollFrame = InsertTheme(Create("ScrollingFrame", DropFrame, {
-				ScrollBarImageColor3 = Theme["Color Theme"],
-				Size = UDim2.new(1, 0, 1, 0),
-				ScrollBarThickness = 1.5,
-				BackgroundTransparency = 1,
-				BorderSizePixel = 0,
-				CanvasSize = UDim2.new(),
-				ScrollingDirection = "Y",
-				AutomaticCanvasSize = "Y",
-				Active = true
-			}, {
-				Create("UIPadding", {
-					PaddingLeft = UDim.new(0, 8),
-					PaddingRight = UDim.new(0, 8),
-					PaddingTop = UDim.new(0, 5),
-					PaddingBottom = UDim.new(0, 5)
-				}), Create("UIListLayout", {
-					Padding = UDim.new(0, 4)
-				})
-			}), "ScrollBar")
- 
-			local isCooldown = false
-			local ScrollSize, WaitClick = 5
- 
-			local function Disable()
-	        if isCooldown then return end
-	        isCooldown = true
-	        WaitClick = true
-				CreateTween({Arrow, "Rotation", 0, 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out})
-				CreateTween({DropFrame, "Size", UDim2.new(0, 152, 0, 0), 0.2, true})
-				CreateTween({Arrow, "ImageColor3", Color3.fromRGB(255, 255, 255), 0.2})
-				Arrow.Image = "rbxassetid://10709791523"
-				NoClickFrame.Visible = false
-	WaitClick = false
-	task.delay(0.11, function()
-		isCooldown = false
-	end)
-end
- 
-			local function GetFrameSize()
-				return UDim2.fromOffset(152, ScrollSize)
+		if originalDesc ~= "" then
+			LabelFunc:SetDesc(originalDesc .. "\n" .. premiumText)
+		else
+			LabelFunc:SetDesc(premiumText)
+		end
+	end
+
+	local function CheckPremium()
+		if Configs and Configs.PremiumOnly and not splib.IsPremium then
+			splib:MakeNotification{
+				Name = "Premium Only",
+				Image = "rbxassetid://10734966248",
+				Content = "This feature is for Premium users",
+				Time = 1.5
+			}
+			return false
+		end
+		return true
+	end
+
+	local function PremiumGuard()
+		if not CheckPremium() then return true end
+		return false
+	end
+
+	local SelectedFrame = InsertTheme(Create("Frame", Button, {
+		Size = UDim2.new(0, 125, 0, 18),
+		Position = UDim2.new(1, -10, 0.5),
+		AnchorPoint = Vector2.new(1, 0.5),
+		BackgroundColor3 = Theme["Color Stroke"]
+	}), "Stroke")
+	Make("Corner", SelectedFrame, UDim.new(0, 4))
+
+	local function updateSelectedFrameSize()
+		local scale = isPC and 0.22 or 0.14
+		local mineWidth = isPC and 60 or 50
+		local newWidth = math.clamp(Button.AbsoluteSize.X * scale, mineWidth, 125)
+		SelectedFrame.Size = UDim2.new(0, newWidth, 0, 18)
+	end
+
+	Button:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateSelectedFrameSize)
+	updateSelectedFrameSize()
+
+	local ActiveLabel = InsertTheme(Create("TextLabel", SelectedFrame, {
+		Size = UDim2.new(0.85, 0, 0.85, 0),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, 0.5, 0),
+		BackgroundTransparency = 1,
+		Font = Enum.Font.GothamBold,
+		TextScaled = true,
+		TextColor3 = Theme["Color Text"],
+		Text = "..."
+	}), "Text")
+
+	local Arrow = Create("ImageLabel", SelectedFrame, {
+		Size = UDim2.new(0, 15, 0, 15),
+		Position = UDim2.new(0, -5, 0.5),
+		AnchorPoint = Vector2.new(1, 0.5),
+		Image = "rbxassetid://10709791523",
+		BackgroundTransparency = 1
+	})
+
+	local NoClickFrame = Create("TextButton", DropdownHolder, {
+		Name = "AntiClick",
+		Size = UDim2.new(1, 0, 1, 0),
+		BackgroundTransparency = 1,
+		Visible = false,
+		Text = ""
+	})
+
+	local DropFrame = Create("Frame", NoClickFrame, {
+		Size = UDim2.new(SelectedFrame.Size.X, 0, 0),
+		BackgroundTransparency = 0.1,
+		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+		AnchorPoint = Vector2.new(0, 1),
+		Name = "DropdownFrame",
+		ClipsDescendants = true,
+		Active = true
+	})
+	Make("Corner", DropFrame)
+	Make("Stroke", DropFrame)
+	Make("Gradient", DropFrame, {Rotation = 60})
+
+	local ScrollFrame = InsertTheme(Create("ScrollingFrame", DropFrame, {
+		ScrollBarImageColor3 = Theme["Color Theme"],
+		Size = UDim2.new(1, 0, 1, 0),
+		ScrollBarThickness = 1.5,
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		CanvasSize = UDim2.new(),
+		ScrollingDirection = "Y",
+		AutomaticCanvasSize = "Y",
+		Active = true
+	}, {
+		Create("UIPadding", {
+			PaddingLeft = UDim.new(0, 8),
+			PaddingRight = UDim.new(0, 8),
+			PaddingTop = UDim.new(0, 5),
+			PaddingBottom = UDim.new(0, 5)
+		}),
+		Create("UIListLayout", {
+			Padding = UDim.new(0, 4)
+		})
+	}), "ScrollBar")
+
+	local isCooldown = false
+	local ScrollSize, WaitClick = 5
+
+	local function Disable()
+		if isCooldown then return end
+		isCooldown = true
+		WaitClick = true
+		CreateTween({Arrow, "Rotation", 0, 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out})
+		CreateTween({DropFrame, "Size", UDim2.new(0, 152, 0, 0), 0.2, true})
+		CreateTween({Arrow, "ImageColor3", Color3.fromRGB(255, 255, 255), 0.2})
+		Arrow.Image = "rbxassetid://10709791523"
+		NoClickFrame.Visible = false
+		WaitClick = false
+		task.delay(0.11, function()
+			isCooldown = false
+		end)
+	end
+
+	local function GetFrameSize()
+		return UDim2.fromOffset(152, ScrollSize)
+	end
+
+	local function CalculateSize()
+		local Count = 0
+		for _, Frame in pairs(ScrollFrame:GetChildren()) do
+			if Frame:IsA("Frame") or Frame.Name == "Option" then
+				Count = Count + 1
 			end
- 
-			local function CalculateSize()
-				local Count = 0
-				for _,Frame in pairs(ScrollFrame:GetChildren()) do
-					if Frame:IsA("Frame") or Frame.Name == "Option" then
-						Count = Count + 1
+		end
+		ScrollSize = (math.clamp(Count, 0, 10) * 25) + 10
+		if NoClickFrame.Visible then
+			NoClickFrame.Visible = true
+			CreateTween({DropFrame, "Size", GetFrameSize(), 0.2, true})
+		end
+	end
+
+	local function Minimize()
+		if WaitClick or isCooldown then return end
+		WaitClick = true
+		isCooldown = true
+
+		if NoClickFrame.Visible then
+			CreateTween({Arrow, "Rotation", 0, 0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out})
+			Arrow.Image = "rbxassetid://10709791523"
+			CreateTween({Arrow, "ImageColor3", Color3.fromRGB(255, 255, 255), 0.15})
+			CreateTween({DropFrame, "Size", UDim2.new(0, 152, 0, 0), 0.15, true})
+			NoClickFrame.Visible = false
+		else
+			NoClickFrame.Visible = true
+			Arrow.Image = "rbxassetid://10709791523"
+			CreateTween({Arrow, "Rotation", 180, 0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out})
+			CreateTween({Arrow, "ImageColor3", Theme["Color Theme"], 0.15})
+			CreateTween({DropFrame, "Size", GetFrameSize(), 0.15, true})
+		end
+
+		task.delay(0.11, function()
+			isCooldown = false
+		end)
+
+		WaitClick = false
+	end
+
+	local function CalculatePos()
+		local FramePos = SelectedFrame.AbsolutePosition
+		local ScreenSize = ScreenGui.AbsoluteSize
+		local ClampX = math.clamp((FramePos.X / UIScale), 0, ScreenSize.X / UIScale - DropFrame.Size.X.Offset)
+		local ClampY = math.clamp((FramePos.Y / UIScale), 0, ScreenSize.Y / UIScale)
+
+		local NewPos = UDim2.fromOffset(ClampX, ClampY)
+		local AnchorPoint = FramePos.Y > ScreenSize.Y / 1.4 and 1 or ScrollSize > 80 and 0.5 or 0
+		DropFrame.AnchorPoint = Vector2.new(0, AnchorPoint)
+		CreateTween({DropFrame, "Position", NewPos, 0.1})
+	end
+
+	local AddNewOptions, GetOptions, AddOption, RemoveOption, Selected, SelectOption, UpdateSelected
+	local Options, OptionList = {}, {}
+	do
+		local saved = (type(CheckFlag) == "function" and CheckFlag(Flag) and GetFlag(Flag)) or nil
+		local Default = type(OpDefault) ~= "table" and {OpDefault} or OpDefault or {}
+		local MultiSelect = DMultiSelect
+		local InitialSelection = saved or Default[1]
+		Selected = MultiSelect and {} or InitialSelection
+
+		if MultiSelect then
+			for _, v in ipairs(saved or Default or {}) do
+				if type(v) == "string" then Selected[v] = true end
+			end
+		end
+
+		local function normalizeNameValue(index, Value)
+			if type(index) == "table" then
+				Value = index[2]; index = index[1]
+			end
+			local Name
+			if type(index) == "string" then
+				Name = index
+			elseif Value ~= nil then
+				Name = tostring(Value)
+			else
+				Name = tostring(index)
+			end
+			if Value == nil then Value = Name end
+			return Name, Value
+		end
+
+		local function CallbackSelected()
+			pcall(function()
+				if Flag and type(SaveDropdownFlag) == "function" then
+					if MultiSelect then
+						local list = {}
+						for _, nm in ipairs(OptionList) do if Selected[nm] then table.insert(list, nm) end end
+						SaveDropdownFlag(Flag, list)
+					else
+						SaveDropdownFlag(Flag, tostring(Selected))
 					end
 				end
-				ScrollSize = (math.clamp(Count, 0, 10) * 25) + 10
-				if NoClickFrame.Visible then
-					NoClickFrame.Visible = true
-					CreateTween({DropFrame, "Size", GetFrameSize(), 0.2, true})
+			end)
+			pcall(function() Funcs:FireCallback(Callback, Selected) end)
+		end
+
+		local function UpdateLabel()
+			if MultiSelect then
+				local list = {}
+				for _, name in ipairs(OptionList) do
+					if Selected[name] then table.insert(list, name) end
+				end
+				ActiveLabel.Text = #list > 0 and table.concat(list, ", ") or "..."
+			else
+				ActiveLabel.Text = tostring(Selected or "...")
+			end
+		end
+
+		UpdateSelected = function()
+			for _, name in ipairs(OptionList) do
+				local v = Options[name]
+				if v and v.nodes then
+					local nodes, Stats = v.nodes, v.Stats
+					local isSel
+					if MultiSelect then
+						isSel = (Selected[name] == true)
+					else
+						isSel = (v.Value == Selected) or (v.Name == Selected)
+					end
+					pcall(function()
+						CreateTween({nodes[2], "BackgroundTransparency", isSel and 0 or (MultiSelect and 0.8 or 1), 0.35})
+						CreateTween({nodes[2], "Size", isSel and UDim2.fromOffset(4, (MultiSelect and 12 or 14)) or UDim2.fromOffset(4, 4), 0.35})
+						CreateTween({nodes[3], "TextTransparency", isSel and 0 or 0.4, 0.35})
+					end)
 				end
 			end
- 
- 
-local function Minimize()
-	if WaitClick or isCooldown then return end
-	WaitClick = true
-	isCooldown = true
- 
-	if NoClickFrame.Visible then
-		CreateTween({Arrow, "Rotation", 0, 0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out})
-		Arrow.Image = "rbxassetid://10709791523"
-		CreateTween({Arrow, "ImageColor3", Color3.fromRGB(255, 255, 255), 0.15})
-		CreateTween({DropFrame, "Size", UDim2.new(0, 152, 0, 0), 0.15, true})
-		NoClickFrame.Visible = false
-	else
-		NoClickFrame.Visible = true
-		Arrow.Image = "rbxassetid://10709791523"
-		CreateTween({Arrow, "Rotation", 180, 0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out})
-		CreateTween({Arrow, "ImageColor3", Theme["Color Theme"], 0.15})
-		CreateTween({DropFrame, "Size", GetFrameSize(), 0.15, true})
-	end
- 
-	task.delay(0.11, function()
-		isCooldown = false
-	end)
- 
-	WaitClick = false
-end
- 
-			local function CalculatePos()
-				local FramePos = SelectedFrame.AbsolutePosition
-				local ScreenSize = ScreenGui.AbsoluteSize
-				local ClampX = math.clamp((FramePos.X / UIScale), 0, ScreenSize.X / UIScale - DropFrame.Size.X.Offset)
-				local ClampY = math.clamp((FramePos.Y / UIScale) , 0, ScreenSize.Y / UIScale)
- 
-				local NewPos = UDim2.fromOffset(ClampX, ClampY)
-				local AnchorPoint = FramePos.Y > ScreenSize.Y / 1.4 and 1 or ScrollSize > 80 and 0.5 or 0
-				DropFrame.AnchorPoint = Vector2.new(0, AnchorPoint)
-				CreateTween({DropFrame, "Position", NewPos, 0.1})
+			UpdateLabel()
+		end
+
+		local function SelectByObject(optionObj)
+			if not optionObj then return end
+			if MultiSelect then
+				optionObj.Stats = not optionObj.Stats
+				Selected[optionObj.Name] = optionObj.Stats
+				CallbackSelected()
+			else
+				optionObj.LastCB = tick()
+				Selected = optionObj.Value
+				CallbackSelected()
 			end
-local AddNewOptions, GetOptions, AddOption, RemoveOption, Selected, SelectOption, UpdateSelected
-local Options, OptionList = {}, {}
-do
-    local saved = (type(CheckFlag) == "function" and CheckFlag(Flag) and GetFlag(Flag)) or nil
-    local Default = type(OpDefault) ~= "table" and {OpDefault} or OpDefault or {}
-    local MultiSelect = DMultiSelect
-    local InitialSelection = saved or Default[1]
-    Selected = MultiSelect and {} or InitialSelection
+			UpdateSelected()
+		end
 
-    if MultiSelect then
-        for _, v in ipairs(saved or Default or {}) do
-            if type(v) == "string" then Selected[v] = true end
-        end
-    end
+		AddOption = function(index, Value)
+			if type(index) == "table" then
+				Value = index[2]; index = index[1]
+			end
 
-    local function normalizeNameValue(index, Value)
-        if type(index) == "table" then
-            Value = index[2]; index = index[1]
-        end
-        local Name
-        if type(index) == "string" then
-            Name = index
-        elseif Value ~= nil then
-            Name = tostring(Value)
-        else
-            Name = tostring(index)
-        end
-        if Value == nil then Value = Name end
-        return Name, Value
-    end
+			local Name
+			if type(index) == "string" then Name = index
+			elseif Value ~= nil then Name = tostring(Value)
+			else Name = tostring(index) end
 
-    local function CallbackSelected()
-        pcall(function()
-            if Flag and type(SaveDropdownFlag) == "function" then
-                if MultiSelect then
-                    local list = {}
-                    for _, nm in ipairs(OptionList) do if Selected[nm] then table.insert(list, nm) end end
-                    SaveDropdownFlag(Flag, list)
-                else
-                    SaveDropdownFlag(Flag, tostring(Selected))
-                end
-            end
-        end)
-        pcall(function() Funcs:FireCallback(Callback, Selected) end)
-    end
+			if not Name or Name == "" then return end
+			if Value == nil then Value = Name end
+			if Options[Name] then return end
 
-    local function UpdateLabel()
-        if MultiSelect then
-            local list = {}
-            for _, name in ipairs(OptionList) do
-                if Selected[name] then table.insert(list, name) end
-            end
-            ActiveLabel.Text = #list > 0 and table.concat(list, ", ") or "..."
-        else
-            ActiveLabel.Text = tostring(Selected or "...")
-        end
-    end
+			local opt = {
+				index = index,
+				Value = Value,
+				Name = Name,
+				Stats = false,
+				LastCB = 0,
+				nodes = nil
+			}
+			Options[Name] = opt
+			table.insert(OptionList, Name)
 
-    UpdateSelected = function()
-        for _, name in ipairs(OptionList) do
-            local v = Options[name]
-            if v and v.nodes then
-                local nodes, Stats = v.nodes, v.Stats
-                local isSel
-                if MultiSelect then
-                    isSel = (Selected[name] == true)
-                else
-                    isSel = (v.Value == Selected) or (v.Name == Selected)
-                end
-                pcall(function()
-                    CreateTween({nodes[2], "BackgroundTransparency", isSel and 0 or (MultiSelect and 0.8 or 1), 0.35})
-                    CreateTween({nodes[2], "Size", isSel and UDim2.fromOffset(4, (MultiSelect and 12 or 14)) or UDim2.fromOffset(4, 4), 0.35})
-                    CreateTween({nodes[3], "TextTransparency", isSel and 0 or 0.4, 0.35})
-                end)
-            end
-        end
-        UpdateLabel()
-    end
+			if MultiSelect then
+				local stat = Selected[Name]
+				Selected[Name] = stat or false
+				opt.Stats = stat or false
+			end
 
-    local function SelectByObject(optionObj)
-        if not optionObj then return end
-        if MultiSelect then
-            optionObj.Stats = not optionObj.Stats
-            Selected[optionObj.Name] = optionObj.Stats
-            CallbackSelected()
-        else
-            optionObj.LastCB = tick()
-            Selected = optionObj.Value
-            CallbackSelected()
-        end
-        UpdateSelected()
-    end
+			local Button = Make("Button", ScrollFrame, {
+				Name = "Option",
+				Size = UDim2.new(1, 0, 0, 21),
+				Position = UDim2.new(0, 0, 0.5),
+				AnchorPoint = Vector2.new(0, 0.5)
+			})
+			Make("Corner", Button, UDim.new(0, 4))
 
-    local InBulkUpdate = false
-    
-    AddOption = function(index, Value)
-        if type(index) == "table" then
-            Value = index[2]; index = index[1]
-        end
+			local IsSelected = InsertTheme(Create("Frame", Button, {
+				Position = UDim2.new(0, 1, 0.5),
+				Size = UDim2.new(0, 4, 0, 4),
+				BackgroundColor3 = Theme["Color Theme"],
+				BackgroundTransparency = 1,
+				AnchorPoint = Vector2.new(0, 0.5)
+			}), "Theme")
+			Make("Corner", IsSelected, UDim.new(0.5, 0))
 
-        local Name
-        if type(index) == "string" then Name = index
-        elseif Value ~= nil then Name = tostring(Value)
-        else Name = tostring(index) end
+			local OptioneName = InsertTheme(Create("TextLabel", Button, {
+				Size = UDim2.new(1, 0, 1, 0),
+				Position = UDim2.new(0, 10),
+				Text = Name,
+				TextColor3 = Theme["Color Text"],
+				Font = Enum.Font.GothamBold,
+				TextXAlignment = "Left",
+				BackgroundTransparency = 1,
+				TextTransparency = 0.4
+			}), "Text")
 
-        if not Name or Name == "" then return end
-        if Value == nil then Value = Name end
-        if Options[Name] then return end
+			Button.Activated:Connect(function()
+				if PremiumGuard() then return end
+				SelectByObject(opt)
+			end)
 
-        local opt = {
-            index = index,
-            Value = Value,
-            Name = Name,
-            Stats = false,
-            LastCB = 0,
-            nodes = nil
-        }
-        Options[Name] = opt
-        table.insert(OptionList, Name)
+			opt.nodes = {Button, IsSelected, OptioneName}
 
-        if MultiSelect then
-            local stat = Selected[Name]
-            Selected[Name] = stat or false
-            opt.Stats = stat or false
-        end
+			pcall(CalculateSize)
+			UpdateSelected()
+		end
 
-        local Button = Make("Button", ScrollFrame, {
-            Name = "Option",
-            Size = UDim2.new(1, 0, 0, 21),
-            Position = UDim2.new(0, 0, 0.5),
-            AnchorPoint = Vector2.new(0, 0.5)
-        }) Make("Corner", Button, UDim.new(0,4))
+		RemoveOption = function(index, Value)
+			local Name
+			if type(index) == "number" then Name = OptionList[index]
+			elseif type(index) == "string" then Name = index
+			elseif Value ~= nil then Name = tostring(Value)
+			else Name = tostring(index) end
 
-        local IsSelected = InsertTheme(Create("Frame", Button, {
-            Position = UDim2.new(0, 1, 0.5),
-            Size = UDim2.new(0, 4, 0, 4),
-            BackgroundColor3 = Theme["Color Theme"],
-            BackgroundTransparency = 1,
-            AnchorPoint = Vector2.new(0, 0.5)
-        }), "Theme") Make("Corner", IsSelected, UDim.new(0.5, 0))
+			if not Name or not Options[Name] then return end
 
-        local OptioneName = InsertTheme(Create("TextLabel", Button, {
-            Size = UDim2.new(1, 0, 1, 0),
-            Position = UDim2.new(0, 10),
-            Text = Name,
-            TextColor3 = Theme["Color Text"],
-            Font = Enum.Font.GothamBold,
-            TextXAlignment = "Left",
-            BackgroundTransparency = 1,
-            TextTransparency = 0.4
-        }), "Text")
+			local opt = Options[Name]
+			if opt.nodes and opt.nodes[1] then pcall(function() opt.nodes[1]:Destroy() end) end
 
-        Button.Activated:Connect(function()
-            SelectByObject(opt)
-        end)
+			Options[Name] = nil
+			for i, nm in ipairs(OptionList) do
+				if nm == Name then table.remove(OptionList, i); break end
+			end
 
-        opt.nodes = {Button, IsSelected, OptioneName}
+			if MultiSelect then
+				Selected[Name] = nil
+			else
+				if Selected == opt.Value or Selected == Name then
+					Selected = nil
+				end
+			end
 
-        if not InBulkUpdate then
-            pcall(CalculateSize)
-            UpdateSelected()
-        end
-    end
+			UpdateSelected()
+			pcall(CalculateSize)
+		end
 
-    RemoveOption = function(index, Value)
-        local Name
-        if type(index) == "number" then Name = OptionList[index]
-        elseif type(index) == "string" then Name = index
-        elseif Value ~= nil then Name = tostring(Value)
-        else Name = tostring(index) end
+		SelectOption = function(key)
+			if key == nil then return end
+			if type(key) == "number" then
+				key = OptionList[key]
+				if not key then return end
+			end
+			local opt = Options[key]
+			if not opt then
+				for _, name in ipairs(OptionList) do
+					local o = Options[name]
+					if o and (o.Value == key or tostring(o.Value) == tostring(key) or o.Name == key) then
+						opt = o; break
+					end
+				end
+			end
+			if not opt then return end
+			if MultiSelect then
+				opt.Stats = not opt.Stats
+				Selected[opt.Name] = opt.Stats
+			else
+				Selected = opt.Value
+			end
+			CallbackSelected()
+			UpdateSelected()
+		end
 
-        if not Name or not Options[Name] then return end
+		GetOptions = function() return Options end
 
-        local opt = Options[Name]
-        if opt.nodes and opt.nodes[1] then pcall(function() opt.nodes[1]:Destroy() end) end
+		AddNewOptions = function(List, Clear)
+			if Clear then
+				for i = #OptionList, 1, -1 do
+					RemoveOption(OptionList[i])
+				end
+			end
+			for _, v in ipairs(List or {}) do AddOption(v) end
+			CallbackSelected()
+			UpdateSelected()
+		end
 
-        Options[Name] = nil
-        for i, nm in ipairs(OptionList) do
-            if nm == Name then table.remove(OptionList, i); break end
-        end
+		for _, v in ipairs(DOptions or {}) do AddOption(v) end
 
-        if MultiSelect then
-            Selected[Name] = nil
-        else
-            if Selected == opt.Value or Selected == Name then
-                Selected = nil
-            end
-        end
+		if MultiSelect then
+			if InitialSelection ~= nil and type(InitialSelection) == "table" then
+				for _, want in ipairs(InitialSelection) do
+					for _, nm in ipairs(OptionList) do
+						local o = Options[nm]
+						if o and (o.Value == want or o.Name == want or tostring(o.Value) == tostring(want)) then
+							o.Stats = true
+							Selected[o.Name] = true
+							break
+						end
+					end
+				end
+			end
+			UpdateSelected()
+			task.defer(function()
+				CallbackSelected()
+			end)
+		else
+			if InitialSelection ~= nil then
+				SelectOption(InitialSelection)
+			else
+				UpdateSelected()
+			end
+		end
+	end
 
-        if not InBulkUpdate then
-            UpdateSelected()
-            pcall(CalculateSize)
-        end
-    end
 
-    SelectOption = function(key)
-        if key == nil then return end
-        if type(key) == "number" then
-            key = OptionList[key]
-            if not key then return end
-        end
-        local opt = Options[key]
-        if not opt then
-            for _, name in ipairs(OptionList) do
-                local o = Options[name]
-                if o and (o.Value == key or tostring(o.Value) == tostring(key) or o.Name == key) then
-                    opt = o; break
-                end
-            end
-        end
-        if not opt then return end
-        if MultiSelect then
-            opt.Stats = not opt.Stats
-            Selected[opt.Name] = opt.Stats
-        else
-            Selected = opt.Value
-        end
-        CallbackSelected()
-        UpdateSelected()
-    end
+	NoClickFrame.MouseButton1Down:Connect(Disable)
+	NoClickFrame.MouseButton1Click:Connect(Disable)
+	MainFrame:GetPropertyChangedSignal("Visible"):Connect(Disable)
+	SelectedFrame:GetPropertyChangedSignal("AbsolutePosition"):Connect(CalculatePos)
 
-    GetOptions = function() return Options end
+	Button.Activated:Connect(function()
+		if PremiumGuard() then return end
+		Minimize()
+	end)
 
-    AddNewOptions = function(List, Clear)
-        local OldSelected
-        if MultiSelect then
-            OldSelected = {}
-            for k, v in pairs(Selected) do
-                if v then
-                    OldSelected[k] = true
-                end
-            end
-        else
-            OldSelected = Selected
-        end
+	Button.Activated:Connect(CalculateSize)
+	ScrollFrame.ChildAdded:Connect(CalculateSize)
+	ScrollFrame.ChildRemoved:Connect(CalculateSize)
+	CalculatePos()
+	CalculateSize()
 
-        InBulkUpdate = true
+	local Dropdown = {}
 
-        if Clear then
-            for i = #OptionList, 1, -1 do
-                RemoveOption(OptionList[i])
-            end
-        end
-
-        for _, v in ipairs(List or {}) do
-            AddOption(v)
-        end
-
-        InBulkUpdate = false
-
-        if OldSelected ~= nil then
-            if MultiSelect and type(OldSelected) == "table" then
-                for name, _ in pairs(OldSelected) do
-                    local opt = Options[name]
-                    if opt then
-                        opt.Stats = true
-                        Selected[name] = true
-                    end
-                end
-            else
-                SelectOption(OldSelected)
-            end
-        end
-
-        CallbackSelected()
-        UpdateSelected()
-        pcall(CalculateSize)
-    end
-
-    InBulkUpdate = true
-    for _, v in ipairs(DOptions or {}) do
-        AddOption(v)
-    end
-    InBulkUpdate = false
-
-    if InitialSelection ~= nil then
-        if MultiSelect and type(InitialSelection) == "table" then
-            for _, want in ipairs(InitialSelection) do
-                for _, nm in ipairs(OptionList) do
-                    local o = Options[nm]
-                    if o and (o.Value == want or o.Name == want or tostring(o.Value) == tostring(want)) then
-                        o.Stats = true
-                        Selected[o.Name] = true
-                        break
-                    end
-                end
-            end
-            CallbackSelected()
-            UpdateSelected()
-        else
-            SelectOption(InitialSelection)
-        end
-    else
-        UpdateSelected()
-    end
+	function Dropdown:Visible(...) Funcs:ToggleVisible(Button, ...) end
+	function Dropdown:Destroy() pcall(function() Button:Destroy() end); pcall(function() DropFrame:Destroy() end) end
+	function Dropdown:Callback(...) Funcs:InsertCallback(Callback, ...)(Selected) end
+	function Dropdown:Add(...) local args = {...}; local list = {}; if type(args[1]) == "table" and args[1][1] ~= nil then list = args[1] else list = args end for _, v in ipairs(list) do AddOption(v) end UpdateSelected() end
+	function Dropdown:Remove(key) RemoveOption(key) end
+function Dropdown:Refresh(newOptions, deleteOld)
+	local list = newOptions or {}
+	local incoming = {}
+	for _, v in ipairs(list) do
+		local name, value
+		if type(v) == "table" then
+			name = v[1]
+			value = v[2]
+		else
+			name = v
+			value = nil
+		end
+		if name == nil then name = tostring(value or v) end
+		name = tostring(name)
+		incoming[name] = true
+		if not Options[name] then
+			if value ~= nil then
+				AddOption(name, value)
+			else
+				AddOption(name)
+			end
+		end
+	end
+	if deleteOld then
+		local copyList = {}
+		for i = 1, #OptionList do copyList[i] = OptionList[i] end
+		for _, existingName in ipairs(copyList) do
+			if not incoming[existingName] then
+				RemoveOption(existingName)
+			end
+		end
+	end
+	UpdateSelected()
 end
-			Button.Activated:Connect(Minimize)
-			NoClickFrame.MouseButton1Down:Connect(Disable)
-			NoClickFrame.MouseButton1Click:Connect(Disable)
-			MainFrame:GetPropertyChangedSignal("Visible"):Connect(Disable)
-			SelectedFrame:GetPropertyChangedSignal("AbsolutePosition"):Connect(CalculatePos)
- 
-			Button.Activated:Connect(CalculateSize)
-			ScrollFrame.ChildAdded:Connect(CalculateSize)
-			ScrollFrame.ChildRemoved:Connect(CalculateSize)
-			CalculatePos()
-			CalculateSize()
+	function Dropdown:Select(val) SelectOption(val) end
+	function Dropdown:Set(val, Clear)
+		if type(val) == "table" then AddNewOptions(val, not Clear)
+		elseif type(val) == "function" then Callback = val
+		else SelectOption(val) end
+		pcall(UpdateSelected)
+	end
+	function Dropdown:GetValue()
+		if DMultiSelect then
+			local res = {}
+			for i, nm in ipairs(OptionList) do
+				if Selected[nm] then table.insert(res, i) end
+			end
+			return res
+		else
+			return Selected
+		end
+	end
 
-    local Dropdown = {}
-
-    function Dropdown:Visible(...) Funcs:ToggleVisible(Button, ...) end
-    function Dropdown:Destroy() pcall(function() Button:Destroy() end); pcall(function() DropFrame:Destroy() end) end
-    function Dropdown:Callback(...) Funcs:InsertCallback(Callback, ...)(Selected) end
-    function Dropdown:Add(...) local args = {...}; local list = {}; if type(args[1]) == "table" and args[1][1] ~= nil then list = args[1] else list = args end for _, v in ipairs(list) do AddOption(v) end UpdateSelected() end
-    function Dropdown:Remove(key) RemoveOption(key) end
-    function Dropdown:Refresh(newOptions, deleteOld) AddNewOptions(newOptions or {}, not not deleteOld); UpdateSelected() end
-    function Dropdown:Select(val) SelectOption(val) end
-    function Dropdown:Set(val, Clear)
-        if type(val) == "table" then AddNewOptions(val, not Clear)
-        elseif type(val) == "function" then Callback = val
-        else SelectOption(val) end
-        pcall(UpdateSelected)
-    end
-function Dropdown:GetValue()
-    if DMultiSelect then
-        local res = {}
-        for i, nm in ipairs(OptionList) do
-            if Selected[nm] then table.insert(res, i) end
-        end
-        return res
-    else
-        return Selected
-    end
-end
-
-    Dropdown.Flag = Flag
-    return Dropdown
+	Dropdown.Flag = Flag
+	return Dropdown
 end
 local SlidersFile = "sliders.json"
 local function SaveSliderFlag(flag, value)
@@ -3347,9 +3527,12 @@ function Tab:AddSlider(Configs)
     local Default = Configs[5] or Configs.Default
 
     if Flag then
-        local saved = LoadSliderFlag(Flag)
-        if type(saved) == "number" then
-            Default = saved
+        local isInternalSetting = (Configs.__force_container ~= nil)
+        if splib.FlagsEnabled or isInternalSetting then
+            local saved = LoadSliderFlag(Flag)
+            if type(saved) == "number" then
+                Default = saved
+            end
         end
     end
 
@@ -3362,6 +3545,24 @@ function Tab:AddSlider(Configs)
 
     local container = Configs.__force_container or Container
     local Button, LabelFunc = ButtonFrame(container, SName, SDesc, UDim2.new(1, -20))
+
+    if Configs and Configs.PremiumOnly then
+        table.insert(splib.PremiumElements, Button)
+
+        if Configs.HidePremium == true and not splib.IsPremium then
+            Button.Visible = false
+        end
+
+        local originalDesc = SDesc or ""
+        local premiumText = "<font color=\"#00aaff\">For Premium</font>"
+
+        if originalDesc ~= "" then
+            LabelFunc:SetDesc(originalDesc .. "\n" .. premiumText)
+        else
+            LabelFunc:SetDesc(premiumText)
+        end
+    end
+
     local SliderHolder = Create("TextButton", Button, {
         Size = UDim2.new(0.40, 0, 1),
         Position = UDim2.new(1),
@@ -3384,25 +3585,23 @@ function Tab:AddSlider(Configs)
         BorderSizePixel = 0
     }), "Theme") Make("Corner", Indicator)
 
-    local SliderHandle = Create("Frame", SliderBar, {
+    local SliderHandle = InsertTheme(Create("Frame", SliderBar, {
         Size = UDim2.new(0, 16, 0, 16),
-        BackgroundColor3 = Color3.fromRGB(69, 69, 69),
+        BackgroundColor3 = Theme["Color Stroke"],
         Position = UDim2.fromScale(0, 0.5),
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundTransparency = 0,
         Active = true
-    })
-    Make("Corner", SliderHandle, UDim.new(1, 0))
+    }), "Stroke") Make("Corner", SliderHandle, UDim.new(1, 0))
 
-    local HandleInner = Create("Frame", SliderHandle, {
+    local HandleInner = InsertTheme(Create("Frame", SliderHandle, {
         Size = UDim2.new(1, -6, 1, -6),
         Position = UDim2.new(0.5, 0, 0.5, 0),
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = Theme["Color Theme"],
         BackgroundTransparency = 0,
         BorderSizePixel = 0
-    })
-    Make("Corner", HandleInner, UDim.new(1, 0))
+    }), "Theme") Make("Corner", HandleInner, UDim.new(1, 0))
 
     local LabelVal = InsertTheme(Create("TextBox", SliderHolder, {
         Size = UDim2.new(0, 14, 0, 14),
@@ -3433,37 +3632,44 @@ function Tab:AddSlider(Configs)
         value = NewValue
         LabelVal.Text = string.format("%.1f", NewValue)
         if Flag then pcall(function() SaveSliderFlag(Flag, NewValue) end) end
-        pcall(function() Funcs:FireCallback(Callback, NewValue) end)
     end
 
-    local function AnimateHandle(toScale)
+    local function AnimateVisuals(toScale)
         local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         TweenService:Create(SliderHandle, tweenInfo, { Position = UDim2.new(toScale, 0, 0.5, 0) }):Play()
-    end
-
-    local function UpdateValues()
-        local scale = SliderHandle.Position.X.Scale
-        pcall(function()
-            TweenService:Create(Indicator, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.new(scale, 0, 1, 0) }):Play()
-        end)
-        local NewValue = scale * (Max - Min) + Min
-        NewValue = quantize(NewValue)
-        UpdateLabel(NewValue)
+        TweenService:Create(Indicator, tweenInfo, { Size = UDim2.new(toScale, 0, 1, 0) }):Play()
     end
 
     SliderHolder.MouseButton1Down:Connect(function()
+        if Configs and Configs.PremiumOnly and not splib.IsPremium then
+            splib:MakeNotification{
+                Name = "Premium Only",
+                Image = "rbxassetid://10734966248",
+                Content = "This feature is for Premium users",
+                Time = 1.5
+            }
+            return
+        end
         TweenService:Create(SliderHandle, TweenInfo.new(0.1, Enum.EasingStyle.Quad), { Size = UDim2.new(0, 14, 0, 14) }):Play()
         Container.ScrollingEnabled = false
         while UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
             local mouseX = Player:GetMouse().X
             local rel = (mouseX - BaseMousePos.AbsolutePosition.X) / SliderBar.AbsoluteSize.X
             local clamped = math.clamp(rel, 0, 1)
-            AnimateHandle(clamped)
+            
+            local NewValue = quantize(clamped * (Max - Min) + Min)
+            
+            if NewValue ~= value then
+                UpdateLabel(NewValue)
+                pcall(function() Funcs:FireCallback(Callback, NewValue) end)
+            end
+
+            SliderHandle.Position = UDim2.new(clamped, 0, 0.5, 0)
+            Indicator.Size = UDim2.new(clamped, 0, 1, 0)
             task.wait()
         end
         TweenService:Create(SliderHandle, TweenInfo.new(0.1, Enum.EasingStyle.Quad), { Size = UDim2.new(0, 16, 0, 16) }):Play()
         Container.ScrollingEnabled = true
-        if Flag then SaveSliderFlag(Flag, value) end
     end)
 
     LabelVal:GetPropertyChangedSignal("Text"):Connect(function()
@@ -3478,8 +3684,9 @@ function Tab:AddSlider(Configs)
         if type(NewValue) ~= "number" then return end
         NewValue = quantize(NewValue)
         UpdateLabel(NewValue)
+        pcall(function() Funcs:FireCallback(Callback, NewValue) end)
         local pos = (NewValue - Min) / (Max - Min)
-        AnimateHandle(math.clamp(pos, 0, 1))
+        AnimateVisuals(math.clamp(pos, 0, 1))
     end
 
     do
@@ -3489,27 +3696,27 @@ function Tab:AddSlider(Configs)
         LabelVal.Text = string.format("%.1f", Default)
     end
 
-LabelVal.FocusLost:Connect(function(enterPressed)
+    LabelVal.FocusLost:Connect(function(enterPressed)
         if enterPressed then
+            if Configs and Configs.PremiumOnly and not splib.IsPremium then
+                splib:MakeNotification{
+                    Name = "Premium Only",
+                    Image = "rbxassetid://10734966248",
+                    Content = "This feature is for Premium users",
+                    Time = 1.5
+                }
+                LabelVal.Text = string.format("%.1f", value)
+                return
+            end
+
             local input = tonumber(LabelVal.Text)
             if input then
-                if Flag then pcall(function() SaveSliderFlag(Flag, input) end) end
-                input = quantize(input)
-                LabelVal.Text = string.format("%.1f", input)
-
-                if input ~= value then
-                    SetSlider(input)
-                else
-                    local pos = (input - Min) / (Max - Min)
-                    AnimateHandle(math.clamp(pos, 0, 1))
-                end
+                SetSlider(input)
             else
                 LabelVal.Text = string.format("%.1f", value)
             end
         end
     end)
-
-    SliderHandle:GetPropertyChangedSignal("Position"):Connect(UpdateValues)
 
     local Slider = {}
     function Slider:Set(a, b)
@@ -3524,7 +3731,6 @@ LabelVal.FocusLost:Connect(function(enterPressed)
     function Slider:Destroy() Button:Destroy() end
     return Slider
 end
-
 local TextBoxesFile = "textboxes.json"
 local function SaveTextBoxFlag(flag, value)
     local data = {}
@@ -3568,9 +3774,12 @@ function Tab:AddTextbox(Configs)
     local Callback = Funcs:GetCallback(Configs, 4)
 
     if Flag then
-        local saved = LoadTextBoxFlag(Flag)
-        if saved ~= nil then
-            TDefault = saved
+        local isInternalSetting = (Configs.__force_container ~= nil)
+        if splib.FlagsEnabled or isInternalSetting then
+            local saved = LoadTextBoxFlag(Flag)
+            if saved ~= nil and type(saved) == "string" then
+                TDefault = saved
+            end
         end
     end
 
@@ -3589,6 +3798,23 @@ function Tab:AddTextbox(Configs)
     local container = Configs.__force_container or Container
     local Button, LabelFunc = ButtonFrame(container, TName, TDesc, UDim2.new(1, -38))
 
+    if Configs and Configs.PremiumOnly then
+        table.insert(splib.PremiumElements, Button)
+
+        if Configs.HidePremium == true and not splib.IsPremium then
+            Button.Visible = false
+        end
+
+        local originalDesc = TDesc or ""
+        local premiumText = "<font color=\"#00aaff\">For Premium</font>"
+
+        if originalDesc ~= "" then
+            LabelFunc:SetDesc(originalDesc .. "\n" .. premiumText)
+        else
+            LabelFunc:SetDesc(premiumText)
+        end
+    end
+
     local SelectedFrame = InsertTheme(Create("Frame", Button, {
         Size = UDim2.new(0, 125, 0, 18),
         Position = UDim2.new(1, -10, 0.5, 0),
@@ -3597,15 +3823,15 @@ function Tab:AddTextbox(Configs)
     }), "Stroke")
     Make("Corner", SelectedFrame, UDim.new(0, 4))
 
-local function updateSelectedFrame2Size()
-    local scale = isPC and 0.22 or 0.14
-    local mineWidth = isPC and 60 or 50
-    local newWidth = math.clamp(Button.AbsoluteSize.X * scale, mineWidth, 125)
-    SelectedFrame.Size = UDim2.new(0, newWidth, 0, 18)
-end
+    local function updateSelectedFrame2Size()
+        local scale = isPC and 0.22 or 0.14
+        local mineWidth = isPC and 60 or 50
+        local newWidth = math.clamp(Button.AbsoluteSize.X * scale, mineWidth, 125)
+        SelectedFrame.Size = UDim2.new(0, newWidth, 0, 18)
+    end
 
-Button:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateSelectedFrame2Size)
-updateSelectedFrame2Size()
+    Button:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateSelectedFrame2Size)
+    updateSelectedFrame2Size()
 
     local TextBoxInput = InsertTheme(Create("TextBox", SelectedFrame, {
         Size = UDim2.new(1, 0, 1, 0),
@@ -3652,21 +3878,31 @@ updateSelectedFrame2Size()
     end)
 
     local function Input()
+        if Configs and Configs.PremiumOnly and not splib.IsPremium then
+            splib:MakeNotification{
+                Name = "Premium Only",
+                Image = "rbxassetid://10734966248",
+                Content = "This feature is for Premium users",
+                Time = 1.5
+            }
+            TextBoxInput.Text = TDefault
+            return
+        end
+
         local Text = TextBoxInput.Text
         if Text:gsub(" ", ""):len() > 0 then
             if TextBox.OnChanging then
                 Text = TextBox.OnChanging(Text) or Text
             end
-        if Flag then
-            SaveTextBoxFlag(Flag, Text)
-        end
+            if Flag then
+                SaveTextBoxFlag(Flag, Text)
+            end
             Funcs:FireCallback(Callback, Text)
             TextBoxInput.Text = Text
         end
     end
 
     TextBoxInput.FocusLost:Connect(Input)
-    Input()
 
     TextBox.OnChanging = false
     function TextBox:Visible(...) Funcs:ToggleVisible(Button, ...) end
@@ -3722,11 +3958,14 @@ function Tab:AddColorpicker(Configs)
     local Callback = Configs.Callback
  
 if Flag then
-	local saved = LoadColorPickerFlag(Flag)
-	if saved ~= nil then
-		TDefault = saved
-	end
-end
+        local isInternalSetting = (Configs.__force_container ~= nil)
+        if splib.FlagsEnabled or isInternalSetting then
+            local saved = LoadColorPickerFlag(Flag)
+            if saved ~= nil then
+                TDefault = saved
+            end
+        end
+    end
 
     if Configs.IsMobile and not isMobile then return end
     if Configs.IsPC     and not isPC     then return end
@@ -4663,6 +4902,18 @@ Tab:AddDropdown({
         splib:SetTheme(selectedTheme)
         splib.Save.Theme = selectedTheme
         SaveJson("sp library.json", splib.Save)
+    end,
+    __force_container = SettingTab
+})
+
+Tab:AddToggle({
+    Name = "Enable Global Flags",
+    Desc = "If disabled, all flags will set to default",
+    Default = true,
+    Flag = "GlobalFlagsMaster",
+    Save = true,
+    Callback = function(Value)
+        splib.FlagsEnabled = Value
     end,
     __force_container = SettingTab
 })
