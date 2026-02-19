@@ -113,6 +113,33 @@ ScreenGui.Name = "DiscordAdUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = parentGui
 
+task.spawn(function()
+    local Lighting = game:GetService("Lighting")
+
+    local function removeBlur()
+        local blur = Lighting:FindFirstChild("AdUI_Pro_Blur")
+        if blur then
+            pcall(function()
+                blur:Destroy()
+            end)
+        end
+    end
+
+    ScreenGui.AncestryChanged:Connect(function(_, parent)
+        if not parent then
+            removeBlur()
+        end
+    end)
+
+    while true do
+        if not ScreenGui or not ScreenGui.Parent then
+            removeBlur()
+            break
+        end
+        task.wait(0.25)
+    end
+end)
+
 local Lighting = game:GetService("Lighting")
 local blurInstance
 do
