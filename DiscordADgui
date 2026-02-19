@@ -109,7 +109,7 @@ else
 end
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AdUI_Pro"
+ScreenGui.Name = "DiscordAdUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = parentGui
 
