@@ -1,0 +1,19 @@
+-- Games List
+
+local HttpGet = game.HttpGet
+local GameId: number = game.GameId
+
+local Games: {[number]: string} = {
+    [4924922222]  = "https://raw.githubusercontent.com/as6cd0/SP_Hub/refs/heads/main/Brookhaven",
+    [13772394625] = "https://raw.githubusercontent.com/as6cd0/SP_Hub/refs/heads/main/BladeBall",
+    [3101667897] = "https://raw.githubusercontent.com/as6cd0/SP_Hub/refs/heads/main/LegendOfSpeed",
+    [13722887176] = "https://raw.githubusercontent.com/as6cd0/SP_Hub/refs/heads/main/PixelBlade"
+}
+
+local URL: string? = Games[GameId]
+
+if URL then
+    loadstring(HttpGet(game, URL))()
+else
+    print("Game not supported:", GameId)
+end
