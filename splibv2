@@ -4981,7 +4981,7 @@ Tab:AddToggle({
     Name = "Sidebar Hover Expand",
     Flag = "SidebarHoverMobile",
     Default = true,
-    IsMobile = true,
+    IsMobile = false,
     Callback = function(enabled)
         if enabled then
             tweenControlSizeX(minClamp)
