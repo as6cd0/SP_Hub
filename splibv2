@@ -1897,10 +1897,19 @@ end)
 		function Tab:Enable()
 			Tabs()
 		end
-		function Tab:Visible(Bool)
-			Funcs:ToggleVisible(TabSelect, Bool)
-			Funcs:ToggleParent(Container, Bool, Containers)
-		end
+function Tab:Visible(state)
+    state = state and true or false
+
+    pcall(function()
+        if self.Button then
+            self.Button.Visible = state
+        end
+
+        if self.Container then
+            self.Container.Visible = state
+        end
+    end)
+end
 		function Tab:Destroy() TabSelect:Destroy() Container:Destroy() end
 		function Tab:AddSection(Configs)
 			local SectionName = type(Configs) == "string" and Configs or Configs[1] or Configs.Name or Configs.Title or Configs.Section
@@ -2752,6 +2761,13 @@ function Tab:AddToggle(Configs)
             end
         end
     end
+
+if PremiumOnly and not splib.IsPremium then
+    Default = false
+    if Flag then
+        SaveFlagValue(Flag, false)
+    end
+end
 
     if Configs.IsMobile and not isMobile then return nil end
     if Configs.IsPC     and not isPC     then return nil end
@@ -3694,6 +3710,18 @@ function Tab:AddSlider(Configs)
         SliderHandle.Position = UDim2.new(math.clamp(pos,0,1), 0, 0.5, 0)
         Indicator.Size = UDim2.new(math.clamp(pos,0,1), 0, 1, 0)
         LabelVal.Text = string.format("%.1f", Default)
+
+        value = Default
+        if Flag then
+            splib.Flags[Flag] = splib.Flags[Flag] or {}
+            splib.Flags[Flag].Value = Default
+        end
+
+        task.defer(function()
+            pcall(function()
+                Funcs:FireCallback(Callback, Default)
+            end)
+        end)
     end
 
     LabelVal.FocusLost:Connect(function(enterPressed)
