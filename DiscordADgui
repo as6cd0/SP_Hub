@@ -9,7 +9,7 @@ local API_URL = "http://217.154.114.227:11336/check_whitelist"
 local COUNTDOWN_SECONDS = 10
 local HTTP_TIMEOUT_SECONDS = 5
 local CACHE_TTL_SECONDS = 60
-local DISCORD_LINK = "https://discord.gg/hrMtDwFvEG"
+local DISCORD_LINK = "https://discord.gg/6Yp2B4JHyz"
 
 local cache = {
     result = nil,
