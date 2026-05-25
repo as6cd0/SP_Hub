@@ -4,7 +4,7 @@ local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
-local API_URL = "http://217.154.114.227:11336/check_whitelist"
+local API_URL = "http://93.115.101.152:11336/check_whitelist"
 
 local COUNTDOWN_SECONDS = 10
 local HTTP_TIMEOUT_SECONDS = 5
