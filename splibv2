@@ -858,6 +858,33 @@ local function resolveTranslationKey(text)
     return map[tostring(text)]
 end
 
+local function resolveTranslationKeyWithSuffix(text)
+    if text == nil then return nil, "" end
+    text = tostring(text)
+    local exactKey = resolveTranslationKey(text)
+    if exactKey then
+        return exactKey, ""
+    end
+
+    local map = getTranslationMap()
+    local bestKey, bestLen = nil, 0
+
+    for alias, key in pairs(map) do
+        if type(alias) == "string" and alias ~= "" and type(key) == "string" and text:sub(1, #alias) == alias then
+            if #alias > bestLen then
+                bestKey = key
+                bestLen = #alias
+            end
+        end
+    end
+
+    if bestKey then
+        return bestKey, text:sub(bestLen + 1)
+    end
+
+    return nil, ""
+end
+
 local function getLiveTranslation(key)
     key = tostring(key or "")
     local translator = rawget(_G, "SP_Hub_Translator")
@@ -1099,7 +1126,8 @@ function splib:RegisterTranslationObject(instance, property, sourceText, refresh
 
     local currentText = getTextPropertyValue(instance, property)
     local item = self._TranslationIndex[instance]
-    local key = resolveTranslationKey(sourceText or currentText)
+    local sourceValue = sourceText or currentText
+    local key, detectedSuffix = resolveTranslationKeyWithSuffix(sourceValue)
 
     if not item then
         item = { Instance = instance, Properties = {} }
@@ -1125,20 +1153,24 @@ function splib:RegisterTranslationObject(instance, property, sourceText, refresh
     end
 
     local translatedNow = getLiveTranslation(key)
-    local suffix = ""
-    if currentText ~= "" and translatedNow ~= "" and currentText:sub(1, #translatedNow) == translatedNow then
-        suffix = currentText:sub(#translatedNow + 1)
-    elseif sourceText and translatedNow ~= "" then
-        local s = tostring(sourceText)
-        if s:sub(1, #translatedNow) == translatedNow then
-            suffix = s:sub(#translatedNow + 1)
+    local suffix = tostring(detectedSuffix or "")
+    if suffix == "" then
+        if currentText ~= "" and translatedNow ~= "" and currentText:sub(1, #translatedNow) == translatedNow then
+            suffix = currentText:sub(#translatedNow + 1)
+        elseif sourceText and translatedNow ~= "" then
+            local s = tostring(sourceText)
+            if s:sub(1, #translatedNow) == translatedNow then
+                suffix = s:sub(#translatedNow + 1)
+            end
         end
     end
 
     propItem.Key = key
     propItem.Suffix = suffix
     propItem.Refresh = refreshCallback
-    rememberTranslationAlias(key, currentText)
+    if suffix == "" then
+        rememberTranslationAlias(key, currentText)
+    end
 end
 
 function splib:RegisterTranslationLabel(label, sourceText, refreshCallback)
@@ -1225,9 +1257,9 @@ function splib:RefreshTranslations(options)
                 if obj:IsA("TextLabel") or obj:IsA("TextButton") then
                     local currentText = getTextPropertyValue(obj, "Text")
                     if currentText ~= "" then
-                        local key = resolveTranslationKey(currentText)
+                        local key, suffix = resolveTranslationKeyWithSuffix(currentText)
                         if key then
-                            queue(obj, "Text", key, "", nil)
+                            queue(obj, "Text", key, suffix, nil)
                         end
                     end
                 end
@@ -1235,9 +1267,9 @@ function splib:RefreshTranslations(options)
                 if obj:IsA("TextBox") then
                     local placeholder = getTextPropertyValue(obj, "PlaceholderText")
                     if placeholder ~= "" then
-                        local placeholderKey = resolveTranslationKey(placeholder)
+                        local placeholderKey, placeholderSuffix = resolveTranslationKeyWithSuffix(placeholder)
                         if placeholderKey then
-                            queue(obj, "PlaceholderText", placeholderKey, "", nil)
+                            queue(obj, "PlaceholderText", placeholderKey, placeholderSuffix, nil)
                         end
                     end
 
@@ -1248,9 +1280,9 @@ function splib:RefreshTranslations(options)
                     if shouldTranslateText then
                         local currentInputText = getTextPropertyValue(obj, "Text")
                         if currentInputText ~= "" then
-                            local inputKey = resolveTranslationKey(currentInputText)
+                            local inputKey, inputSuffix = resolveTranslationKeyWithSuffix(currentInputText)
                             if inputKey then
-                                queue(obj, "Text", inputKey, "", nil)
+                                queue(obj, "Text", inputKey, inputSuffix, nil)
                             end
                         end
                     end
