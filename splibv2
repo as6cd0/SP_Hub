@@ -4598,6 +4598,25 @@ end)
         local y = ((tabButton.AbsolutePosition.Y - MainFrame.AbsolutePosition.Y) + (tabButton.AbsoluteSize.Y * 0.5)) / scale
         return UDim2.fromOffset(x, y)
     end
+
+    local function isTabIndicatorInsideTabsHolder(tabButton)
+        if Minimized then return false end
+        if not (tabButton and tabButton.Parent and MainScroll and MainScroll.Parent) then return false end
+        if tabButton.AbsoluteSize.Y <= 0 or MainScroll.AbsoluteSize.Y <= 0 then return false end
+
+        local scrollTop = MainScroll.AbsolutePosition.Y
+        local scrollBottom = scrollTop + MainScroll.AbsoluteSize.Y
+        local indicatorCenter = tabButton.AbsolutePosition.Y + (tabButton.AbsoluteSize.Y * 0.5)
+        local indicatorHalfHeight = 8
+
+        return (indicatorCenter - indicatorHalfHeight) >= (scrollTop + 1)
+            and (indicatorCenter + indicatorHalfHeight) <= (scrollBottom - 1)
+    end
+
+    local function updateTabIndicatorClip(tabButton)
+        if not (SharedTabIndicator and SharedTabIndicator.Parent) then return end
+        SharedTabIndicator.Visible = isTabIndicatorInsideTabsHolder(tabButton or ActiveTabButton)
+    end
     local function ensureTabIndicator()
         if SharedTabIndicator and SharedTabIndicator.Parent then
             return SharedTabIndicator
@@ -4610,7 +4629,7 @@ end)
             AnchorPoint = Vector2.new(0, 0.5),
             BackgroundColor3 = Theme["Color Theme"],
             BackgroundTransparency = 1,
-            ZIndex = 50
+            ZIndex = 2
         }), "Theme")
         Make("Corner", SharedTabIndicator, UDim.new(0.5, 0))
 
@@ -4620,7 +4639,12 @@ end)
                 if pos then
                     SharedTabIndicator.Position = pos
                 end
+                updateTabIndicatorClip(ActiveTabButton)
             end
+        end))
+
+        trackRuntimeConnection(MainScroll:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+            updateTabIndicatorClip(ActiveTabButton)
         end))
 
         return SharedTabIndicator
@@ -4653,12 +4677,13 @@ end)
         end
 
         indicator.BackgroundTransparency = Minimized and 1 or 0
-        indicator.Visible = not Minimized
+        indicator.Visible = isTabIndicatorInsideTabsHolder(tabButton)
 
         if not animated then
             indicator.Position = targetPos
             indicator.Size = UDim2.new(0, 4, 0, 13)
             ActiveTabButton = tabButton
+            updateTabIndicatorClip(tabButton)
             return
         end
 
@@ -4688,6 +4713,7 @@ end)
         end)
 
         ActiveTabButton = tabButton
+        updateTabIndicatorClip(tabButton)
     end
 
     local function enableActiveTabAfterSettings()
