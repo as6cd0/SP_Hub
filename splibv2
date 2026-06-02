@@ -239,8 +239,28 @@ end
 -- ok this is redz lib v5 but now its for sp cuz its has edited in full! and  big improvent and added more functions by sp to contact the the dev discord @nadermohamed22
 local Binds = {}
 local BindSaveKeyCounts = {}
+local BindBoxAnimationsReady = false
+local BindBoxAnimationToken = 0
+local BindBoxRefreshers = setmetatable({}, {__mode = "k"})
 local ScreenGui
 splib.SearchElements = {}
+
+local function resetBindBoxAnimations(waitTime)
+    BindBoxAnimationToken += 1
+    local token = BindBoxAnimationToken
+    BindBoxAnimationsReady = false
+    task.defer(function()
+        task.wait(tonumber(waitTime) or 0.85)
+        if token == BindBoxAnimationToken then
+            for bindBox, refresher in pairs(BindBoxRefreshers) do
+                if bindBox and bindBox.Parent and type(refresher) == "function" then
+                    pcall(refresher, false, true)
+                end
+            end
+            BindBoxAnimationsReady = true
+        end
+    end)
+end
 
 local function getCurrentSearchSection(tab, container)
     if tab and container and tab.CurrentSectionFrames then
@@ -1324,6 +1344,8 @@ local function ButtonFrame(parent, Title, Description, HolderSize, isBind)
     local labelGap = 2
     local titleTextSize = isMobile and 9 or 10
     local descTextSize = isMobile and 7 or 8
+    local titleWrapped = true
+    local titleTruncate = Enum.TextTruncate.None
 
     if typeof(HolderSize) == "UDim2" then
         explicitHolderSize = HolderSize
@@ -1337,6 +1359,12 @@ local function ButtonFrame(parent, Title, Description, HolderSize, isBind)
         labelGap = holderConfig.LabelGap or labelGap
         titleTextSize = holderConfig.TitleTextSize or titleTextSize
         descTextSize = holderConfig.DescTextSize or descTextSize
+        if holderConfig.TitleWrapped ~= nil then
+            titleWrapped = holderConfig.TitleWrapped and true or false
+        end
+        if holderConfig.TitleTruncate then
+            titleTruncate = holderConfig.TitleTruncate
+        end
     elseif type(HolderSize) == "number" then
         reservedRight = HolderSize
     end
@@ -1371,8 +1399,8 @@ local function ButtonFrame(parent, Title, Description, HolderSize, isBind)
         TextSize = titleTextSize,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextYAlignment = Enum.TextYAlignment.Top,
-        TextWrapped = true,
-        TextTruncate = Enum.TextTruncate.None,
+        TextWrapped = titleWrapped,
+        TextTruncate = titleTruncate,
         Text = Title or "",
         RichText = true,
         LayoutOrder = 1
@@ -1455,23 +1483,108 @@ local function ButtonFrame(parent, Title, Description, HolderSize, isBind)
             Font               = Enum.Font.GothamBold,
             TextSize           = isMobile and 12 or 14,
             TextColor3         = Theme["Color Text"],
-            Size               = UDim2.new(0, 45, 0, 22),
+            Size               = UDim2.new(0, 54, 0, 22),
             Position           = UDim2.new(1, -10, 0.5, 0),
             AnchorPoint        = Vector2.new(1, 0.5),
             BackgroundColor3   = Theme["Color Stroke"],
             BackgroundTransparency = 0,
+            BorderSizePixel    = 0,
+            Visible            = true,
+            AutoButtonColor    = false,
+            TextWrapped        = false,
+            TextScaled         = false,
+            TextTruncate       = Enum.TextTruncate.None,
+            TextXAlignment     = Enum.TextXAlignment.Center,
+            TextYAlignment     = Enum.TextYAlignment.Center,
+            ClipsDescendants   = false,
+            ZIndex             = (Frame.ZIndex or 1) + 6,
         }), "Text")
         Make("Corner", bindBox, UDim.new(0.25, 0))
         Make("Stroke", bindBox)
 
+        local function refreshBindBoxSize(animated, force)
+            if not bindBox or not bindBox.Parent then return end
+
+            bindBox.Visible = true
+            bindBox.AutoButtonColor = false
+            bindBox.BackgroundTransparency = 0
+            bindBox.BackgroundColor3 = Theme["Color Stroke"]
+            bindBox.Position = UDim2.new(1, -10, 0.5, 0)
+            bindBox.AnchorPoint = Vector2.new(1, 0.5)
+            bindBox.TextWrapped = false
+            bindBox.TextScaled = false
+            bindBox.TextTruncate = Enum.TextTruncate.None
+            bindBox.TextXAlignment = Enum.TextXAlignment.Center
+            bindBox.TextYAlignment = Enum.TextYAlignment.Center
+            bindBox.ClipsDescendants = false
+            bindBox.ZIndex = math.max(bindBox.ZIndex or 1, (Frame.ZIndex or 1) + 6)
+            Frame.ClipsDescendants = false
+
+            local displayText = tostring(bindBox.Text or "")
+            local textWidth = 0
+
+            local ok, measured = pcall(function()
+                return TextService:GetTextSize(displayText, bindBox.TextSize, bindBox.Font, Vector2.new(10000, 22))
+            end)
+            if ok and measured then
+                textWidth = measured.X
+            end
+
+            if textWidth <= 1 then
+                pcall(function()
+                    textWidth = bindBox.TextBounds.X
+                end)
+            end
+
+            if textWidth <= 1 then
+                textWidth = math.max(22, #displayText * bindBox.TextSize * 0.62)
+            end
+
+            local minWidth = isMobile and 50 or 54
+            local maxWidth = isMobile and 104 or 132
+            local newWidth = math.clamp(math.ceil(textWidth) + 18, minWidth, maxWidth)
+            local targetSize = UDim2.new(0, newWidth, 0, 22)
+
+            if animated and BindBoxAnimationsReady and not force then
+                TweenService:Create(
+                    bindBox,
+                    TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+                    {Size = targetSize}
+                ):Play()
+            else
+                bindBox.Size = targetSize
+            end
+        end
+
+        BindBoxRefreshers[bindBox] = refreshBindBoxSize
+        resetBindBoxAnimations(0.85)
+
         bindBox:GetPropertyChangedSignal("Text"):Connect(function()
-            local newWidth = math.clamp(bindBox.TextBounds.X + 14, 45, isMobile and 95 or 120)
-            local tween = TweenService:Create(
-                bindBox,
-                TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-                {Size = UDim2.new(0, newWidth, 0, 22)}
-            )
-            tween:Play()
+            refreshBindBoxSize(true)
+            task.delay(0.28, function()
+                refreshBindBoxSize(false, true)
+            end)
+        end)
+        bindBox:GetPropertyChangedSignal("TextBounds"):Connect(function()
+            refreshBindBoxSize(BindBoxAnimationsReady)
+        end)
+        Frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+            refreshBindBoxSize(false, true)
+        end)
+        task.defer(function()
+            refreshBindBoxSize(false, true)
+        end)
+        task.delay(0.15, function()
+            refreshBindBoxSize(false, true)
+        end)
+        task.delay(0.65, function()
+            refreshBindBoxSize(false, true)
+        end)
+        task.delay(1.35, function()
+            refreshBindBoxSize(false, true)
+        end)
+        task.delay(2.5, function()
+            refreshBindBoxSize(false, true)
         end)
     end
 
@@ -1607,6 +1720,7 @@ function splib:MakeWindow(Configs)
     table.clear(BindSaveKeyCounts)
     table.clear(splib.SearchElements)
     isLibraryDestroyed = false
+    resetBindBoxAnimations(0.85)
     if Configs and Configs.IsPremium ~= nil then
         splib:SetPremium(Configs.IsPremium == true)
     end
@@ -5537,7 +5651,7 @@ function Tab:AddBind(Configs)
 
     local container = Configs.__force_container or Container
     local Frame, LabelFunc, BindBox = ButtonFrame(container, Name, Desc, {
-        ReservedRight = isMobile and 115 or 145,
+        ReservedRight = isMobile and 100 or 120,
         MinHeight = 32
     }, true)
 
@@ -5573,60 +5687,11 @@ function Tab:AddBind(Configs)
 
     ensureBindDispatcher()
 
-    local DisableBox = InsertTheme(Create("TextButton", Frame, {
-        Name = "BindDisableBox",
-        Text = "",
-        Size = UDim2.new(0, 14, 0, 14),
-        Position = UDim2.new(1, -62, 0.5, 0),
-        AnchorPoint = Vector2.new(1, 0.5),
-        BackgroundColor3 = Theme["Color Stroke"],
-        BackgroundTransparency = 0,
-        AutoButtonColor = false,
-        ZIndex = BindBox.ZIndex + 1
-    }), "Stroke")
-    Make("Corner", DisableBox, UDim.new(0, 4))
-
-    local function updateDisableBoxPosition()
-        local bindWidth = math.max(45, BindBox.Size.X.Offset)
-        DisableBox.Position = UDim2.new(1, -(bindWidth + 18), 0.5, 0)
-    end
-    BindBox:GetPropertyChangedSignal("Size"):Connect(updateDisableBoxPosition)
-    task.defer(updateDisableBoxPosition)
-
-    local DisableFill = InsertTheme(Create("Frame", DisableBox, {
-        Name = "Fill",
-        Size = UDim2.new(0, 0, 0, 0),
-        Position = UDim2.new(0.5, 0, 0.5, 0),
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        BackgroundColor3 = Theme["Color Theme"],
-        BackgroundTransparency = 0,
-        BorderSizePixel = 0
-    }), "Theme")
-    Make("Corner", DisableFill, UDim.new(0, 3))
-
-    local DisableCheck = InsertTheme(Create("TextLabel", DisableBox, {
-        Name = "Check",
-        Text = "\226\156\147",
-        Size = UDim2.new(0, 0, 0, 0),
-        Position = UDim2.new(0.5, 0, 0.5, -1),
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        BackgroundTransparency = 1,
-        TextColor3 = Theme["Color Text"],
-        TextTransparency = 1,
-        TextScaled = true,
-        Font = Enum.Font.GothamBold,
-        ZIndex = DisableFill.ZIndex + 1,
-        Visible = false
-    }), "Text")
-
-    DisableBox.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            ignoreBindClickUntil = tick() + 0.25
-        end
-    end)
-
     local function updateDisplay()
         local nm = (typeof(state.Value) == "EnumItem" and state.Value.Name) or tostring(state.Value)
+        BindBox.Visible = true
+        BindBox.BackgroundTransparency = 0
+        BindBox.ZIndex = math.max(BindBox.ZIndex or 1, Frame.ZIndex + 3)
         BindBox.Text = nm
         BindBox.TextColor3 = state.Disabled and Theme["Color Dark Text"] or Theme["Color Text"]
         BindBox.TextTransparency = state.Disabled and 0.35 or 0
@@ -5639,30 +5704,18 @@ function Tab:AddBind(Configs)
             task.spawn(Callback, false)
         end
 
-        if state.Disabled then
-            DisableCheck.Visible = true
-            DisableCheck.Rotation = -20
-            DisableCheck.Size = UDim2.new(0, 0, 0, 0)
-            DisableCheck.TextTransparency = 1
-            CreateTween({DisableFill, "Size", UDim2.new(1, -6, 1, -6), 0.16})
-            CreateTween({DisableCheck, "Size", UDim2.new(1, -2, 1, -2), 0.16})
-            CreateTween({DisableCheck, "Rotation", 0, 0.16})
-            CreateTween({DisableCheck, "TextTransparency", 0, 0.12})
-        else
-            CreateTween({DisableFill, "Size", UDim2.new(0, 0, 0, 0), 0.16})
-            CreateTween({DisableCheck, "Size", UDim2.new(0, 0, 0, 0), 0.12})
-            CreateTween({DisableCheck, "Rotation", 18, 0.12})
-            CreateTween({DisableCheck, "TextTransparency", 1, 0.1})
-            task.delay(0.13, function()
-                if not state.Disabled and DisableCheck and DisableCheck.Parent then
-                    DisableCheck.Visible = false
-                    DisableCheck.Rotation = 0
-                end
-            end)
+        if BindBox and BindBox.Parent then
+            if BindBoxAnimationsReady then
+                TweenService:Create(
+                    BindBox,
+                    TweenInfo.new(0.16, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+                    {TextTransparency = state.Disabled and 0.35 or 0}
+                ):Play()
+            else
+                BindBox.TextTransparency = state.Disabled and 0.35 or 0
+            end
+            BindBox.TextColor3 = state.Disabled and Theme["Color Dark Text"] or Theme["Color Text"]
         end
-
-        CreateTween({BindBox, "TextTransparency", state.Disabled and 0.35 or 0, 0.16})
-        BindBox.TextColor3 = state.Disabled and Theme["Color Dark Text"] or Theme["Color Text"]
 
         if Flag and not skipSave then
             local keyName = (typeof(state.Value) == "EnumItem" and state.Value.Name) or tostring(state.Value)
@@ -5677,14 +5730,11 @@ function Tab:AddBind(Configs)
         task.defer(function()
             if isDestroyed then return end
             BindBox.BackgroundColor3 = Theme["Color Stroke"]
-            DisableBox.BackgroundColor3 = Theme["Color Stroke"]
+            BindBox.Visible = true
+            BindBox.BackgroundTransparency = 0
+            BindBox.ZIndex = math.max(BindBox.ZIndex or 1, Frame.ZIndex + 3)
             updateDisplay()
         end)
-    end)
-
-    DisableBox.Activated:Connect(function()
-        ignoreBindClickUntil = tick() + 0.25
-        setDisabled(not state.Disabled)
     end)
 
     Frame.Activated:Connect(function()
@@ -5801,6 +5851,7 @@ function Tab:AddBind(Configs)
         state.Value = Enum.KeyCode.Unknown
         if bindingConnection and bindingConnection.Connected then bindingConnection:Disconnect() end
         if themeConnection and themeConnection.Connected then themeConnection:Disconnect() end
+        if BindBox then BindBoxRefreshers[BindBox] = nil end
         local index = table.find(Binds, objBind)
         if index then table.remove(Binds, index) end
         Frame:Destroy()
@@ -7462,7 +7513,8 @@ function Tab:AddSlider(Configs)
 
     local container = Configs.__force_container or Container
     local Button, LabelFunc = ButtonFrame(container, SName, SDesc, {
-        ReservedRight = isMobile and 125 or 170
+        ReservedRight = isMobile and 88 or 118,
+        TitleWrapped = false
     })
 
     if Configs and Configs.PremiumOnly then
@@ -7484,7 +7536,7 @@ function Tab:AddSlider(Configs)
 
     local SliderHolder = Create("TextButton", Button, {
         Name = "SliderHolder",
-        Size = UDim2.new(0.40, 0, 1),
+        Size = UDim2.new(isMobile and 0.30 or 0.32, 0, 1),
         Position = UDim2.new(1),
         AnchorPoint = Vector2.new(1, 0),
         AutoButtonColor = false,
@@ -7725,6 +7777,9 @@ function Tab:AddTextbox(Configs)
     local container = Configs.__force_container or Container
     local isExpanded = false
     local inputHeight = isMobile and 18 or 20
+    local minInputHeight = inputHeight
+    local currentInputHeight = inputHeight
+    local maxInputHeight = isMobile and 74 or 76
     local isPremiumOnly = Configs and Configs.PremiumOnly == true
 
     local titleFont = Enum.Font.GothamMedium
@@ -7777,34 +7832,37 @@ function Tab:AddTextbox(Configs)
     end
 
     local hasInputDescription = isMobile or shouldStackForWidth(getEstimatedAvailableTextWidth())
-    local collapsedMaxWidth = isMobile and 104 or 126
+    local collapsedMaxWidth = isMobile and 150 or 230
     local textboxMinHeight = hasInputDescription and (isMobile and 24 or 20) or (isMobile and 26 or 24)
 
     local function getCollapsedExtraHeight()
+        local height = currentInputHeight or inputHeight
         if hasInputDescription then
-            return inputHeight + (isMobile and 6 or 4)
+            return height + (isMobile and 6 or 4)
         else
-            return 0
+            return math.max(0, height - minInputHeight)
         end
     end
 
     local function getExpandedExtraHeight()
+        local height = currentInputHeight or inputHeight
         if hasInputDescription then
             return getCollapsedExtraHeight()
         else
-            return inputHeight + (isMobile and 8 or 10)
+            return height + (isMobile and 8 or 10)
         end
     end
 
     local function getInputPosition()
+        local height = currentInputHeight or inputHeight
         local offset
         if isExpanded then
-            offset = (inputHeight / 2) + (isMobile and 5 or 6)
+            offset = (height / 2) + (isMobile and 5 or 6)
         else
             if hasInputDescription then
-                offset = (inputHeight / 2) + (isMobile and 5 or 4)
+                offset = (height / 2) + (isMobile and 5 or 4)
             else
-                offset = textboxMinHeight / 2
+                offset = math.max(textboxMinHeight, height) / 2
             end
         end
         return UDim2.new(1, -10, 1, -offset)
@@ -7914,7 +7972,7 @@ function Tab:AddTextbox(Configs)
 
     local SelectedFrame = InsertTheme(Create("Frame", Button, {
         Name = "SelectedFrame",
-        Size = UDim2.new(0, 88, 0, inputHeight),
+        Size = UDim2.new(0, 88, 0, currentInputHeight),
         Position = getInputPosition(),
         AnchorPoint = Vector2.new(1, 0.5),
         BackgroundColor3 = Theme["Color Stroke"],
@@ -7923,13 +7981,17 @@ function Tab:AddTextbox(Configs)
     Make("Corner", SelectedFrame, UDim.new(0, 6))
 
     local TextBoxInput = InsertTheme(Create("TextBox", SelectedFrame, {
-        Size = UDim2.new(1, -36, 1, 0),
-        Position = UDim2.new(0, 28, 0, 0),
+        Size = UDim2.new(1, -30, 1, 0),
+        Position = UDim2.new(0, 24, 0, 0),
         BackgroundTransparency = 1,
         Font = Enum.Font.GothamBold,
         TextScaled = false,
         TextSize = isMobile and 10 or 11,
         TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        TextWrapped = true,
+        TextTruncate = Enum.TextTruncate.None,
+        MultiLine = false,
         TextColor3 = Theme["Color Text"],
         ClearTextOnFocus = TClearText,
         PlaceholderText = TPlaceholderText,
@@ -7937,8 +7999,8 @@ function Tab:AddTextbox(Configs)
     }), "Text")
 
     local Pencil = Create("ImageLabel", SelectedFrame, {
-        Size = UDim2.new(0, 12, 0, 12),
-        Position = UDim2.new(0, 8, 0.5, 0),
+        Size = UDim2.new(0, 11, 0, 11),
+        Position = UDim2.new(0, 7, 0.5, 0),
         AnchorPoint = Vector2.new(0, 0.5),
         Image = "rbxassetid://15637081879",
         ImageColor3 = Color3.fromRGB(255, 255, 255),
@@ -7953,8 +8015,12 @@ function Tab:AddTextbox(Configs)
     local ignoreNextOpenUntil = 0
 
 
+    local function sanitizeInputText(value)
+        return tostring(value or ""):gsub("\r\n", " "):gsub("\r", " "):gsub("\n", " ")
+    end
+
     local function getDisplayText()
-        local text = TextBoxInput.Text
+        local text = sanitizeInputText(TextBoxInput.Text)
         if type(text) ~= "string" or text == "" then
             text = TPlaceholderText or ""
         end
@@ -7966,13 +8032,57 @@ function Tab:AddTextbox(Configs)
             return TextService:GetTextSize(getDisplayText(), TextBoxInput.TextSize, TextBoxInput.Font, Vector2.new(10000, inputHeight))
         end)
         local textWidth = (ok and size and size.X) or TextBoxInput.TextBounds.X
-        local minWidth = isMobile and 64 or 70
+        local minWidth = isMobile and 78 or 92
         local maxWidth = collapsedMaxWidth
         if Button.AbsoluteSize.X > 0 then
-            local widthRatio = isMobile and 0.34 or 0.36
+            local widthRatio = hasInputDescription and (isMobile and 0.52 or 0.60) or (isMobile and 0.34 or 0.36)
             maxWidth = math.min(maxWidth, math.max(minWidth, math.floor(Button.AbsoluteSize.X * widthRatio)))
         end
-        return math.clamp(math.ceil(textWidth) + (isMobile and 32 or 34), minWidth, maxWidth)
+        if not hasInputDescription then
+            maxWidth = math.min(maxWidth, math.max(minWidth, normalReservedRight - 14))
+        end
+        return math.clamp(math.ceil(textWidth) + (isMobile and 30 or 32), minWidth, maxWidth)
+    end
+
+    local function getWrappedInputHeight(width)
+        width = tonumber(width) or getCollapsedWidth()
+        local textWidth = math.max(24, width - (isMobile and 30 or 32))
+        local text = getDisplayText()
+        local ok, size = pcall(function()
+            return TextService:GetTextSize(text, TextBoxInput.TextSize, TextBoxInput.Font, Vector2.new(textWidth, 10000))
+        end)
+        local measuredHeight = (ok and size and size.Y) or TextBoxInput.TextBounds.Y or minInputHeight
+        local wantedHeight = math.ceil(measuredHeight) + (isMobile and 6 or 7)
+        return math.clamp(wantedHeight, minInputHeight, maxInputHeight)
+    end
+
+    local function setInputHeightForWidth(width)
+        local newHeight = getWrappedInputHeight(width)
+        local changed = math.abs(newHeight - currentInputHeight) >= 1
+        currentInputHeight = newHeight
+        pcall(function()
+            TextBoxInput.TextYAlignment = currentInputHeight > (minInputHeight + 2) and Enum.TextYAlignment.Top or Enum.TextYAlignment.Center
+        end)
+        return changed
+    end
+
+    local function refreshInputHeight(animated, width)
+        local targetWidth = tonumber(width)
+        if not targetWidth then
+            targetWidth = isExpanded and math.max(80, Button.AbsoluteSize.X - 20) or getCollapsedWidth()
+        end
+        local changed = setInputHeightForWidth(targetWidth)
+        pcall(function()
+            Button:SetAttribute("ExtraHeight", isExpanded and getExpandedExtraHeight() or getCollapsedExtraHeight())
+        end)
+        if LabelFunc and type(LabelFunc.Refresh) == "function" then
+            task.defer(function()
+                if Button and Button.Parent then
+                    LabelFunc:Refresh()
+                end
+            end)
+        end
+        return changed
     end
 
     local function tweenFrame(targetSize, targetPosition)
@@ -8007,7 +8117,9 @@ function Tab:AddTextbox(Configs)
     updateCollapsedSize = function(animated)
         if isExpanded then return end
 
-        local targetSize = UDim2.new(0, getCollapsedWidth(), 0, inputHeight)
+        local targetWidth = getCollapsedWidth()
+        refreshInputHeight(animated, targetWidth)
+        local targetSize = UDim2.new(0, targetWidth, 0, currentInputHeight)
         local targetPosition = getInputPosition()
         SelectedFrame.AnchorPoint = Vector2.new(1, 0.5)
 
@@ -8029,7 +8141,9 @@ function Tab:AddTextbox(Configs)
         end)
 
         SelectedFrame.AnchorPoint = Vector2.new(1, 0.5)
-        tweenFrame(UDim2.new(1, -20, 0, inputHeight), getInputPosition())
+        local expandedWidth = math.max(80, Button.AbsoluteSize.X - 20)
+        refreshInputHeight(true, expandedWidth)
+        tweenFrame(UDim2.new(1, -20, 0, currentInputHeight), getInputPosition())
         CreateTween({Pencil, "ImageColor3", Theme["Color Theme"], 0.18})
     end
 
@@ -8041,15 +8155,23 @@ function Tab:AddTextbox(Configs)
 
         isExpanded = false
         SelectedFrame.AnchorPoint = Vector2.new(1, 0.5)
+        local collapsedWidth = getCollapsedWidth()
+        refreshInputHeight(true, collapsedWidth)
         pcall(function()
             Button:SetAttribute("ExtraHeight", getCollapsedExtraHeight())
         end)
-        tweenFrame(UDim2.new(0, getCollapsedWidth(), 0, inputHeight), getInputPosition())
+        tweenFrame(UDim2.new(0, collapsedWidth, 0, currentInputHeight), getInputPosition())
         CreateTween({Pencil, "ImageColor3", Color3.fromRGB(255, 255, 255), 0.16})
     end
 
     TextBoxInput:GetPropertyChangedSignal("Text"):Connect(function()
-        updateCollapsedSize(true)
+        if isExpanded then
+            local expandedWidth = math.max(80, Button.AbsoluteSize.X - 20)
+            refreshInputHeight(true, expandedWidth)
+            tweenFrame(UDim2.new(1, -20, 0, currentInputHeight), getInputPosition())
+        else
+            updateCollapsedSize(true)
+        end
     end)
 
     local isApplyingTextBoxInput = false
@@ -8059,7 +8181,9 @@ function Tab:AddTextbox(Configs)
     Button:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
         if isExpanded then
             if not isFrameTweening then
-                SelectedFrame.Size = UDim2.new(1, -20, 0, inputHeight)
+                local expandedWidth = math.max(80, Button.AbsoluteSize.X - 20)
+                refreshInputHeight(false, expandedWidth)
+                SelectedFrame.Size = UDim2.new(1, -20, 0, currentInputHeight)
                 SelectedFrame.Position = getInputPosition()
             end
         else
@@ -8105,6 +8229,11 @@ function Tab:AddTextbox(Configs)
     task.defer(function()
         updateCollapsedSize(false)
     end)
+    task.delay(0.15, function()
+        if Button and Button.Parent then
+            updateCollapsedSize(false)
+        end
+    end)
     local function Input()
         if Configs and Configs.PremiumOnly and not splib.IsPremium then
             splib:MakeNotification{
@@ -8119,7 +8248,13 @@ function Tab:AddTextbox(Configs)
             return
         end
 
-        local Text = tostring(TextBoxInput.Text or "")
+        local RawText = tostring(TextBoxInput.Text or "")
+        local Text = sanitizeInputText(RawText)
+        if Text ~= RawText then
+            isApplyingTextBoxInput = true
+            TextBoxInput.Text = Text
+            isApplyingTextBoxInput = false
+        end
         if Text:gsub(" ", ""):len() > 0 then
             if TextBox.OnChanging then
                 Text = TextBox.OnChanging(Text) or Text
@@ -8151,6 +8286,12 @@ function Tab:AddTextbox(Configs)
 
     TextBoxInput:GetPropertyChangedSignal("Text"):Connect(function()
         if isApplyingTextBoxInput then return end
+        local cleanedText = sanitizeInputText(TextBoxInput.Text)
+        if cleanedText ~= TextBoxInput.Text then
+            isApplyingTextBoxInput = true
+            TextBoxInput.Text = cleanedText
+            isApplyingTextBoxInput = false
+        end
         liveTextChangeToken = liveTextChangeToken + 1
         local token = liveTextChangeToken
         task.defer(function()
@@ -8175,7 +8316,7 @@ function Tab:AddTextbox(Configs)
     function TextBox:Destroy() Button:Destroy() end
 
     local function setTextBoxValueFromContext(value)
-        value = tostring(value or "")
+        value = sanitizeInputText(value)
         isApplyingTextBoxInput = true
         TextBoxInput.Text = value
         isApplyingTextBoxInput = false
