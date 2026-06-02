@@ -8052,6 +8052,10 @@ function Tab:AddTextbox(Configs)
         updateCollapsedSize(true)
     end)
 
+    local isApplyingTextBoxInput = false
+    local lastSubmittedText = tostring(TextBoxInput.Text or "")
+    local liveTextChangeToken = 0
+
     Button:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
         if isExpanded then
             if not isFrameTweening then
@@ -8109,22 +8113,53 @@ function Tab:AddTextbox(Configs)
                 Content = "This feature is for Premium users",
                 Time = 1.5
             }
+            isApplyingTextBoxInput = true
             TextBoxInput.Text = TDefault
+            isApplyingTextBoxInput = false
             return
         end
 
-        local Text = TextBoxInput.Text
+        local Text = tostring(TextBoxInput.Text or "")
         if Text:gsub(" ", ""):len() > 0 then
             if TextBox.OnChanging then
                 Text = TextBox.OnChanging(Text) or Text
+                Text = tostring(Text or "")
             end
+
+            if Text == lastSubmittedText then
+                if TextBoxInput.Text ~= Text then
+                    isApplyingTextBoxInput = true
+                    TextBoxInput.Text = Text
+                    isApplyingTextBoxInput = false
+                end
+                return
+            end
+
+            lastSubmittedText = Text
             if Flag then
                 SaveTextBoxFlag(Flag, Text)
             end
             Funcs:FireCallback(Callback, Text)
-            TextBoxInput.Text = Text
+
+            if TextBoxInput.Text ~= Text then
+                isApplyingTextBoxInput = true
+                TextBoxInput.Text = Text
+                isApplyingTextBoxInput = false
+            end
         end
     end
+
+    TextBoxInput:GetPropertyChangedSignal("Text"):Connect(function()
+        if isApplyingTextBoxInput then return end
+        liveTextChangeToken = liveTextChangeToken + 1
+        local token = liveTextChangeToken
+        task.defer(function()
+            if token ~= liveTextChangeToken then return end
+            if TextBoxInput and TextBoxInput.Parent then
+                Input()
+            end
+        end)
+    end)
 
     TextBoxInput.FocusLost:Connect(function(enterPressed)
         if enterPressed then
@@ -8141,7 +8176,10 @@ function Tab:AddTextbox(Configs)
 
     local function setTextBoxValueFromContext(value)
         value = tostring(value or "")
+        isApplyingTextBoxInput = true
         TextBoxInput.Text = value
+        isApplyingTextBoxInput = false
+        lastSubmittedText = value
         if Flag then
             SaveTextBoxFlag(Flag, value)
         end
