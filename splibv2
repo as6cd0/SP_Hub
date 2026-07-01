@@ -4881,6 +4881,7 @@ function Window:MakeTab(paste, Configs)
 		if type(paste) == "table" then Configs = paste end
 		local TName = Configs[1] or Configs.Title or Configs.Name or "Tab!"
 		local TIcon = Configs[2] or Configs.Icon or ""
+		local Tab
         
     if Configs.IsMobile and not isMobile then
         return nil
@@ -5010,7 +5011,7 @@ end
 		
 		if not FirstTab then Container.Parent = Containers end
 		
-		local Tab = { Enabled = (FirstTab == false) }
+		Tab = { Enabled = (FirstTab == false) }
 		
 local function Tabs(force, isSettingTab)
     local wasSettingsOpen = (SettingTab and SettingTab.Parent) or settingsButtonActive
@@ -7832,7 +7833,7 @@ function Tab:AddTextbox(Configs)
     end
 
     local hasInputDescription = isMobile or shouldStackForWidth(getEstimatedAvailableTextWidth())
-    local collapsedMaxWidth = isMobile and 150 or 230
+    local collapsedMaxWidth = isMobile and 160 or 240
     local textboxMinHeight = hasInputDescription and (isMobile and 24 or 20) or (isMobile and 26 or 24)
 
     local function getCollapsedExtraHeight()
@@ -7989,8 +7990,8 @@ function Tab:AddTextbox(Configs)
         TextSize = isMobile and 10 or 11,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextYAlignment = Enum.TextYAlignment.Center,
-        TextWrapped = true,
-        TextTruncate = Enum.TextTruncate.None,
+        TextWrapped = false,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         MultiLine = false,
         TextColor3 = Theme["Color Text"],
         ClearTextOnFocus = TClearText,
@@ -8028,54 +8029,47 @@ function Tab:AddTextbox(Configs)
     end
 
     local function getCollapsedWidth()
-        local ok, size = pcall(function()
-            return TextService:GetTextSize(getDisplayText(), TextBoxInput.TextSize, TextBoxInput.Font, Vector2.new(10000, inputHeight))
-        end)
-        local textWidth = (ok and size and size.X) or TextBoxInput.TextBounds.X
-        local minWidth = isMobile and 78 or 92
-        local maxWidth = collapsedMaxWidth
+        -- Classic textbox behavior: keep a stable input width instead of growing with every character.
+        local configuredWidth = tonumber(Configs.InputWidth or Configs.TextBoxWidth or Configs.Width)
+        local fixedWidth = configuredWidth or (hasInputDescription and (isMobile and 122 or 148) or (isMobile and 82 or 96))
+        local minWidth = isMobile and 74 or 86
+        local maxWidth = hasInputDescription and (isMobile and 150 or 180) or (isMobile and 96 or 112)
+
         if Button.AbsoluteSize.X > 0 then
-            local widthRatio = hasInputDescription and (isMobile and 0.52 or 0.60) or (isMobile and 0.34 or 0.36)
-            maxWidth = math.min(maxWidth, math.max(minWidth, math.floor(Button.AbsoluteSize.X * widthRatio)))
+            local availableWidth = hasInputDescription
+                and math.max(minWidth, Button.AbsoluteSize.X - (isMobile and 34 or 40))
+                or math.max(minWidth, normalReservedRight - 22)
+            maxWidth = math.min(maxWidth, availableWidth)
         end
-        if not hasInputDescription then
-            maxWidth = math.min(maxWidth, math.max(minWidth, normalReservedRight - 14))
-        end
-        return math.clamp(math.ceil(textWidth) + (isMobile and 30 or 32), minWidth, maxWidth)
+
+        return math.clamp(math.floor(fixedWidth + 0.5), minWidth, maxWidth)
     end
 
-    local function getWrappedInputHeight(width)
-        width = tonumber(width) or getCollapsedWidth()
-        local textWidth = math.max(24, width - (isMobile and 30 or 32))
-        local text = getDisplayText()
-        local ok, size = pcall(function()
-            return TextService:GetTextSize(text, TextBoxInput.TextSize, TextBoxInput.Font, Vector2.new(textWidth, 10000))
-        end)
-        local measuredHeight = (ok and size and size.Y) or TextBoxInput.TextBounds.Y or minInputHeight
-        local wantedHeight = math.ceil(measuredHeight) + (isMobile and 6 or 7)
-        return math.clamp(wantedHeight, minInputHeight, maxInputHeight)
+    local function getExpandedInputWidth()
+        -- Focused width is also capped. Long text is clipped/truncated, not wrapped or used to resize the row.
+        local minWidth = isMobile and 92 or 110
+        local maxWidth = isMobile and 190 or 230
+        if Button.AbsoluteSize.X > 0 then
+            maxWidth = math.min(maxWidth, math.max(minWidth, Button.AbsoluteSize.X - (isMobile and 34 or 44)))
+        end
+        return math.clamp(getCollapsedWidth() + (isMobile and 40 or 56), minWidth, maxWidth)
     end
 
     local function setInputHeightForWidth(width)
-        local newHeight = getWrappedInputHeight(width)
-        local changed = math.abs(newHeight - currentInputHeight) >= 1
-        currentInputHeight = newHeight
+        local changed = math.abs((currentInputHeight or minInputHeight) - minInputHeight) >= 1
+        currentInputHeight = minInputHeight
         pcall(function()
-            TextBoxInput.TextYAlignment = currentInputHeight > (minInputHeight + 2) and Enum.TextYAlignment.Top or Enum.TextYAlignment.Center
+            TextBoxInput.TextYAlignment = Enum.TextYAlignment.Center
         end)
         return changed
     end
 
     local function refreshInputHeight(animated, width)
-        local targetWidth = tonumber(width)
-        if not targetWidth then
-            targetWidth = isExpanded and math.max(80, Button.AbsoluteSize.X - 20) or getCollapsedWidth()
-        end
-        local changed = setInputHeightForWidth(targetWidth)
+        local changed = setInputHeightForWidth(width)
         pcall(function()
             Button:SetAttribute("ExtraHeight", isExpanded and getExpandedExtraHeight() or getCollapsedExtraHeight())
         end)
-        if LabelFunc and type(LabelFunc.Refresh) == "function" then
+        if changed and LabelFunc and type(LabelFunc.Refresh) == "function" then
             task.defer(function()
                 if Button and Button.Parent then
                     LabelFunc:Refresh()
@@ -8141,9 +8135,9 @@ function Tab:AddTextbox(Configs)
         end)
 
         SelectedFrame.AnchorPoint = Vector2.new(1, 0.5)
-        local expandedWidth = math.max(80, Button.AbsoluteSize.X - 20)
+        local expandedWidth = getExpandedInputWidth()
         refreshInputHeight(true, expandedWidth)
-        tweenFrame(UDim2.new(1, -20, 0, currentInputHeight), getInputPosition())
+        tweenFrame(UDim2.new(0, expandedWidth, 0, currentInputHeight), getInputPosition())
         CreateTween({Pencil, "ImageColor3", Theme["Color Theme"], 0.18})
     end
 
@@ -8164,26 +8158,26 @@ function Tab:AddTextbox(Configs)
         CreateTween({Pencil, "ImageColor3", Color3.fromRGB(255, 255, 255), 0.16})
     end
 
-    TextBoxInput:GetPropertyChangedSignal("Text"):Connect(function()
-        if isExpanded then
-            local expandedWidth = math.max(80, Button.AbsoluteSize.X - 20)
-            refreshInputHeight(true, expandedWidth)
-            tweenFrame(UDim2.new(1, -20, 0, currentInputHeight), getInputPosition())
-        else
-            updateCollapsedSize(true)
-        end
-    end)
-
     local isApplyingTextBoxInput = false
     local lastSubmittedText = tostring(TextBoxInput.Text or "")
-    local liveTextChangeToken = 0
+
+    TextBoxInput:GetPropertyChangedSignal("Text"):Connect(function()
+        -- Keep typing calm: no content-based resize while the user types.
+        if isApplyingTextBoxInput then return end
+        local cleanedText = sanitizeInputText(TextBoxInput.Text)
+        if cleanedText ~= TextBoxInput.Text then
+            isApplyingTextBoxInput = true
+            TextBoxInput.Text = cleanedText
+            isApplyingTextBoxInput = false
+        end
+    end)
 
     Button:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
         if isExpanded then
             if not isFrameTweening then
-                local expandedWidth = math.max(80, Button.AbsoluteSize.X - 20)
+                local expandedWidth = getExpandedInputWidth()
                 refreshInputHeight(false, expandedWidth)
-                SelectedFrame.Size = UDim2.new(1, -20, 0, currentInputHeight)
+                SelectedFrame.Size = UDim2.new(0, expandedWidth, 0, currentInputHeight)
                 SelectedFrame.Position = getInputPosition()
             end
         else
@@ -8283,24 +8277,6 @@ function Tab:AddTextbox(Configs)
             end
         end
     end
-
-    TextBoxInput:GetPropertyChangedSignal("Text"):Connect(function()
-        if isApplyingTextBoxInput then return end
-        local cleanedText = sanitizeInputText(TextBoxInput.Text)
-        if cleanedText ~= TextBoxInput.Text then
-            isApplyingTextBoxInput = true
-            TextBoxInput.Text = cleanedText
-            isApplyingTextBoxInput = false
-        end
-        liveTextChangeToken = liveTextChangeToken + 1
-        local token = liveTextChangeToken
-        task.defer(function()
-            if token ~= liveTextChangeToken then return end
-            if TextBoxInput and TextBoxInput.Parent then
-                Input()
-            end
-        end)
-    end)
 
     TextBoxInput.FocusLost:Connect(function(enterPressed)
         if enterPressed then
