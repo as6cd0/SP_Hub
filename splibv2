@@ -8249,32 +8249,31 @@ function Tab:AddTextbox(Configs)
             TextBoxInput.Text = Text
             isApplyingTextBoxInput = false
         end
-        if Text:gsub(" ", ""):len() > 0 then
-            if TextBox.OnChanging then
-                Text = TextBox.OnChanging(Text) or Text
-                Text = tostring(Text or "")
-            end
+        
+        if TextBox.OnChanging then
+            Text = TextBox.OnChanging(Text) or Text
+            Text = tostring(Text or "")
+        end
 
-            if Text == lastSubmittedText then
-                if TextBoxInput.Text ~= Text then
-                    isApplyingTextBoxInput = true
-                    TextBoxInput.Text = Text
-                    isApplyingTextBoxInput = false
-                end
-                return
-            end
-
-            lastSubmittedText = Text
-            if Flag then
-                SaveTextBoxFlag(Flag, Text)
-            end
-            Funcs:FireCallback(Callback, Text)
-
+        if Text == lastSubmittedText then
             if TextBoxInput.Text ~= Text then
                 isApplyingTextBoxInput = true
                 TextBoxInput.Text = Text
                 isApplyingTextBoxInput = false
             end
+            return
+        end
+
+        lastSubmittedText = Text
+        if Flag then
+            SaveTextBoxFlag(Flag, Text)
+        end
+        Funcs:FireCallback(Callback, Text)
+
+        if TextBoxInput.Text ~= Text then
+            isApplyingTextBoxInput = true
+            TextBoxInput.Text = Text
+            isApplyingTextBoxInput = false
         end
     end
 
