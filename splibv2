@@ -8160,6 +8160,7 @@ function Tab:AddTextbox(Configs)
 
     local isApplyingTextBoxInput = false
     local lastSubmittedText = tostring(TextBoxInput.Text or "")
+    local setTextBoxValueFromContext
 
     TextBoxInput:GetPropertyChangedSignal("Text"):Connect(function()
         -- Keep typing calm: no content-based resize while the user types.
@@ -8292,7 +8293,7 @@ function Tab:AddTextbox(Configs)
         setTextBoxValueFromContext(value)
     end
 
-    local function setTextBoxValueFromContext(value)
+    setTextBoxValueFromContext = function(value)
         value = sanitizeInputText(value)
         isApplyingTextBoxInput = true
         TextBoxInput.Text = value
