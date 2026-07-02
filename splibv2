@@ -8288,6 +8288,9 @@ function Tab:AddTextbox(Configs)
     TextBox.OnChanging = false
     function TextBox:Visible(...) Funcs:ToggleVisible(Button, ...) end
     function TextBox:Destroy() Button:Destroy() end
+    function TextBox:Set(value)
+        setTextBoxValueFromContext(value)
+    end
 
     local function setTextBoxValueFromContext(value)
         value = sanitizeInputText(value)
