@@ -8279,9 +8279,8 @@ function Tab:AddTextbox(Configs)
     end
 
     TextBoxInput.FocusLost:Connect(function(enterPressed)
-        if enterPressed then
-            Input()
-        else
+        Input()
+        if not enterPressed then
             ignoreNextOpenUntil = tick() + 0.15
         end
         collapseInput()
