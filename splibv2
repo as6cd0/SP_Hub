@@ -7774,6 +7774,9 @@ function Tab:AddTextbox(Configs)
     if type(OriginalTextBoxDefault) ~= "string" then
         OriginalTextBoxDefault = ""
     end
+    if Flag then
+        splib.Flags[Flag] = TDefault
+    end
 
     local container = Configs.__force_container or Container
     local isExpanded = false
@@ -8267,6 +8270,7 @@ function Tab:AddTextbox(Configs)
 
         lastSubmittedText = Text
         if Flag then
+            splib.Flags[Flag] = Text
             SaveTextBoxFlag(Flag, Text)
         end
         Funcs:FireCallback(Callback, Text)
@@ -8289,6 +8293,9 @@ function Tab:AddTextbox(Configs)
     TextBox.OnChanging = false
     function TextBox:Visible(...) Funcs:ToggleVisible(Button, ...) end
     function TextBox:Destroy() Button:Destroy() end
+    function TextBox:GetValue()
+        return tostring(TextBoxInput.Text or "")
+    end
     function TextBox:Set(value)
         setTextBoxValueFromContext(value)
     end
@@ -8300,11 +8307,21 @@ function Tab:AddTextbox(Configs)
         isApplyingTextBoxInput = false
         lastSubmittedText = value
         if Flag then
+            splib.Flags[Flag] = value
             SaveTextBoxFlag(Flag, value)
         end
         Funcs:FireCallback(Callback, value)
         updateCollapsedSize(true)
     end
+
+    task.defer(function()
+        if Flag then
+            splib.Flags[Flag] = tostring(TextBoxInput.Text or "")
+        end
+        pcall(function()
+            Funcs:FireCallback(Callback, tostring(TextBoxInput.Text or ""))
+        end)
+    end)
 
     bindContextMenu(Button, function()
         return {
