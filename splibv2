@@ -11908,19 +11908,6 @@ Tab:AddSlider({
 })
 
 Tab:AddDropdown({
-    Name = "Layout Mode",
-    Desc = "Classic list or animated Grid cards",
-    Options = {"Classic", "Grid"},
-    Default = splib.Save.LayoutMode or "Classic",
-    Flag = "LayoutMode",
-    Save = true,
-    Callback = function(v)
-        splib:SetLayoutMode(v)
-    end,
-    __force_container = SettingTab
-})
-
-Tab:AddDropdown({
     Name = "UI Theme",
     Options = {"Red", "Darker", "Dark", "Purple","NeonBlue", "Sunset", "Ocean", "RoseGold", "Matrix", "Green", "Orange", "Pink", "Gold", "Cyan"},
     Default = splib.Save.Theme or "Red",
@@ -12011,6 +11998,20 @@ Tab:AddSection({
     Name = "UI",
     __force_container = SettingTab
 })
+
+Tab:AddDropdown({
+    Name = "Layout Mode",
+    Desc = "Classic list or animated Grid cards",
+    Options = {"Classic", "Grid"},
+    Default = splib.Save.LayoutMode or "Classic",
+    Flag = "LayoutMode",
+    Save = true,
+    Callback = function(v)
+        splib:SetLayoutMode(v)
+    end,
+    __force_container = SettingTab
+})
+
 
 local rainbowStroke
 
