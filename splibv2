@@ -7108,9 +7108,9 @@ function Tab:AddDropdown(Configs)
 
 		local function notifyPremiumOption()
 			splib:MakeNotification{
-				Name = "Premium Option",
+				Name = "Premium Only",
 				Image = "rbxassetid://10734966248",
-				Content = "This option requires SP Premium!",
+				Content = "This feature is for Premium users",
 				Time = 1.5
 			}
 		end
