@@ -6400,46 +6400,48 @@ function Tab:AddDropdown(Configs)
 	local DMultiSelect = Configs.MultiSelect or false
 	local Callback = Funcs:GetCallback(Configs, 4)
 
-	local PremiumOptionColor = Color3.fromRGB(0, 170, 255)
-	local PremiumOptionRefs = {}
+	local premium = {
+		Color = Color3.fromRGB(0, 170, 255),
+		Refs = {}
+	}
 
-	local function clearPremiumOptionRefs()
-		table.clear(PremiumOptionRefs)
+	premium.clearRefs = function()
+		table.clear(premium.Refs)
 	end
 
-	local function rememberPremiumOptionRef(ref)
+	premium.rememberRef = function(ref)
 		if ref == nil or ref == false or ref == true then return end
 
 		if type(ref) == "table" then
-			rememberPremiumOptionRef(ref.Name or ref.name or ref.Title or ref.title or ref.Text or ref.text or ref[1])
-			rememberPremiumOptionRef(ref.Value or ref.value or ref.Id or ref.id or ref[2])
+			premium.rememberRef(ref.Name or ref.name or ref.Title or ref.title or ref.Text or ref.text or ref[1])
+			premium.rememberRef(ref.Value or ref.value or ref.Id or ref.id or ref[2])
 			return
 		end
 
 		local key = tostring(ref)
 		if key ~= "" then
-			PremiumOptionRefs[key] = true
+			premium.Refs[key] = true
 		end
 	end
 
-	local function loadPremiumOptionRefs(list)
+	premium.loadRefs = function(list)
 		if list == nil then return end
 
 		if type(list) ~= "table" then
-			rememberPremiumOptionRef(list)
+			premium.rememberRef(list)
 			return
 		end
 
 		for key, value in pairs(list) do
 			if type(key) ~= "number" and value == true then
-				rememberPremiumOptionRef(key)
+				premium.rememberRef(key)
 			else
-				rememberPremiumOptionRef(value)
+				premium.rememberRef(value)
 			end
 		end
 	end
 
-	local function isPremiumOptionConfig(name, value, rawOption)
+	premium.isConfig = function(name, value, rawOption)
 		if type(rawOption) == "table" then
 			if rawOption.Premium == true
 				or rawOption.PremiumOnly == true
@@ -6451,20 +6453,20 @@ function Tab:AddDropdown(Configs)
 			end
 		end
 
-		if name ~= nil and PremiumOptionRefs[tostring(name)] then
+		if name ~= nil and premium.Refs[tostring(name)] then
 			return true
 		end
 
-		if value ~= nil and PremiumOptionRefs[tostring(value)] then
+		if value ~= nil and premium.Refs[tostring(value)] then
 			return true
 		end
 
 		return false
 	end
 
-	clearPremiumOptionRefs()
-	loadPremiumOptionRefs(Configs.PremiumOptions or Configs.PremiumOnlyOptions or Configs.LockedOptions)
-	loadPremiumOptionRefs(Configs.PremiumOption)
+	premium.clearRefs()
+	premium.loadRefs(Configs.PremiumOptions or Configs.PremiumOnlyOptions or Configs.LockedOptions)
+	premium.loadRefs(Configs.PremiumOption)
 
 	if Configs.IsMobile and not isMobile then
 		return nil
@@ -7106,7 +7108,7 @@ function Tab:AddDropdown(Configs)
 			UpdateLabel()
 		end
 
-		local function notifyPremiumOption()
+		premium.notifyOption = function()
 			splib:MakeNotification{
 				Name = "Premium Only",
 				Image = "rbxassetid://10734966248",
@@ -7115,17 +7117,17 @@ function Tab:AddDropdown(Configs)
 			}
 		end
 
-		local function canUseOption(optionObj, notify)
+		premium.canUseOption = function(optionObj, notify)
 			if optionObj and optionObj.Premium == true and not splib.IsPremium then
 				if notify then
-					notifyPremiumOption()
+					premium.notifyOption()
 				end
 				return false
 			end
 			return true
 		end
 
-		local function applyOptionPremiumVisual(optionObj)
+		premium.applyVisual = function(optionObj)
 			if not (optionObj and optionObj.nodes) then return end
 
 			local optionButton = optionObj.nodes[1]
@@ -7150,7 +7152,7 @@ function Tab:AddDropdown(Configs)
 					Text = "★",
 					Font = Enum.Font.GothamBold,
 					TextSize = 8,
-					TextColor3 = PremiumOptionColor,
+					TextColor3 = premium.Color,
 					TextTransparency = 0,
 					TextXAlignment = Enum.TextXAlignment.Center,
 					TextYAlignment = Enum.TextYAlignment.Center,
@@ -7160,7 +7162,7 @@ function Tab:AddDropdown(Configs)
 			end
 		end
 
-		local function clearLockedPremiumSelections()
+		premium.clearLockedSelections = function()
 			if splib.IsPremium then return false end
 
 			local changed = false
@@ -7187,16 +7189,16 @@ function Tab:AddDropdown(Configs)
 			return changed
 		end
 
-		local function refreshPremiumOptionStates()
+		premium.refreshOptionStates = function()
 			for _, name in ipairs(OptionList) do
 				local opt = Options[name]
 				if opt then
-					opt.Premium = isPremiumOptionConfig(opt.Name, opt.Value, opt.RawOption)
-					applyOptionPremiumVisual(opt)
+					opt.Premium = premium.isConfig(opt.Name, opt.Value, opt.RawOption)
+					premium.applyVisual(opt)
 				end
 			end
 
-			local changed = clearLockedPremiumSelections()
+			local changed = premium.clearLockedSelections()
 			UpdateSelected()
 			if changed then
 				CallbackSelected()
@@ -7205,7 +7207,7 @@ function Tab:AddDropdown(Configs)
 
 		local function SelectByObject(optionObj, notifyLocked)
 			if not optionObj then return end
-			if not canUseOption(optionObj, notifyLocked ~= false) then return end
+			if not premium.canUseOption(optionObj, notifyLocked ~= false) then return end
 
 			if MultiSelect then
 				optionObj.Stats = not optionObj.Stats
@@ -7235,7 +7237,7 @@ function Tab:AddDropdown(Configs)
 			if Value == nil then Value = Name end
 			if Options[Name] then return end
 
-			local isOptPremium = isPremiumOptionConfig(Name, Value, rawOption)
+			local isOptPremium = premium.isConfig(Name, Value, rawOption)
 
 			local opt = {
 				index = index,
@@ -7297,7 +7299,7 @@ function Tab:AddDropdown(Configs)
 			end)
 
 			opt.nodes = {Button, IsSelected, OptioneName}
-			applyOptionPremiumVisual(opt)
+			premium.applyVisual(opt)
 			ensureDropdownZIndex()
 
 			UpdateSelected()
@@ -7349,7 +7351,7 @@ function Tab:AddDropdown(Configs)
 				end
 			end
 			if not opt then return end
-			if not canUseOption(opt, false) then return end
+			if not premium.canUseOption(opt, false) then return end
 
 			if MultiSelect then
 				opt.Stats = not opt.Stats
@@ -7406,7 +7408,7 @@ function Tab:AddDropdown(Configs)
 
 		if splib._PremiumChanged then
 			trackRuntimeConnection(splib._PremiumChanged.Event:Connect(function()
-				refreshPremiumOptionStates()
+				premium.refreshOptionStates()
 			end))
 		end
 	end
@@ -7469,8 +7471,8 @@ function Dropdown:Refresh(newOptions, deleteOld)
 		else
 			local opt = Options[name]
 			opt.RawOption = v
-			opt.Premium = isPremiumOptionConfig(opt.Name, opt.Value, opt.RawOption)
-			applyOptionPremiumVisual(opt)
+			opt.Premium = premium.isConfig(opt.Name, opt.Value, opt.RawOption)
+			premium.applyVisual(opt)
 		end
 	end
 
@@ -7484,25 +7486,25 @@ function Dropdown:Refresh(newOptions, deleteOld)
 		end
 	end
 
-	clearLockedPremiumSelections()
+	premium.clearLockedSelections()
 	UpdateSelected()
 	ApplySearchFilter()
 end
 	function Dropdown:SetPremiumOptions(list)
-		clearPremiumOptionRefs()
-		loadPremiumOptionRefs(list)
-		refreshPremiumOptionStates()
+		premium.clearRefs()
+		premium.loadRefs(list)
+		premium.refreshOptionStates()
 		ApplySearchFilter()
 	end
 
 	function Dropdown:AddPremiumOptions(...)
 		local args = {...}
 		if #args == 1 and type(args[1]) == "table" then
-			loadPremiumOptionRefs(args[1])
+			premium.loadRefs(args[1])
 		else
-			loadPremiumOptionRefs(args)
+			premium.loadRefs(args)
 		end
-		refreshPremiumOptionStates()
+		premium.refreshOptionStates()
 		ApplySearchFilter()
 	end
 
