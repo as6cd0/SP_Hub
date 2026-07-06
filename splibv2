@@ -173,13 +173,12 @@ local splib = {
     FlagsEnabled = true,
     Themes = normalizeThemes(loadedThemes),
     Info = {
-        Version = "1.3.0"
+        Version = "1.2.0"
     },
     Save = {
         UISize = {550, 380},
         TabSize = 160,
-        Theme = "Red",
-        LayoutMode = "Classic"
+        Theme = "Red"
     },
     Settings = {},
     Connection = {},
@@ -247,7 +246,7 @@ local ScreenGui
 splib.SearchElements = {}
 
 local function resetBindBoxAnimations(waitTime)
-    BindBoxAnimationToken += 1
+    BindBoxAnimationToken = BindBoxAnimationToken + 1
     local token = BindBoxAnimationToken
     BindBoxAnimationsReady = false
     task.defer(function()
@@ -412,9 +411,6 @@ local function Save(file)
 			end
 			if rawget(decode, "Theme") and type(decode["Theme"]) == "string" and splib.Themes[decode["Theme"]] then
 				splib.Save["Theme"] = decode["Theme"]
-			end
-			if rawget(decode, "LayoutMode") and (decode["LayoutMode"] == "Classic" or decode["LayoutMode"] == "Grid") then
-				splib.Save["LayoutMode"] = decode["LayoutMode"]
 			end
 		end
 	end
@@ -583,7 +579,6 @@ splib.Save = {
   UISizeVersion = saved.UISizeVersion,
   TabSize = type(saved.TabSize) == "number" and saved.TabSize or splib.Save.TabSize,
   Theme   = (type(saved.Theme) == "string" and splib.Themes[saved.Theme]) and saved.Theme or splib.Save.Theme,
-  LayoutMode = saved.LayoutMode == "Grid" and "Grid" or "Classic",
 }
 
 _G.spLibConnections = _G.spLibConnections or {}
@@ -662,11 +657,6 @@ if oldGui then
     end
 
     oldGui:Destroy()
-end
-
-local oldTooltipLayer = CoreGui:FindFirstChild("SPGridTooltipLayer")
-if oldTooltipLayer then
-    oldTooltipLayer:Destroy()
 end
 
 ScreenGui = Create("ScreenGui", CoreGui, {
@@ -1340,687 +1330,6 @@ function splib:RefreshTranslations(options)
     end
 end
 
-local GRID_COLUMN_GAP = isMobile and 6 or 8
-local GRID_NARROW_COLUMN_GAP = isMobile and 4 or 5
-local GRID_COMPACT_CONTAINER_WIDTH = isMobile and 430 or 500
-local GRID_COMPACT_CARD_WIDTH = isMobile and 170 or 190
-local GRID_MIN_WINDOW_WIDTH = isMobile and 410 or 500
-local GRID_MAX_WINDOW_WIDTH = isMobile and 440 or 720
-local GRID_LAYOUT_TWEEN_TIME = 0.30
-splib._ClassicUISizeBeforeGrid = splib._ClassicUISizeBeforeGrid or nil
-local LayoutModeConnections = setmetatable({}, {__mode = "k"})
-
-local function normalizeLayoutMode(mode)
-    return mode == "Grid" and "Grid" or "Classic"
-end
-
-local function getDirectChildOfClass(parent, className)
-    if not parent or typeof(parent) ~= "Instance" then return nil end
-    for _, child in ipairs(parent:GetChildren()) do
-        if child:IsA(className) then
-            return child
-        end
-    end
-    return nil
-end
-
-local function clearLayoutConnections(container)
-    local list = LayoutModeConnections[container]
-    if not list then return end
-    for _, connection in ipairs(list) do
-        pcall(function()
-            if connection and connection.Connected then
-                connection:Disconnect()
-            end
-        end)
-    end
-    LayoutModeConnections[container] = nil
-end
-
-local function bindLayoutConnection(container, connection)
-    if not container or not connection then return end
-    LayoutModeConnections[container] = LayoutModeConnections[container] or {}
-    table.insert(LayoutModeConnections[container], connection)
-    trackRuntimeConnection(connection)
-end
-
-local function reserveLayoutOrder(container)
-    if not container or typeof(container) ~= "Instance" then return 0 end
-    local count = 0
-    pcall(function()
-        count = tonumber(container:GetAttribute("SPLayoutItemCount")) or 0
-        count = count + 1
-        container:SetAttribute("SPLayoutItemCount", count)
-    end)
-    return count
-end
-
-local function getLayoutOrder(item)
-    local order = nil
-    pcall(function()
-        order = tonumber(item:GetAttribute("SPLayoutOrder"))
-    end)
-    if order == nil and item and item:IsA("GuiObject") then
-        order = tonumber(item.LayoutOrder)
-    end
-    return order or 0
-end
-
-local function markLayoutItem(item, kind, order, name)
-    if not item or typeof(item) ~= "Instance" then return end
-    pcall(function()
-        item:SetAttribute("SPLayoutManaged", true)
-        item:SetAttribute("SPLayoutKind", kind)
-        item:SetAttribute("SPLayoutOrder", order or getLayoutOrder(item))
-        if name ~= nil then
-            item:SetAttribute("SPSectionName", tostring(name))
-        end
-    end)
-end
-
-local function collectManagedLayoutItems(container)
-    local items = {}
-    local seen = {}
-
-    local function add(item)
-        if not item or seen[item] or not item:IsA("GuiObject") then return end
-        local managed = false
-        pcall(function()
-            managed = item:GetAttribute("SPLayoutManaged") == true
-        end)
-        if managed then
-            seen[item] = true
-            table.insert(items, item)
-        end
-    end
-
-    if container and typeof(container) == "Instance" then
-        for _, child in ipairs(container:GetChildren()) do
-            add(child)
-            if child.Name == "ColumnsFrame" then
-                for _, desc in ipairs(child:GetDescendants()) do
-                    add(desc)
-                end
-            end
-        end
-    end
-
-    table.sort(items, function(a, b)
-        local ao = getLayoutOrder(a)
-        local bo = getLayoutOrder(b)
-        if ao == bo then
-            return a.LayoutOrder < b.LayoutOrder
-        end
-        return ao < bo
-    end)
-
-    return items
-end
-
-local function collectManagedSections(container)
-    local sections = {}
-    for _, item in ipairs(collectManagedLayoutItems(container)) do
-        local kind = nil
-        pcall(function()
-            kind = item:GetAttribute("SPLayoutKind")
-        end)
-        if kind == "Section" then
-            table.insert(sections, item)
-        end
-    end
-    return sections
-end
-
-local function getGridColumnGap(container)
-    local width = 0
-    pcall(function()
-        width = container.AbsoluteSize.X
-    end)
-    if width > 0 and width < GRID_COMPACT_CONTAINER_WIDTH then
-        return GRID_NARROW_COLUMN_GAP
-    end
-    return GRID_COLUMN_GAP
-end
-
-local function isGridCardCompact(card)
-    local width = 0
-    pcall(function()
-        width = card.AbsoluteSize.X
-    end)
-    return width > 0 and width < GRID_COMPACT_CARD_WIDTH
-end
-
-local function setCurrentGridCard(container, card)
-    if not container or typeof(container) ~= "Instance" then return end
-    local currentCardVal = container:FindFirstChild("CurrentSectionCardValue")
-    if not currentCardVal and card then
-        currentCardVal = Create("ObjectValue", container, {
-            Name = "CurrentSectionCardValue"
-        })
-    end
-    if currentCardVal then
-        currentCardVal.Value = card
-    end
-end
-
-local function configureSectionForClassic(sectionFrame)
-    if not sectionFrame or not sectionFrame.Parent then return end
-
-    sectionFrame.Size = UDim2.new(1, 0, 0, 20)
-    sectionFrame.AutomaticSize = Enum.AutomaticSize.None
-    sectionFrame.BackgroundTransparency = 1
-    sectionFrame.BorderSizePixel = 0
-    sectionFrame.LayoutOrder = getLayoutOrder(sectionFrame)
-
-    for _, child in ipairs(sectionFrame:GetChildren()) do
-        if child:IsA("UIListLayout") or child:IsA("UIPadding") then
-            child:Destroy()
-        elseif child:IsA("UIStroke") then
-            pcall(function()
-                child.Enabled = false
-            end)
-        elseif child.Name == "Separator" and child:IsA("GuiObject") then
-            child.Visible = false
-        end
-    end
-
-    local sectionLabel = getDirectChildOfClass(sectionFrame, "TextLabel")
-    if sectionLabel then
-        sectionLabel.Name = "SectionTitle"
-        sectionLabel.Size = UDim2.new(1, -25, 1, 0)
-        sectionLabel.Position = UDim2.new(0, 5, 0, 0)
-        sectionLabel.AutomaticSize = Enum.AutomaticSize.None
-        sectionLabel.TextSize = isMobile and 9 or 14
-        sectionLabel.TextXAlignment = Enum.TextXAlignment.Left
-        sectionLabel.TextYAlignment = Enum.TextYAlignment.Center
-        sectionLabel.TextTruncate = Enum.TextTruncate.AtEnd
-        sectionLabel.LayoutOrder = 0
-    end
-end
-
-local function configureSectionForGrid(sectionFrame)
-    if not sectionFrame then return end
-
-    local sectionName = sectionFrame:GetAttribute("SPSectionName") or sectionFrame.Name or "Section"
-    sectionFrame.Name = tostring(sectionName) .. "_SectionCard"
-    sectionFrame.Size = UDim2.new(1, 0, 0, 0)
-    sectionFrame.AutomaticSize = Enum.AutomaticSize.Y
-    sectionFrame.BackgroundTransparency = 0
-    sectionFrame.BackgroundColor3 = Theme["Color Hub 2"] or Color3.fromRGB(30, 30, 30)
-    sectionFrame.BorderSizePixel = 0
-    sectionFrame:SetAttribute("ElementCount", 0)
-
-    if not getDirectChildOfClass(sectionFrame, "UICorner") then
-        Make("Corner", sectionFrame, UDim.new(0, 8))
-    end
-
-    local stroke = getDirectChildOfClass(sectionFrame, "UIStroke")
-    if not stroke then
-        stroke = Make("Stroke", sectionFrame, {
-            Color = Theme["Color Stroke"] or Color3.fromRGB(15, 15, 15),
-            Thickness = 1,
-            ApplyStrokeMode = "Border"
-        })
-    end
-    pcall(function()
-        stroke.Enabled = true
-        stroke.Transparency = 0
-    end)
-
-    local listLayout = getDirectChildOfClass(sectionFrame, "UIListLayout")
-    if not listLayout then
-        listLayout = Create("UIListLayout", sectionFrame)
-    end
-    listLayout.Name = "SPSectionLayout"
-    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    listLayout.Padding = UDim.new(0, 6)
-
-    local padding = getDirectChildOfClass(sectionFrame, "UIPadding")
-    if not padding then
-        padding = Create("UIPadding", sectionFrame)
-    end
-    padding.PaddingTop = UDim.new(0, 8)
-    padding.PaddingBottom = UDim.new(0, 8)
-    padding.PaddingLeft = UDim.new(0, 10)
-    padding.PaddingRight = UDim.new(0, 10)
-
-    local sectionLabel = getDirectChildOfClass(sectionFrame, "TextLabel")
-    if sectionLabel then
-        sectionLabel.Name = "SectionTitle"
-        sectionLabel.Size = UDim2.new(1, 0, 0, 20)
-        sectionLabel.Position = UDim2.new(0, 0, 0, 0)
-        sectionLabel.AutomaticSize = Enum.AutomaticSize.None
-        sectionLabel.TextSize = isMobile and 10 or 12
-        sectionLabel.TextXAlignment = Enum.TextXAlignment.Left
-        sectionLabel.TextYAlignment = Enum.TextYAlignment.Center
-        sectionLabel.TextTruncate = Enum.TextTruncate.AtEnd
-        sectionLabel.LayoutOrder = 0
-    end
-
-    local separator = sectionFrame:FindFirstChild("Separator")
-    if not separator then
-        separator = InsertTheme(Create("Frame", sectionFrame, {
-            Name = "Separator",
-            BorderSizePixel = 0,
-            BackgroundColor3 = Theme["Color Stroke"] or Color3.fromRGB(15, 15, 15)
-        }), "Stroke")
-    end
-    separator.Visible = true
-    separator.Size = UDim2.new(1, 0, 0, 1)
-    separator.LayoutOrder = 1
-
-    local function refreshSectionGridDensity()
-        if not sectionFrame or not sectionFrame.Parent or sectionFrame.AutomaticSize ~= Enum.AutomaticSize.Y then
-            return
-        end
-
-        local compact = isGridCardCompact(sectionFrame)
-        local currentLayout = getDirectChildOfClass(sectionFrame, "UIListLayout")
-        local currentPadding = getDirectChildOfClass(sectionFrame, "UIPadding")
-        local currentTitle = getDirectChildOfClass(sectionFrame, "TextLabel")
-
-        if currentLayout then
-            currentLayout.Padding = UDim.new(0, compact and 4 or 5)
-        end
-        if currentPadding then
-            local sidePadding = compact and 5 or 8
-            currentPadding.PaddingTop = UDim.new(0, compact and 6 or 8)
-            currentPadding.PaddingBottom = UDim.new(0, compact and 6 or 8)
-            currentPadding.PaddingLeft = UDim.new(0, sidePadding)
-            currentPadding.PaddingRight = UDim.new(0, sidePadding)
-        end
-        if currentTitle then
-            currentTitle.TextSize = compact and (isMobile and 9 or 11) or (isMobile and 10 or 12)
-        end
-    end
-
-    refreshSectionGridDensity()
-    if sectionFrame:GetAttribute("SPGridDensityBound") ~= true then
-        sectionFrame:SetAttribute("SPGridDensityBound", true)
-        trackRuntimeConnection(sectionFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(refreshSectionGridDensity))
-    end
-end
-
-local function getPaddingOffset(padding, axis)
-    if not padding or not padding:IsA("UIPadding") then
-        return 0
-    end
-
-    local total = 0
-    pcall(function()
-        if axis == "Y" then
-            total = padding.PaddingTop.Offset + padding.PaddingBottom.Offset
-        else
-            total = padding.PaddingLeft.Offset + padding.PaddingRight.Offset
-        end
-    end)
-    return total
-end
-
-local function getListPaddingOffset(listLayout)
-    if not listLayout or not listLayout:IsA("UIListLayout") then
-        return 0
-    end
-
-    local value = 0
-    pcall(function()
-        value = listLayout.Padding.Offset
-    end)
-    return value
-end
-
-local function estimateGridSectionHeight(sectionFrame)
-    if not sectionFrame or not sectionFrame:IsA("GuiObject") then
-        return 0
-    end
-
-    local measured = 0
-    pcall(function()
-        measured = sectionFrame.AbsoluteSize.Y
-    end)
-    if measured and measured > 8 then
-        return measured
-    end
-
-    local listLayout = getDirectChildOfClass(sectionFrame, "UIListLayout")
-    local padding = getDirectChildOfClass(sectionFrame, "UIPadding")
-
-    pcall(function()
-        if listLayout then
-            measured = math.max(measured, listLayout.AbsoluteContentSize.Y + getPaddingOffset(padding, "Y"))
-        end
-    end)
-
-    if measured and measured > 8 then
-        return measured
-    end
-
-    local children = {}
-    for _, child in ipairs(sectionFrame:GetChildren()) do
-        if child:IsA("GuiObject") and not child:IsA("UIListLayout") and not child:IsA("UIPadding") and not child:IsA("UICorner") and not child:IsA("UIStroke") then
-            table.insert(children, child)
-        end
-    end
-
-    table.sort(children, function(a, b)
-        if a.LayoutOrder == b.LayoutOrder then
-            return a.Name < b.Name
-        end
-        return a.LayoutOrder < b.LayoutOrder
-    end)
-
-    local spacing = getListPaddingOffset(listLayout)
-    local total = getPaddingOffset(padding, "Y")
-    local visibleCount = 0
-
-    for _, child in ipairs(children) do
-        if child.Visible ~= false then
-            visibleCount += 1
-            local childHeight = 0
-            pcall(function()
-                childHeight = math.max(child.AbsoluteSize.Y, child.Size.Y.Offset)
-            end)
-            if childHeight <= 0 then
-                childHeight = 28
-            end
-            total += childHeight
-        end
-    end
-
-    if visibleCount > 1 then
-        total += spacing * (visibleCount - 1)
-    end
-
-    return math.max(total, 48)
-end
-
-local function distributeGridSections(container, leftColumn, rightColumn)
-    if not container or not leftColumn or not rightColumn then return nil end
-
-    local sections = collectManagedSections(container)
-    local lastSection = nil
-    local leftHeight = 0
-    local rightHeight = 0
-    local leftCount = 0
-    local rightCount = 0
-    local leftLayout = getDirectChildOfClass(leftColumn, "UIListLayout")
-    local rightLayout = getDirectChildOfClass(rightColumn, "UIListLayout")
-    local leftGap = getListPaddingOffset(leftLayout)
-    local rightGap = getListPaddingOffset(rightLayout)
-
-    rightColumn.Visible = true
-
-    for index, section in ipairs(sections) do
-        local sectionHeight = estimateGridSectionHeight(section)
-        local targetColumn
-
-        if index == 1 then
-            targetColumn = leftColumn
-        elseif leftCount == 0 then
-            targetColumn = leftColumn
-        elseif rightCount == 0 then
-            targetColumn = rightColumn
-        elseif leftHeight <= rightHeight then
-            targetColumn = leftColumn
-        else
-            targetColumn = rightColumn
-        end
-
-        section.Parent = targetColumn
-        section.LayoutOrder = index
-        lastSection = section
-
-        if targetColumn == leftColumn then
-            if leftCount > 0 then
-                leftHeight += leftGap
-            end
-            leftHeight += sectionHeight
-            leftCount += 1
-        else
-            if rightCount > 0 then
-                rightHeight += rightGap
-            end
-            rightHeight += sectionHeight
-            rightCount += 1
-        end
-    end
-
-    setCurrentGridCard(container, lastSection)
-    container:SetAttribute("SectionCount", #sections)
-    container:SetAttribute("SPGridLeftHeightEstimate", math.floor(leftHeight + 0.5))
-    container:SetAttribute("SPGridRightHeightEstimate", math.floor(rightHeight + 0.5))
-    return false
-end
-
-local function ensureGridColumns(container)
-    if not container or typeof(container) ~= "Instance" then return nil end
-
-    local columnsFrame = container:FindFirstChild("ColumnsFrame")
-    if not columnsFrame then
-        columnsFrame = Create("Frame", container, {
-            Name = "ColumnsFrame",
-            Size = UDim2.new(1, 0, 0, 0),
-            BackgroundTransparency = 1,
-            LayoutOrder = 1
-        })
-    end
-
-    local columnsLayout = getDirectChildOfClass(columnsFrame, "UIListLayout")
-    if not columnsLayout then
-        columnsLayout = Create("UIListLayout", columnsFrame)
-    end
-    columnsLayout.Name = "ColumnsLayout"
-    columnsLayout.Padding = UDim.new(0, GRID_COLUMN_GAP)
-    columnsLayout.FillDirection = Enum.FillDirection.Horizontal
-    columnsLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
-    local leftColumn = columnsFrame:FindFirstChild("LeftColumn")
-    if not leftColumn then
-        leftColumn = Create("Frame", columnsFrame, {
-            Name = "LeftColumn",
-            BackgroundTransparency = 1,
-            LayoutOrder = 1
-        })
-    end
-
-    local leftLayout = getDirectChildOfClass(leftColumn, "UIListLayout")
-    if not leftLayout then
-        leftLayout = Create("UIListLayout", leftColumn)
-    end
-    leftLayout.Name = "LeftLayout"
-    leftLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    leftLayout.Padding = UDim.new(0, 6)
-
-    local rightColumn = columnsFrame:FindFirstChild("RightColumn")
-    if not rightColumn then
-        rightColumn = Create("Frame", columnsFrame, {
-            Name = "RightColumn",
-            BackgroundTransparency = 1,
-            LayoutOrder = 2
-        })
-    end
-
-    local rightLayout = getDirectChildOfClass(rightColumn, "UIListLayout")
-    if not rightLayout then
-        rightLayout = Create("UIListLayout", rightColumn)
-    end
-    rightLayout.Name = "RightLayout"
-    rightLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    rightLayout.Padding = UDim.new(0, 6)
-
-    local function updateColumnSizes()
-        local gap = getGridColumnGap(container)
-        columnsLayout.Padding = UDim.new(0, gap)
-        rightColumn.Visible = true
-        leftColumn.Size = UDim2.new(0.5, -math.ceil(gap * 0.5), 0, leftLayout.AbsoluteContentSize.Y)
-        rightColumn.Size = UDim2.new(0.5, -math.floor(gap * 0.5), 0, rightLayout.AbsoluteContentSize.Y)
-        columnsFrame.Size = UDim2.new(1, 0, 0, math.max(leftLayout.AbsoluteContentSize.Y, rightLayout.AbsoluteContentSize.Y))
-    end
-
-    local function refreshGrid()
-        if not columnsFrame.Parent then return end
-        distributeGridSections(container, leftColumn, rightColumn)
-        updateColumnSizes()
-        task.defer(updateColumnSizes)
-    end
-
-    clearLayoutConnections(container)
-    bindLayoutConnection(container, leftLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(refreshGrid))
-    bindLayoutConnection(container, rightLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(refreshGrid))
-    bindLayoutConnection(container, container:GetPropertyChangedSignal("AbsoluteSize"):Connect(refreshGrid))
-
-    refreshGrid()
-    return columnsFrame, leftColumn, rightColumn
-end
-
-local function animateGridBuild(container)
-    if not isPC or not container or typeof(container) ~= "Instance" then return end
-
-    local items = collectManagedLayoutItems(container)
-    local visibleIndex = 0
-
-    for _, item in ipairs(items) do
-        if item and item:IsA("GuiObject") and item.Parent and item.Visible ~= false then
-            visibleIndex += 1
-            local originalTransparency = item.BackgroundTransparency
-            local scaleObj = item:FindFirstChild("SPGridBuildScale")
-            if not scaleObj then
-                scaleObj = Create("UIScale", item, {
-                    Name = "SPGridBuildScale",
-                    Scale = 1
-                })
-            end
-
-            local delayTime = math.min((visibleIndex - 1) * 0.018, 0.18)
-            pcall(function()
-                scaleObj.Scale = 0.965
-                item.BackgroundTransparency = math.clamp(originalTransparency + 0.28, 0, 1)
-            end)
-
-            task.delay(delayTime, function()
-                if not item or not item.Parent then return end
-                pcall(function()
-                    TweenService:Create(
-                        scaleObj,
-                        TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-                        {Scale = 1}
-                    ):Play()
-                    TweenService:Create(
-                        item,
-                        TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-                        {BackgroundTransparency = originalTransparency}
-                    ):Play()
-                end)
-            end)
-        end
-    end
-end
-
-local function resolveElementParent(container)
-    local globalOrder = reserveLayoutOrder(container)
-    local actualParent = container
-    local layoutOrder = globalOrder
-
-    pcall(function()
-        if container and typeof(container) == "Instance" and container:GetAttribute("SPLayoutMode") == "Grid" then
-            local currentCardVal = container:FindFirstChild("CurrentSectionCardValue")
-            local card = currentCardVal and currentCardVal.Value
-            if card and typeof(card) == "Instance" and card.Parent then
-                actualParent = card
-                local count = tonumber(card:GetAttribute("ElementCount")) or 0
-                count = count + 1
-                card:SetAttribute("ElementCount", count)
-                layoutOrder = count + 2
-            end
-        end
-    end)
-
-    return actualParent, layoutOrder, globalOrder
-end
-
-local function applyLayoutModeToContainer(container, mode)
-    if not container or typeof(container) ~= "Instance" then return end
-    mode = normalizeLayoutMode(mode)
-
-    local previousMode = normalizeLayoutMode(container:GetAttribute("SPLayoutMode") or splib.Save.LayoutMode or "Classic")
-    local items = collectManagedLayoutItems(container)
-    container:SetAttribute("SPLayoutMode", mode)
-
-    if mode == "Grid" then
-        local columnsFrame, leftColumn, rightColumn = ensureGridColumns(container)
-        local currentSection = nil
-
-        for _, item in ipairs(items) do
-            local kind = item:GetAttribute("SPLayoutKind")
-            if kind == "Section" then
-                configureSectionForGrid(item)
-                item.Parent = leftColumn
-                currentSection = item
-            else
-                if currentSection and currentSection.Parent then
-                    item.Parent = currentSection
-                    item:SetAttribute("SPGridElement", true)
-                    local count = tonumber(currentSection:GetAttribute("ElementCount")) or 0
-                    count = count + 1
-                    currentSection:SetAttribute("ElementCount", count)
-                    item.LayoutOrder = count + 2
-                else
-                    item.Parent = container
-                    item:SetAttribute("SPGridElement", false)
-                    item.LayoutOrder = getLayoutOrder(item)
-                end
-            end
-        end
-
-        distributeGridSections(container, leftColumn, rightColumn)
-        if columnsFrame then
-            task.defer(function()
-                if columnsFrame.Parent then
-                    distributeGridSections(container, leftColumn, rightColumn)
-                    if previousMode ~= "Grid" then
-                        animateGridBuild(container)
-                    end
-                end
-            end)
-        elseif previousMode ~= "Grid" then
-            task.defer(function()
-                animateGridBuild(container)
-            end)
-        end
-    else
-        setCurrentGridCard(container, nil)
-
-        for _, item in ipairs(items) do
-            local kind = item:GetAttribute("SPLayoutKind")
-            item.Parent = container
-            item:SetAttribute("SPGridElement", false)
-            item.LayoutOrder = getLayoutOrder(item)
-            if kind == "Section" then
-                configureSectionForClassic(item)
-            end
-        end
-
-        local columnsFrame = container:FindFirstChild("ColumnsFrame")
-        if columnsFrame then
-            columnsFrame:Destroy()
-        end
-        clearLayoutConnections(container)
-        container:SetAttribute("SectionCount", 0)
-    end
-end
-
-local function applyLayoutModeToAllTabs(mode)
-    mode = normalizeLayoutMode(mode)
-    for _, tabInfo in ipairs(splib.Tabs) do
-        local container = tabInfo and tabInfo.Cont
-        if container and container.Name ~= "SettingsTab" then
-            applyLayoutModeToContainer(container, mode)
-        end
-    end
-end
-
-local bindGridControlTooltip
-
 local function ButtonFrame(parent, Title, Description, HolderSize, isBind)
     if type(HolderSize) == "boolean" then
         isBind, HolderSize = HolderSize, nil
@@ -2060,90 +1369,25 @@ local function ButtonFrame(parent, Title, Description, HolderSize, isBind)
         reservedRight = HolderSize
     end
 
-    local Frame
-
-    local function isGridElementFrame()
-        local result = false
-        pcall(function()
-            result = Frame and Frame:GetAttribute("SPGridElement") == true
-        end)
-        return result
-    end
-
-    local function getReservedRight()
-        local currentReservedRight = reservedRight
-        if type(holderConfig) == "table" and type(holderConfig.ReservedRight) == "number" then
-            currentReservedRight = holderConfig.ReservedRight
-        elseif typeof(explicitHolderSize) == "UDim2" and explicitHolderSize.X.Scale == 1 and explicitHolderSize.X.Offset < 0 then
-            currentReservedRight = math.abs(explicitHolderSize.X.Offset)
-        end
-
-        if isGridElementFrame() then
-            local gridReserve = tonumber(Frame:GetAttribute("SPGridControlReserve"))
-            if gridReserve then
-                currentReservedRight = gridReserve
-            end
-
-            local frameWidth = 0
-            pcall(function()
-                frameWidth = Frame.AbsoluteSize.X
-            end)
-
-            if frameWidth > 0 then
-                local maxGridReserve = math.max(isMobile and 34 or 38, math.floor(frameWidth * 0.42))
-                currentReservedRight = math.min(currentReservedRight, maxGridReserve)
-            else
-                currentReservedRight = math.min(currentReservedRight, isMobile and 58 or 64)
-            end
-        end
-
-        return currentReservedRight
-    end
-
     local function getHolderSize()
-        if typeof(explicitHolderSize) == "UDim2" and not isGridElementFrame() then
+        if typeof(explicitHolderSize) == "UDim2" then
             return explicitHolderSize
         end
 
-        local currentReservedRight = getReservedRight()
-        if isGridElementFrame() then
-            local yScale, yOffset = 0, 25
-            if typeof(explicitHolderSize) == "UDim2" then
-                yScale = explicitHolderSize.Y.Scale
-                yOffset = explicitHolderSize.Y.Offset
-            end
-
-            local rightOffset = currentReservedRight <= 24
-                and (leftPadding + 10)
-                or math.min(currentReservedRight + leftPadding, isMobile and 46 or 48)
-
-            return UDim2.new(1, -rightOffset, yScale, yOffset)
+        local currentReservedRight = reservedRight
+        if type(holderConfig) == "table" and type(holderConfig.ReservedRight) == "number" then
+            currentReservedRight = holderConfig.ReservedRight
         end
-
         return UDim2.new(1, -currentReservedRight, 0, 25)
     end
 
-    local actualParent, order, globalOrder = resolveElementParent(parent)
-    local isGridElement = false
-    pcall(function()
-        isGridElement = actualParent ~= parent and actualParent:GetAttribute("SPLayoutKind") == "Section"
-    end)
-    if isGridElement then
-        baseHeight = math.max(baseHeight, isMobile and 31 or 33)
-    end
-
-    Frame = Make("Button", actualParent, {
+    local Frame = Make("Button", parent, {
         Size = UDim2.new(1, 0, 0, baseHeight),
         AutomaticSize = Enum.AutomaticSize.Y,
         TextWrapped = true,
         ClipsDescendants = false,
-        LayoutOrder = order,
         Name = "Option"
     })
-    markLayoutItem(Frame, "Element", globalOrder)
-    if isGridElement then
-        Frame:SetAttribute("SPGridElement", true)
-    end
     Make("Corner", Frame, UDim.new(0, 10))
 
     local TitleL = InsertTheme(Create("TextLabel", Frame, {
@@ -2208,63 +1452,6 @@ local function ButtonFrame(parent, Title, Description, HolderSize, isBind)
         ExtraSpacer
     })
 
-    local heightTween
-
-    local function measureButtonFrameTextHeight(label, width)
-        if not label or not label.Parent or label.Visible == false then return 0 end
-        local text = tostring(label.Text or "")
-        if text:gsub("%s+", "") == "" then return 0 end
-
-        width = math.max(1, math.floor(tonumber(width) or 1))
-        local measuredHeight = 0
-
-        local ok, measured = pcall(function()
-            return TextService:GetTextSize(text, label.TextSize, label.Font, Vector2.new(width, 10000))
-        end)
-        if ok and measured then
-            measuredHeight = math.ceil(measured.Y)
-        end
-
-        if measuredHeight <= 0 then
-            pcall(function()
-                measuredHeight = math.ceil(label.TextBounds.Y)
-            end)
-        end
-
-        return math.max(measuredHeight, math.ceil((label.TextSize or 8) + 2))
-    end
-
-    local function setButtonFrameHeight(targetHeight)
-        if not Frame or not Frame.Parent then return end
-        targetHeight = math.max(math.floor((tonumber(targetHeight) or baseHeight) + 0.5), baseHeight)
-
-        local currentSize = Frame.Size
-        if currentSize.Y.Scale == 0 and math.abs(currentSize.Y.Offset - targetHeight) <= 1 then
-            return
-        end
-
-        local shouldAnimate = false
-        pcall(function()
-            shouldAnimate = Frame:GetAttribute("AnimateHeight") == true and Frame.AbsoluteSize.Y > 0 and math.abs(Frame.AbsoluteSize.Y - targetHeight) > 5
-        end)
-
-        if shouldAnimate then
-            pcall(function()
-                if heightTween then
-                    heightTween:Cancel()
-                end
-                heightTween = TweenService:Create(
-                    Frame,
-                    TweenInfo.new(tonumber(Frame:GetAttribute("HeightTweenTime")) or 0.14, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-                    {Size = UDim2.new(currentSize.X.Scale, currentSize.X.Offset, 0, targetHeight)}
-                )
-                heightTween:Play()
-            end)
-        else
-            Frame.Size = UDim2.new(currentSize.X.Scale, currentSize.X.Offset, 0, targetHeight)
-        end
-    end
-
     local function refreshLayout()
         LabelHolder.Size = getHolderSize()
 
@@ -2274,44 +1461,13 @@ local function ButtonFrame(parent, Title, Description, HolderSize, isBind)
         end)
         ExtraSpacer.Size = UDim2.new(1, 0, 0, math.max(0, extraHeight))
 
-        if isGridElementFrame() or DescL.Visible or extraHeight > 0 then
+        if DescL.Visible or extraHeight > 0 then
             LabelHolder.Position = UDim2.new(0, leftPadding, 0, 0)
             LabelHolder.AnchorPoint = Vector2.new(0, 0)
         else
             LabelHolder.Position = UDim2.new(0, leftPadding, 0.5, 0)
             LabelHolder.AnchorPoint = Vector2.new(0, 0.5)
         end
-
-        local holderWidth = 0
-        pcall(function()
-            holderWidth = LabelHolder.AbsoluteSize.X
-        end)
-        if holderWidth <= 2 then
-            local frameWidth = 0
-            pcall(function()
-                frameWidth = Frame.AbsoluteSize.X
-            end)
-            if frameWidth > 2 then
-                holderWidth = math.max(24, frameWidth - getReservedRight() - leftPadding - 8)
-            else
-                holderWidth = isMobile and 120 or 170
-            end
-        end
-
-        local titleHeight = measureButtonFrameTextHeight(TitleL, holderWidth)
-        local descHeight = measureButtonFrameTextHeight(DescL, holderWidth)
-
-        if titleHeight > 0 then
-            TitleL.Size = UDim2.new(1, 0, 0, titleHeight)
-        end
-        if DescL.Visible and descHeight > 0 then
-            DescL.Size = UDim2.new(1, 0, 0, descHeight)
-        end
-
-        local gapHeight = (titleHeight > 0 and descHeight > 0 and DescL.Visible) and labelGap or 0
-        local minimumHeight = tonumber(Frame:GetAttribute("SPGridBaseHeight")) or baseHeight
-        local wantedHeight = verticalPadding + titleHeight + gapHeight + descHeight + extraHeight + verticalPadding
-        setButtonFrameHeight(math.max(minimumHeight, wantedHeight))
     end
 
     pcall(function()
@@ -2357,38 +1513,12 @@ local function ButtonFrame(parent, Title, Description, HolderSize, isBind)
             bindBox.AnchorPoint = Vector2.new(1, 0.5)
             bindBox.TextWrapped = false
             bindBox.TextScaled = false
-            bindBox.TextSize = isMobile and 12 or 14
             bindBox.TextTruncate = Enum.TextTruncate.None
             bindBox.TextXAlignment = Enum.TextXAlignment.Center
             bindBox.TextYAlignment = Enum.TextYAlignment.Center
             bindBox.ClipsDescendants = false
             bindBox.ZIndex = math.max(bindBox.ZIndex or 1, (Frame.ZIndex or 1) + 6)
             Frame.ClipsDescendants = false
-
-            local isGridBind = false
-            pcall(function()
-                isGridBind = Frame:GetAttribute("SPGridElement") == true
-            end)
-
-            if isGridBind then
-                local compact = Frame.AbsoluteSize.X > 0 and Frame.AbsoluteSize.X < GRID_COMPACT_CARD_WIDTH
-                local targetWidth = compact and (isMobile and 44 or 50) or (isMobile and 50 or 56)
-                local targetHeight = compact and (isMobile and 19 or 20) or (isMobile and 20 or 21)
-                local targetSize = UDim2.new(0, targetWidth, 0, targetHeight)
-                local targetPosition = UDim2.new(1, compact and -7 or -9, 0.5, 0)
-
-                bindBox.AnchorPoint = Vector2.new(1, 0.5)
-                bindBox.TextSize = compact and (isMobile and 10 or 11) or (isMobile and 11 or 12)
-                bindBox.TextTruncate = Enum.TextTruncate.AtEnd
-                bindBox.TextWrapped = false
-
-                -- Grid bind boxes stay fixed-size on purpose.
-                -- This prevents the shake/jitter caused by repeated TextBounds resize updates.
-                bindBox.Size = targetSize
-                bindBox.Position = targetPosition
-
-                return
-            end
 
             local displayText = tostring(bindBox.Text or "")
             local textWidth = 0
@@ -2412,11 +1542,6 @@ local function ButtonFrame(parent, Title, Description, HolderSize, isBind)
 
             local minWidth = isMobile and 50 or 54
             local maxWidth = isMobile and 104 or 132
-            pcall(function()
-                if Frame:GetAttribute("SPGridElement") == true and Frame.AbsoluteSize.X > 0 then
-                    maxWidth = math.min(maxWidth, math.max(minWidth, math.floor(Frame.AbsoluteSize.X * 0.42)))
-                end
-            end)
             local newWidth = math.clamp(math.ceil(textWidth) + 18, minWidth, maxWidth)
             local targetSize = UDim2.new(0, newWidth, 0, 22)
 
@@ -2446,9 +1571,6 @@ local function ButtonFrame(parent, Title, Description, HolderSize, isBind)
         Frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
             refreshBindBoxSize(false, true)
         end)
-        Frame:GetAttributeChangedSignal("SPGridElement"):Connect(function()
-            refreshBindBoxSize(false, true)
-        end)
         task.defer(function()
             refreshBindBoxSize(false, true)
         end)
@@ -2458,9 +1580,6 @@ local function ButtonFrame(parent, Title, Description, HolderSize, isBind)
         task.delay(0.65, function()
             refreshBindBoxSize(false, true)
         end)
-        bindGridControlTooltip(bindBox, function()
-            return bindBox.Text
-        end, Frame)
         task.delay(1.35, function()
             refreshBindBoxSize(false, true)
         end)
@@ -2500,649 +1619,6 @@ local function ButtonFrame(parent, Title, Description, HolderSize, isBind)
 
     return Frame, Label, bindBox, nil
 end
-
-local GridTooltipLayer
-local GridTooltipFrame
-local GridTooltipTitle
-local GridTooltipDesc
-local GridTooltipStroke
-local GridTooltipMoveConnection
-local GridTooltipToken = 0
-
-local function stripGridTooltipText(text)
-    return tostring(text or ""):gsub("<.->", "")
-end
-
-local function getGridTooltipLayer()
-    if GridTooltipLayer and GridTooltipLayer.Parent then
-        return GridTooltipLayer
-    end
-
-    GridTooltipLayer = Create("ScreenGui", (ScreenGui and ScreenGui.Parent) or CoreGui, {
-        Name = "SPGridTooltipLayer",
-        ResetOnSpawn = false,
-        IgnoreGuiInset = (ScreenGui and ScreenGui.IgnoreGuiInset) or false,
-        ZIndexBehavior = Enum.ZIndexBehavior.Global,
-        DisplayOrder = 999998
-    })
-
-    return GridTooltipLayer
-end
-
-local function getGridTooltipPosition(width, height)
-    local mousePos = UserInputService:GetMouseLocation()
-    local inset = game:GetService("GuiService"):GetGuiInset()
-    local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(800, 600)
-    local layer = getGridTooltipLayer()
-
-    local x = mousePos.X + 14
-    local y = mousePos.Y + 16
-    if layer and not layer.IgnoreGuiInset then
-        x -= inset.X
-        y -= inset.Y
-    end
-
-    x = math.clamp(x, 6, math.max(6, viewport.X - width - 6))
-    y = math.clamp(y, 6, math.max(6, viewport.Y - height - 6))
-    return UDim2.fromOffset(x, y)
-end
-
-local function ensureGridTooltip()
-    if GridTooltipFrame and GridTooltipFrame.Parent then
-        return GridTooltipFrame
-    end
-
-    local layer = getGridTooltipLayer()
-    GridTooltipFrame = InsertTheme(Create("Frame", layer, {
-        Name = "SPGridTooltip",
-        Size = UDim2.fromOffset(160, 42),
-        Position = UDim2.fromOffset(0, 0),
-        BackgroundColor3 = Theme["Color Hub 2"] or Color3.fromRGB(24, 24, 24),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        Visible = false,
-        ClipsDescendants = true,
-        ZIndex = 9500
-    }), "Frame")
-    Make("Corner", GridTooltipFrame, UDim.new(0, 7))
-    GridTooltipStroke = Make("Stroke", GridTooltipFrame, {
-        Transparency = 1,
-        Thickness = 1
-    })
-    Create("UIPadding", GridTooltipFrame, {
-        PaddingLeft = UDim.new(0, 9),
-        PaddingRight = UDim.new(0, 9),
-        PaddingTop = UDim.new(0, 7),
-        PaddingBottom = UDim.new(0, 7)
-    })
-    Create("UIListLayout", GridTooltipFrame, {
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Padding = UDim.new(0, 2)
-    })
-
-    GridTooltipTitle = InsertTheme(Create("TextLabel", GridTooltipFrame, {
-        Name = "Title",
-        Size = UDim2.new(1, 0, 0, 13),
-        BackgroundTransparency = 1,
-        Font = Enum.Font.GothamBold,
-        TextSize = 11,
-        TextColor3 = Theme["Color Text"] or Color3.fromRGB(235, 235, 235),
-        TextTransparency = 1,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextYAlignment = Enum.TextYAlignment.Center,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        RichText = false,
-        ZIndex = 9501,
-        LayoutOrder = 1
-    }), "Text")
-
-    GridTooltipDesc = InsertTheme(Create("TextLabel", GridTooltipFrame, {
-        Name = "Desc",
-        Size = UDim2.new(1, 0, 0, 12),
-        BackgroundTransparency = 1,
-        Font = Enum.Font.Gotham,
-        TextSize = 9,
-        TextColor3 = Theme["Color Dark Text"] or Color3.fromRGB(180, 180, 180),
-        TextTransparency = 1,
-        TextWrapped = true,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextYAlignment = Enum.TextYAlignment.Top,
-        RichText = false,
-        ZIndex = 9501,
-        LayoutOrder = 2
-    }), "DarkText")
-
-    return GridTooltipFrame
-end
-
-local function hideGridTooltip()
-    GridTooltipToken += 1
-
-    if GridTooltipMoveConnection and GridTooltipMoveConnection.Connected then
-        pcall(function()
-            GridTooltipMoveConnection:Disconnect()
-        end)
-    end
-    GridTooltipMoveConnection = nil
-
-    local frame = GridTooltipFrame
-    if not frame or not frame.Parent then return end
-    local token = GridTooltipToken
-
-    TweenService:Create(frame, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-        BackgroundTransparency = 1
-    }):Play()
-    if GridTooltipStroke then
-        TweenService:Create(GridTooltipStroke, TweenInfo.new(0.1), {Transparency = 1}):Play()
-    end
-    if GridTooltipTitle then
-        TweenService:Create(GridTooltipTitle, TweenInfo.new(0.08), {TextTransparency = 1}):Play()
-    end
-    if GridTooltipDesc then
-        TweenService:Create(GridTooltipDesc, TweenInfo.new(0.08), {TextTransparency = 1}):Play()
-    end
-
-    task.delay(0.11, function()
-        if token == GridTooltipToken and frame and frame.Parent then
-            frame.Visible = false
-        end
-    end)
-end
-
-local function showGridTooltip(titleText, descText)
-    if not isPC then return end
-
-    titleText = stripGridTooltipText(titleText)
-    descText = stripGridTooltipText(descText)
-    if titleText:gsub("%s+", "") == "" and descText:gsub("%s+", "") == "" then
-        return
-    end
-
-    local tooltip = ensureGridTooltip()
-    GridTooltipToken += 1
-
-    local width = 120
-    local okTitle, titleBounds = pcall(function()
-        return TextService:GetTextSize(titleText, 11, Enum.Font.GothamBold, Vector2.new(260, 1000))
-    end)
-    if okTitle and titleBounds then
-        width = math.max(width, titleBounds.X + 22)
-    end
-
-    local descHeight = 0
-    if descText:gsub("%s+", "") ~= "" then
-        local okDesc, descBounds = pcall(function()
-            return TextService:GetTextSize(descText, 9, Enum.Font.Gotham, Vector2.new(220, 1000))
-        end)
-        if okDesc and descBounds then
-            width = math.max(width, math.min(descBounds.X + 22, 240))
-        end
-    end
-
-    width = math.floor(math.clamp(width, 120, 240) + 0.5)
-    if descText:gsub("%s+", "") ~= "" then
-        local okWrapped, wrappedBounds = pcall(function()
-            return TextService:GetTextSize(descText, 9, Enum.Font.Gotham, Vector2.new(width - 18, 1000))
-        end)
-        descHeight = okWrapped and wrappedBounds and math.clamp(math.ceil(wrappedBounds.Y), 11, 42) or 12
-    end
-
-    GridTooltipTitle.Text = titleText
-    GridTooltipDesc.Text = descText
-    GridTooltipDesc.Visible = descHeight > 0
-    GridTooltipDesc.Size = UDim2.new(1, 0, 0, descHeight)
-
-    local height = 27 + descHeight + (descHeight > 0 and 2 or 0)
-    tooltip.Size = UDim2.fromOffset(width, height)
-    tooltip.Position = getGridTooltipPosition(width, height)
-    tooltip.Visible = true
-
-    if GridTooltipMoveConnection and GridTooltipMoveConnection.Connected then
-        pcall(function()
-            GridTooltipMoveConnection:Disconnect()
-        end)
-    end
-    GridTooltipMoveConnection = trackRuntimeConnection(UserInputService.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement and tooltip and tooltip.Parent and tooltip.Visible then
-            tooltip.Position = getGridTooltipPosition(width, height)
-        end
-    end))
-
-    TweenService:Create(tooltip, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-        BackgroundTransparency = 0.06
-    }):Play()
-    if GridTooltipStroke then
-        TweenService:Create(GridTooltipStroke, TweenInfo.new(0.12), {Transparency = 0.35}):Play()
-    end
-    TweenService:Create(GridTooltipTitle, TweenInfo.new(0.1), {TextTransparency = 0}):Play()
-    TweenService:Create(GridTooltipDesc, TweenInfo.new(0.1), {TextTransparency = descHeight > 0 and 0 or 1}):Play()
-end
-
-local function isGridTextObject(obj)
-    return obj
-        and typeof(obj) == "Instance"
-        and (obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox"))
-end
-
-local function getPlainGridText(obj)
-    if not isGridTextObject(obj) then return "" end
-    local text = ""
-    pcall(function()
-        if obj:IsA("TextBox") and tostring(obj.Text or "") == "" then
-            text = obj.PlaceholderText or ""
-        else
-            text = obj.Text or ""
-        end
-    end)
-    return stripGridTooltipText(text)
-end
-
-local function isGridTextOverflowing(obj)
-    if not isGridTextObject(obj) or not obj.Parent or not obj.Visible then return false end
-
-    local text = getPlainGridText(obj)
-    if text:gsub("%s+", "") == "" then return false end
-
-    local size = obj.AbsoluteSize
-    if size.X <= 2 or size.Y <= 2 then return false end
-
-    local font = obj.Font
-    local textSize = obj.TextSize
-    local measuredSingle
-    local okSingle = pcall(function()
-        measuredSingle = TextService:GetTextSize(text, textSize, font, Vector2.new(10000, 10000))
-    end)
-
-    if okSingle and measuredSingle then
-        local wrapped = false
-        pcall(function()
-            wrapped = obj.TextWrapped == true
-        end)
-
-        if not wrapped then
-            return measuredSingle.X > size.X + 2 or measuredSingle.Y > size.Y + 2
-        end
-
-        local measuredWrapped
-        local okWrapped = pcall(function()
-            measuredWrapped = TextService:GetTextSize(text, textSize, font, Vector2.new(math.max(1, size.X), 10000))
-        end)
-        if okWrapped and measuredWrapped then
-            return measuredWrapped.Y > size.Y + 2
-        end
-    end
-
-    local bounds = obj.TextBounds
-    return bounds.X > size.X + 1 or bounds.Y > size.Y + 1
-end
-
-local function bindGridTextTooltip(frame, labelFunc)
-    if not isPC then return end
-    if not frame or typeof(frame) ~= "Instance" or frame:GetAttribute("SPGridTooltipBound") == true then return end
-    if not frame:IsA("GuiObject") then return end
-    frame:SetAttribute("SPGridTooltipBound", true)
-
-    local hoverTargets = setmetatable({}, {__mode = "k"})
-
-    local function getTitleDesc()
-        local title = labelFunc and labelFunc.TitleLabel
-        local desc = labelFunc and labelFunc.DescLabel
-        local titleText = title and title.Text or ""
-        local descText = desc and desc.Visible and desc.Text or ""
-        return title, desc, titleText, descText
-    end
-
-    local function shouldShowTooltip()
-        local title, desc = getTitleDesc()
-        return isGridTextOverflowing(title) or isGridTextOverflowing(desc)
-    end
-
-    local function showIfNeeded()
-        if frame:GetAttribute("SPGridElement") ~= true then return end
-        local _, _, titleText, descText = getTitleDesc()
-        if shouldShowTooltip() then
-            showGridTooltip(titleText, descText)
-        end
-    end
-
-    local function bindTarget(target)
-        if not target or typeof(target) ~= "Instance" or not target:IsA("GuiObject") or hoverTargets[target] then return end
-        hoverTargets[target] = true
-
-        trackRuntimeConnection(target.MouseEnter:Connect(showIfNeeded))
-        trackRuntimeConnection(target.MouseLeave:Connect(function()
-            hideGridTooltip()
-        end))
-    end
-
-    bindTarget(frame)
-    if labelFunc then
-        bindTarget(labelFunc.TitleLabel)
-        bindTarget(labelFunc.DescLabel)
-        bindTarget(labelFunc.LabelHolder)
-    end
-
-    -- Some elements add child labels/buttons after styleGridElement() runs, so bind later too.
-    task.defer(function()
-        if not frame or not frame.Parent then return end
-        for _, obj in ipairs(frame:GetDescendants()) do
-            if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-                bindTarget(obj)
-            end
-        end
-    end)
-
-    trackRuntimeConnection(frame.DescendantAdded:Connect(function(obj)
-        if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-            bindTarget(obj)
-        end
-    end))
-
-    pcall(function()
-        trackRuntimeConnection(frame.Destroying:Connect(function()
-            hideGridTooltip()
-        end))
-    end)
-end
-
-bindGridControlTooltip = function(control, textProvider, ownerFrame)
-    if not isPC then return end
-    if not control or typeof(control) ~= "Instance" or not control:IsA("GuiObject") then return end
-    if control:GetAttribute("SPGridControlTooltipBound") == true then return end
-    control:SetAttribute("SPGridControlTooltipBound", true)
-
-    trackRuntimeConnection(control.MouseEnter:Connect(function()
-        local gridOwner = ownerFrame or control
-        if gridOwner and gridOwner:GetAttribute("SPGridElement") ~= true then return end
-
-        local text = nil
-        if type(textProvider) == "function" then
-            local ok, result = pcall(textProvider)
-            if ok then text = result end
-        end
-        text = stripGridTooltipText(text or getPlainGridText(control))
-        if text:gsub("%s+", "") == "" then return end
-
-        if isGridTextOverflowing(control) then
-            showGridTooltip(text, "")
-        end
-    end))
-
-    trackRuntimeConnection(control.MouseLeave:Connect(function()
-        hideGridTooltip()
-    end))
-
-    pcall(function()
-        trackRuntimeConnection(control.Destroying:Connect(function()
-            hideGridTooltip()
-        end))
-    end)
-end
-
-
-local function bindGridElementEffects(frame)
-    if not isPC then return end
-    if not frame or typeof(frame) ~= "Instance" or not frame:IsA("GuiObject") then return end
-    if frame:GetAttribute("SPGridEffectsBound") == true then return end
-    frame:SetAttribute("SPGridEffectsBound", true)
-
-    local hovering = false
-    local pressing = false
-    local activeTweens = {}
-
-    local function stopTweens()
-        for _, tween in ipairs(activeTweens) do
-            pcall(function()
-                tween:Cancel()
-            end)
-        end
-        table.clear(activeTweens)
-    end
-
-    local function getGridStroke()
-        return frame:FindFirstChild("SPGridElementStroke")
-    end
-
-    local function tweenObject(obj, info, props)
-        if not obj then return end
-        local ok, tween = pcall(function()
-            return TweenService:Create(obj, info, props)
-        end)
-        if ok and tween then
-            table.insert(activeTweens, tween)
-            tween:Play()
-        end
-    end
-
-    local function refreshVisual(animated)
-        if not frame or not frame.Parent then return end
-        if frame:GetAttribute("SPGridElement") ~= true then
-            return
-        end
-
-        local stroke = getGridStroke()
-        local bgTransparency = 0.08
-        local strokeTransparency = 0.55
-
-        if pressing then
-            bgTransparency = 0.00
-            strokeTransparency = 0.18
-        elseif hovering then
-            bgTransparency = 0.03
-            strokeTransparency = 0.30
-        end
-
-        stopTweens()
-
-        if animated ~= false then
-            local info = TweenInfo.new(0.14, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-            tweenObject(frame, info, {BackgroundTransparency = bgTransparency})
-            if stroke then
-                tweenObject(stroke, info, {Transparency = strokeTransparency})
-            end
-        else
-            frame.BackgroundTransparency = bgTransparency
-            if stroke then
-                stroke.Transparency = strokeTransparency
-            end
-        end
-    end
-
-    trackRuntimeConnection(frame.MouseEnter:Connect(function()
-        hovering = true
-        refreshVisual(true)
-    end))
-
-    trackRuntimeConnection(frame.MouseLeave:Connect(function()
-        hovering = false
-        pressing = false
-        refreshVisual(true)
-    end))
-
-    trackRuntimeConnection(frame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            pressing = true
-            refreshVisual(true)
-        end
-    end))
-
-    trackRuntimeConnection(frame.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            pressing = false
-            refreshVisual(true)
-        end
-    end))
-
-    trackRuntimeConnection(frame:GetAttributeChangedSignal("SPGridElement"):Connect(function()
-        if frame:GetAttribute("SPGridElement") ~= true then
-            hovering = false
-            pressing = false
-            stopTweens()
-        else
-            refreshVisual(false)
-        end
-    end))
-
-    pcall(function()
-        trackRuntimeConnection(frame.Destroying:Connect(function()
-            stopTweens()
-            hideGridTooltip()
-        end))
-    end)
-end
-
-local GridElementSpecs = {
-    Label = {MinHeight = 34, Reserve = 0, ExtraHeight = 0, TitleSize = 10, DescSize = 8},
-    Paragraph = {MinHeight = 44, Reserve = 0, ExtraHeight = 0, TitleSize = 10, DescSize = 8},
-    Button = {MinHeight = 44, Reserve = 30, ExtraHeight = 0, TitleSize = 10, DescSize = 8},
-    Toggle = {MinHeight = 46, Reserve = 46, ExtraHeight = 0, TitleSize = 10, DescSize = 8},
-    Bind = {MinHeight = 46, Reserve = 64, ExtraHeight = 0, TitleSize = 10, DescSize = 8},
-    Slider = {MinHeight = 58, Reserve = 0, ExtraHeight = 22, TitleSize = 10, DescSize = 8},
-    Dropdown = {MinHeight = 58, Reserve = 0, ExtraHeight = 22, TitleSize = 10, DescSize = 8},
-    Textbox = {MinHeight = 60, Reserve = 0, ExtraHeight = 22, TitleSize = 10, DescSize = 8},
-    ColorPicker = {MinHeight = 46, Reserve = 58, ExtraHeight = 0, TitleSize = 10, DescSize = 8},
-    ImageLabel = {MinHeight = 62, Reserve = 0, ExtraHeight = 0, TitleSize = 10, DescSize = 8},
-}
-
-local function styleGridElement(frame, labelFunc, elementType)
-    if not frame or typeof(frame) ~= "Instance" then return end
-
-    local spec = GridElementSpecs[elementType] or GridElementSpecs.Button
-    frame:SetAttribute("SPGridElementType", elementType)
-
-    local classicSize = frame.Size
-    local classicBackgroundTransparency = frame.BackgroundTransparency
-    local classicClipsDescendants = frame.ClipsDescendants
-
-    local title = labelFunc and labelFunc.TitleLabel
-    local desc = labelFunc and labelFunc.DescLabel
-    local holder = labelFunc and labelFunc.LabelHolder
-    local classicHolderPosition = holder and holder.Position
-    local classicHolderAnchor = holder and holder.AnchorPoint
-    local classicTitleWrapped = title and title.TextWrapped
-    local classicTitleTruncate = title and title.TextTruncate
-    local classicTitleSize = title and title.TextSize
-    local classicDescWrapped = desc and desc.TextWrapped
-    local classicDescTruncate = desc and desc.TextTruncate
-    local classicDescSize = desc and desc.TextSize
-    local wasGridStyled = false
-    local stroke
-
-    local function ensureGridStroke()
-        if stroke and stroke.Parent then
-            return stroke
-        end
-
-        stroke = frame:FindFirstChild("SPGridElementStroke")
-        if not stroke then
-            stroke = Create("UIStroke", frame, {
-                Name = "SPGridElementStroke",
-                Color = Theme["Color Stroke"] or Color3.fromRGB(20, 20, 20),
-                Thickness = 1,
-                Transparency = 0.55,
-                ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-            })
-            InsertTheme(stroke, "Stroke")
-        end
-
-        return stroke
-    end
-
-    local function refresh()
-        if not frame or not frame.Parent then return end
-        local gridElement = frame:GetAttribute("SPGridElement") == true
-
-        if not gridElement then
-            if wasGridStyled then
-                frame.Size = classicSize
-                frame.BackgroundTransparency = classicBackgroundTransparency
-                frame.ClipsDescendants = classicClipsDescendants
-
-                local currentStroke = stroke or frame:FindFirstChild("SPGridElementStroke")
-                if currentStroke then
-                    currentStroke.Enabled = false
-                end
-
-                if holder then
-                    holder.Position = classicHolderPosition or holder.Position
-                    holder.AnchorPoint = classicHolderAnchor or holder.AnchorPoint
-                end
-
-                if title then
-                    title.TextWrapped = classicTitleWrapped ~= nil and classicTitleWrapped or title.TextWrapped
-                    title.TextTruncate = classicTitleTruncate or title.TextTruncate
-                    title.TextSize = classicTitleSize or title.TextSize
-                end
-
-                if desc then
-                    desc.TextWrapped = classicDescWrapped ~= nil and classicDescWrapped or desc.TextWrapped
-                    desc.TextTruncate = classicDescTruncate or desc.TextTruncate
-                    desc.TextSize = classicDescSize or desc.TextSize
-                end
-            end
-
-            if labelFunc and type(labelFunc.Refresh) == "function" then
-                labelFunc:Refresh()
-            end
-            return
-        end
-
-        wasGridStyled = true
-        frame:SetAttribute("SPGridControlReserve", spec.Reserve or 0)
-        frame:SetAttribute("SPGridBaseHeight", spec.MinHeight or 48)
-        frame:SetAttribute("ExtraHeight", spec.ExtraHeight or 0)
-        frame:SetAttribute("AnimateHeight", true)
-        frame:SetAttribute("HeightTweenTime", 0.14)
-        frame.Size = UDim2.new(1, 0, 0, spec.MinHeight or 48)
-        frame.BackgroundTransparency = 0.10
-        frame.ClipsDescendants = false
-
-        local compact = frame.AbsoluteSize.X > 0 and frame.AbsoluteSize.X < GRID_COMPACT_CARD_WIDTH
-        local currentStroke = ensureGridStroke()
-
-        if currentStroke then
-            currentStroke.Enabled = true
-            currentStroke.Transparency = compact and 0.65 or 0.55
-        end
-
-        if holder then
-            holder.Position = UDim2.new(0, compact and 7 or 9, 0, compact and 4 or 5)
-            holder.AnchorPoint = Vector2.new(0, 0)
-        end
-
-        if title then
-            title.TextWrapped = true
-            title.TextTruncate = Enum.TextTruncate.None
-            title.TextSize = compact and math.max(8, (spec.TitleSize or 10) - 1) or (spec.TitleSize or 10)
-            title.TextYAlignment = Enum.TextYAlignment.Top
-        end
-
-        if desc then
-            desc.AutomaticSize = Enum.AutomaticSize.Y
-            desc.Size = UDim2.new(1, 0, 0, 0)
-            desc.TextWrapped = true
-            desc.TextTruncate = Enum.TextTruncate.None
-            desc.TextSize = compact and math.max(7, (spec.DescSize or 8) - 1) or (spec.DescSize or 8)
-            desc.TextYAlignment = Enum.TextYAlignment.Top
-        end
-
-        if labelFunc and type(labelFunc.Refresh) == "function" then
-            labelFunc:Refresh()
-        end
-    end
-
-    bindGridTextTooltip(frame, labelFunc)
-    bindGridElementEffects(frame)
-
-    refresh()
-    if frame:GetAttribute("SPGridStyleBound") ~= true then
-        frame:SetAttribute("SPGridStyleBound", true)
-        trackRuntimeConnection(frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(refresh))
-        trackRuntimeConnection(frame:GetAttributeChangedSignal("SPGridElement"):Connect(refresh))
-        trackRuntimeConnection(frame:GetAttributeChangedSignal("SPGridElementType"):Connect(refresh))
-    end
-end
-
 local function GetColor(Instance)
 	if not Instance then return nil end
 
@@ -3223,52 +1699,12 @@ function splib:SetTheme(NewTheme)
 	end)
 end
 
-function splib:SetLayoutMode(NewMode)
-    if NewMode == nil and (self == "Classic" or self == "Grid") then
-        NewMode = self
-    end
-
-    local previousMode = normalizeLayoutMode(splib.Save.LayoutMode or "Classic")
-    local mode = normalizeLayoutMode(NewMode)
-
-    if previousMode == "Classic" and mode == "Grid" and type(splib._GetCurrentWindowSize) == "function" then
-        local width, height = splib._GetCurrentWindowSize()
-        if width and height then
-            splib._ClassicUISizeBeforeGrid = {width, height}
-        end
-    end
-
-    splib.Save.LayoutMode = mode
-    SaveJson("sp library.json", splib.Save)
-    applyLayoutModeToAllTabs(mode)
-    if type(splib._ApplySettingsLayoutMode) == "function" then
-        splib._ApplySettingsLayoutMode(mode)
-    end
-
-    local handledResize = false
-    if mode == "Grid" and type(splib._EnsureGridMinWidth) == "function" then
-        handledResize = splib._EnsureGridMinWidth(true) == true
-    elseif previousMode == "Grid" and mode == "Classic" and type(splib._RestoreClassicWindowSize) == "function" then
-        handledResize = splib._RestoreClassicWindowSize(true) == true
-    end
-
-    if not handledResize and type(splib._RefreshWindowSize) == "function" then
-        task.defer(splib._RefreshWindowSize)
-    end
-    return mode
-end
-
-function splib:ApplyLayoutMode(NewMode)
-    return splib:SetLayoutMode(NewMode)
-end
-
 function splib:SetScale(NewScale)
 	NewScale = ViewportSize.Y / math.clamp(NewScale, 300, 2000)
 	UIScale = NewScale
 	if ScreenGui and ScreenGui:FindFirstChild("Scale") then
 		ScreenGui.Scale.Scale = NewScale
 	end
-    applyLayoutModeToAllTabs(splib.Save.LayoutMode)
 end
 
 local SaveChangesEnabled = true
@@ -3303,9 +1739,6 @@ function splib:MakeWindow(Configs)
 
 	local startUISize = (splib.Settings.SaveUISize ~= false and isValidSavedUISize(splib.Save.UISize)) and splib.Save.UISize or DEFAULT_OPEN_UI_SIZE
 local StartUISizeX, StartUISizeY = unpack(startUISize)
-if splib.Save.LayoutMode == "Grid" then
-    StartUISizeX = math.max(StartUISizeX, GRID_MIN_WINDOW_WIDTH)
-end
 local MainFrame = InsertTheme(Create("ImageButton", ScreenGui, {
     Size = UDim2.fromOffset(StartUISizeX, StartUISizeY),
     Position = UDim2.new(0.5, -StartUISizeX * 0.5, 0.5, -StartUISizeY * 0.5),
@@ -3689,7 +2122,7 @@ task.spawn(function()
                 if not isHalfOutside(MainFrame) then
                     break
                 end
-                leftTime -= 1
+                leftTime = leftTime - 1
             end
             if isHalfOutside(MainFrame) then
                 TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
@@ -4586,38 +3019,18 @@ ControlSize1, ControlSize2 = MakeDrag(Create("ImageButton", MainFrame, {
 Make("Corner", ControlSize1, UDim.new(0.10, 0))
 Make("Corner", ControlSize2)
 
-local autoGridWidthTweening = false
-local activeGridWidthTween
-
-local function getWindowSizeLimits()
+local function ControlSize()
+    local Pos1, Pos2 = ControlSize1.Position, ControlSize2.Position
+    
     local minX, maxX
     local minY, maxY
 
     if isPC then
-        if splib.Save.LayoutMode == "Grid" then
-            minX, maxX = GRID_MIN_WINDOW_WIDTH, GRID_MAX_WINDOW_WIDTH
-        else
-            minX, maxX = 300, 550
-        end
-        minY, maxY = 220, 400
+        minX, maxX = 340, 550
+        minY, maxY = 280, 400
     else
-        if splib.Save.LayoutMode == "Grid" then
-            minX, maxX = GRID_MIN_WINDOW_WIDTH, GRID_MAX_WINDOW_WIDTH
-        else
-            minX, maxX = 260, 400
-        end
-        minY, maxY = 180, 260
-    end
-
-    return minX, maxX, minY, maxY
-end
-
-local function ControlSize()
-    local Pos1, Pos2 = ControlSize1.Position, ControlSize2.Position
-    local minX, maxX, minY, maxY = getWindowSizeLimits()
-
-    if autoGridWidthTweening then
-        minX = math.min(minX, Pos1.X.Offset)
+        minX, maxX = 290, 400
+        minY, maxY = 190, 260
     end
 
     ControlSize1.Position = UDim2.fromOffset(
@@ -4637,98 +3050,6 @@ local function ControlSize()
         updateSearchLayout(false)
     end
     MainFrame.Size = ControlSize1.Position
-end
-splib._RefreshWindowSize = ControlSize
-splib._GetCurrentWindowSize = function()
-    if not ControlSize1 then return nil, nil end
-    return math.floor((ControlSize1.Position.X.Offset or 0) + 0.5), math.floor((ControlSize1.Position.Y.Offset or 0) + 0.5)
-end
-
-local function tweenWindowSizeTo(targetX, targetY, animated, onComplete)
-    if activeGridWidthTween then
-        pcall(function()
-            activeGridWidthTween:Cancel()
-        end)
-        activeGridWidthTween = nil
-    end
-
-    if animated ~= false then
-        autoGridWidthTweening = true
-        activeGridWidthTween = TweenService:Create(
-            ControlSize1,
-            TweenInfo.new(GRID_LAYOUT_TWEEN_TIME, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-            {Position = UDim2.fromOffset(targetX, targetY)}
-        )
-        activeGridWidthTween:Play()
-        activeGridWidthTween.Completed:Connect(function()
-            autoGridWidthTweening = false
-            activeGridWidthTween = nil
-            ControlSize()
-            if type(onComplete) == "function" then
-                onComplete()
-            end
-        end)
-    else
-        autoGridWidthTweening = false
-        ControlSize1.Position = UDim2.fromOffset(targetX, targetY)
-        ControlSize()
-        if type(onComplete) == "function" then
-            onComplete()
-        end
-    end
-end
-
-splib._RestoreClassicWindowSize = function(animated)
-    if splib.Save.LayoutMode ~= "Classic" then return false end
-    if not ControlSize1 or not ControlSize1.Parent then return false end
-
-    local savedClassic = splib._ClassicUISizeBeforeGrid
-    if type(savedClassic) ~= "table" or type(savedClassic[1]) ~= "number" or type(savedClassic[2]) ~= "number" then
-        return false
-    end
-
-    local minX, maxX, minY, maxY = getWindowSizeLimits()
-    local targetX = math.clamp(savedClassic[1], minX, maxX)
-    local targetY = math.clamp(savedClassic[2], minY, maxY)
-    local currentX = ControlSize1.Position.X.Offset
-    local currentY = ControlSize1.Position.Y.Offset
-
-    if math.abs(currentX - targetX) < 1 and math.abs(currentY - targetY) < 1 then
-        ControlSize()
-        return false
-    end
-
-    tweenWindowSizeTo(targetX, targetY, animated, function()
-        splib.Save.UISize = {math.floor(targetX + 0.5), math.floor(targetY + 0.5)}
-        splib.Save.UISizeVersion = UI_SIZE_SAVE_VERSION
-        SaveJson("sp library.json", splib.Save)
-    end)
-
-    return true
-end
-
-splib._EnsureGridMinWidth = function(animated)
-    if splib.Save.LayoutMode ~= "Grid" then return false end
-    if not ControlSize1 or not ControlSize1.Parent then return false end
-
-    local minX, maxX, minY, maxY = getWindowSizeLimits()
-    local currentX = ControlSize1.Position.X.Offset
-    local currentY = ControlSize1.Position.Y.Offset
-    local targetX = math.clamp(minX, minX, maxX)
-    local targetY = math.clamp(currentY, minY, maxY)
-
-    if currentX >= targetX then
-        ControlSize()
-        return false
-    end
-
-    tweenWindowSizeTo(targetX, targetY, animated, function()
-        splib.Save.UISize = {math.floor(targetX + 0.5), math.floor(targetY + 0.5)}
-        splib.Save.UISizeVersion = UI_SIZE_SAVE_VERSION
-        SaveJson("sp library.json", splib.Save)
-    end)
-
-    return true
 end
 
 local function SetupDragTransparency(control)
@@ -4821,9 +3142,6 @@ local function saveCurrentUISize(force)
     if width < 300 or height < 220 then return end
 
     splib.Save.UISize = {width, height}
-    if splib.Save.LayoutMode == "Classic" then
-        splib._ClassicUISizeBeforeGrid = {width, height}
-    end
     splib.Save.UISizeVersion = UI_SIZE_SAVE_VERSION
     splib.Settings.UseSavedUISize = true
     SaveJson("sp library.json", splib.Save)
@@ -4987,7 +3305,7 @@ local function animateSettingButton(active, force)
     end
 
     settingsButtonActive = active
-    settingsButtonSpinToken += 1
+    settingsButtonSpinToken = settingsButtonSpinToken + 1
     local spinToken = settingsButtonSpinToken
 
     cancelSettingsButtonTween()
@@ -5110,7 +3428,7 @@ local function getContextMenuLayer()
 end
 
 local function closeContextMenu()
-    ContextMenuCloseToken += 1
+    ContextMenuCloseToken = ContextMenuCloseToken + 1
     if ContextMenuInputConnection and ContextMenuInputConnection.Connected then
         pcall(function()
             ContextMenuInputConnection:Disconnect()
@@ -5166,8 +3484,8 @@ local function getContextMousePosition(width, height, inputPosition)
 
     local layer = getContextMenuLayer()
     if layer and not layer.IgnoreGuiInset then
-        x -= inset.X
-        y -= inset.Y
+        x = x - inset.X
+        y = y - inset.Y
     end
 
     x = math.clamp(x, 4, math.max(4, viewport.X - width - 4))
@@ -5206,7 +3524,7 @@ local function showContextMenu(items, inputPosition)
     local itemHeight = 31
     local separators = 0
     for _, item in ipairs(items) do
-        if item.Separator then separators += 1 end
+        if item.Separator then separators = separators + 1 end
     end
     local menuHeight = math.clamp((#items - separators) * itemHeight + separators * 9 + 12, 24, 320)
 
@@ -5238,7 +3556,7 @@ local function showContextMenu(items, inputPosition)
 
     local layoutOrder = 0
     for _, item in ipairs(items) do
-        layoutOrder += 1
+        layoutOrder = layoutOrder + 1
         if item.Separator then
             local line = Create("Frame", menu, {
                 Name = "Separator",
@@ -5424,7 +3742,7 @@ local function fadeCloseVisualTree(root)
 
     local count = 0
     for _, inst in ipairs(all) do
-        count += 1
+        count = count + 1
         if count > 220 then break end
 
         pcall(function()
@@ -5618,16 +3936,13 @@ CloseButton.Activated:Connect(CloseUI)
 
 SharedTabIndicator = nil
 local SettingTab
-splib.SettingTabHandler = splib.SettingTabHandler or {
-    Enabled = false
-}
-local SettingTabHandler = splib.SettingTabHandler
+local SettingTabHandler
 local SettingsButtonClickConnected = false
 
 local restoreBuildToken = 0
 
 local function stopRestoreBuildAnimation()
-    restoreBuildToken += 1
+    restoreBuildToken = restoreBuildToken + 1
     pcall(function()
         local oldOverlay = MainFrame and MainFrame:FindFirstChild("RestoreBuildOverlay")
         if oldOverlay then
@@ -5693,7 +4008,7 @@ local function fadeVisualTree(root, delayTime, duration, maxInstances)
             return instance[prop]
         end)
         if ok and type(originalValue) == "number" and originalValue < 1 then
-            count += 1
+            count = count + 1
             table.insert(entries, {
                 Instance = instance,
                 Prop = prop,
@@ -5833,7 +4148,7 @@ local function playRestoreBuildAnimation(showSweep)
     if Minimized then return end
     if not MainFrame or not MainFrame.Parent then return end
 
-    restoreBuildToken += 1
+    restoreBuildToken = restoreBuildToken + 1
     local token = restoreBuildToken
 
     if showSweep ~= false then
@@ -6298,18 +4613,6 @@ end)
 		local DText = Configs[2] or Configs.Text or "This is a Dialog"
 		local DOptions = Configs[3] or Configs.Options or {}
 		
-		pcall(function()
-			for _, holder in ipairs({DropdownHolder, CustomColorHolder}) do
-				if holder then
-					for _, obj in ipairs(holder:GetChildren()) do
-						if obj:IsA("GuiObject") then
-							obj.Visible = false
-						end
-					end
-				end
-			end
-		end)
-		
 		local Frame = Create("Frame", {
 			Active = true,
 			Size = UDim2.fromOffset(250 * 1.08, 150 * 1.08),
@@ -6361,21 +4664,11 @@ end)
 			BackgroundColor3 = Theme["Color Hub 2"],
 			Size = UDim2.new(1, 0, 1, 0),
 			BackgroundColor3 = Theme["Color Stroke"],
-			Name = "Dialog",
-			ZIndex = 100000
+			Name = "Dialog"
 		}), "Stroke")
 		
 		MainCorner:Clone().Parent = Screen
 		Frame.Parent = Screen
-		pcall(function()
-			Frame.ZIndex = 100001
-			ButtonsHolder.ZIndex = 100002
-			for _, obj in ipairs(Frame:GetDescendants()) do
-				if obj:IsA("GuiObject") then
-					obj.ZIndex = math.max(obj.ZIndex or 1, 100002)
-				end
-			end
-		end)
 		CreateTween({Frame, "Size", UDim2.fromOffset(250, 150), 0.2})
 		CreateTween({Frame, "Transparency", 0, 0.15})
 		CreateTween({Screen, "Transparency", 0.3, 0.15})
@@ -6392,8 +4685,7 @@ end)
 				Text = Name,
 				Font = Enum.Font.GothamBold,
 				TextColor3 = Theme["Color Text"],
-				TextSize = 12,
-				ZIndex = 100003
+				TextSize = 12
 			})
 			
 			for _,Button in pairs(ButtonsHolder:GetChildren()) do
@@ -6633,7 +4925,7 @@ function Window:MakeTab(paste, Configs)
 		}), "Text")
 
 		local function handleHover(isHovering)
-			local isActive = Tab and Tab.Enabled == true
+			local isActive = Tab.Enabled == true
 			local normalTitleOffset = TIcon and 25 or 15
 			local hoverTitleOffset = TIcon and 28 or 18
 			local targetTrans = isActive and 0 or (isHovering and 0 or 0.3)
@@ -6688,24 +4980,6 @@ SettingTab = InsertTheme(Create("ScrollingFrame", {
 }), "ScrollBar")
 end
 
-if SettingTab then
-    local settingsLayoutMode = normalizeLayoutMode(splib.Save.LayoutMode or "Classic")
-    SettingTab:SetAttribute("SPLayoutMode", settingsLayoutMode)
-    SettingTab:SetAttribute("SPLayoutItemCount", SettingTab:GetAttribute("SPLayoutItemCount") or 0)
-    local settingsListLayout = getDirectChildOfClass(SettingTab, "UIListLayout")
-    if settingsListLayout then
-        settingsListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    end
-    if settingsLayoutMode == "Grid" then
-        ensureGridColumns(SettingTab)
-    end
-    splib._ApplySettingsLayoutMode = function(mode)
-        if SettingTab then
-            applyLayoutModeToContainer(SettingTab, mode)
-        end
-    end
-end
-
 		local Container = InsertTheme(Create("ScrollingFrame", {
 			Size = UDim2.new(1, 0, 1, 0),
 			Position = UDim2.new(0, 0, 1, 0),
@@ -6725,19 +4999,10 @@ end
 				PaddingRight = UDim.new(0, 10),
 				PaddingTop = UDim.new(0, 10),
 				PaddingBottom = UDim.new(0, 10)
+			}), Create("UIListLayout", {
+				Padding = UDim.new(0, 5)
 			})
 		}), "ScrollBar")
-
-		local layoutMode = normalizeLayoutMode((Configs and Configs.LayoutMode) or splib.Save.LayoutMode or "Classic")
-		Container:SetAttribute("SPLayoutMode", layoutMode)
-		Container:SetAttribute("SPLayoutItemCount", 0)
-		Create("UIListLayout", Container, {
-			Padding = UDim.new(0, 5),
-			SortOrder = Enum.SortOrder.LayoutOrder
-		})
-		if layoutMode == "Grid" then
-			ensureGridColumns(Container)
-		end
 
 		if SettingTab and not table.find(ContainerList, SettingTab) then
 			table.insert(ContainerList, SettingTab)
@@ -6827,7 +5092,10 @@ end
     table.insert(ContainerList, SettingTab)
 end
 
-if not SettingTabHandler.Enable then
+if not SettingTabHandler then
+SettingTabHandler = {
+    Enabled = false
+}
 
 function SettingTabHandler:Enable(force, skipButtonAnimation)
     if not SettingTab then return end
@@ -6914,113 +5182,23 @@ function Tab:Visible(state)
 end
 		function Tab:Destroy() TabSelect:Destroy() Container:Destroy() end
 		function Tab:AddSection(Configs)
-			local SectionConfigs = type(Configs) == "table" and Configs or {}
-			local SectionName = type(Configs) == "string" and Configs or SectionConfigs[1] or SectionConfigs.Name or SectionConfigs.Title or SectionConfigs.Section or "Section"
-            SectionName = GetStr(SectionName)
+			local SectionName = type(Configs) == "string" and Configs or Configs[1] or Configs.Name or Configs.Title or Configs.Section
 			
-            if SectionConfigs.IsMobile and not isMobile then
+            if Configs.IsMobile and not isMobile then
                 return nil
             end
 
-            if SectionConfigs.IsPC and not isPC then
+            if Configs.IsPC and not isPC then
                 return nil
             end
 
-            local isForcedContainer = SectionConfigs.__force_container ~= nil
-            local container = SectionConfigs.__force_container or Container
-            local globalOrder = reserveLayoutOrder(container)
-            local layoutMode = normalizeLayoutMode(container:GetAttribute("SPLayoutMode") or splib.Save.LayoutMode)
-            local ColumnsFrame, LeftColumn, RightColumn
-            if layoutMode == "Grid" then
-                ColumnsFrame, LeftColumn, RightColumn = ensureGridColumns(container)
-            end
+            local container = Configs.__force_container or Container
 
-            local SectionFrame
-            local SectionLabel
-
-            if layoutMode == "Grid" and LeftColumn and RightColumn then
-                -- Grid Mode: alternate between Left and Right columns
-                local count = container:GetAttribute("SectionCount") or 0
-                count = count + 1
-                container:SetAttribute("SectionCount", count)
-
-                local targetColumn = (count % 2 == 1) and LeftColumn or RightColumn
-
-                SectionFrame = InsertTheme(Create("Frame", targetColumn, {
-                    Name = SectionName .. "_SectionCard",
-                    Size = UDim2.new(1, 0, 0, 0),
-                    AutomaticSize = Enum.AutomaticSize.Y,
-                    BackgroundColor3 = Theme["Color Hub 2"] or Color3.fromRGB(30, 30, 30),
-                    BorderSizePixel = 0,
-                    LayoutOrder = count
-                }), "Frame")
-                markLayoutItem(SectionFrame, "Section", globalOrder, SectionName)
-                Make("Corner", SectionFrame, UDim.new(0, 8))
-                
-                Make("Stroke", SectionFrame, {
-                    Color = Theme["Color Stroke"] or Color3.fromRGB(15, 15, 15),
-                    Thickness = 1,
-                    ApplyStrokeMode = "Border"
-                })
-
-                Create("UIListLayout", SectionFrame, {
-                    SortOrder = Enum.SortOrder.LayoutOrder,
-                    Padding = UDim.new(0, 6)
-                })
-
-                Create("UIPadding", SectionFrame, {
-                    PaddingTop = UDim.new(0, 8),
-                    PaddingBottom = UDim.new(0, 8),
-                    PaddingLeft = UDim.new(0, 10),
-                    PaddingRight = UDim.new(0, 10)
-                })
-
-                SectionLabel = InsertTheme(Create("TextLabel", SectionFrame, {
-                    Font = Enum.Font.GothamBold,
-                    Text = SectionName,
-                    TextColor3 = Theme["Color Text"],
-                    Size = UDim2.new(1, 0, 0, 20),
-                    BackgroundTransparency = 1,
-                    TextTruncate = "AtEnd",
-                    TextSize = isMobile and 10 or 12,
-                    TextXAlignment = "Left",
-                    LayoutOrder = 0
-                }), "Text")
-
-                InsertTheme(Create("Frame", SectionFrame, {
-                    Name = "Separator",
-                    Size = UDim2.new(1, 0, 0, 1),
-                    BorderSizePixel = 0,
-                    BackgroundColor3 = Theme["Color Stroke"] or Color3.fromRGB(15, 15, 15),
-                    LayoutOrder = 1
-                }), "Stroke")
-
-                SectionFrame:SetAttribute("ElementCount", 0)
-                
-                setCurrentGridCard(container, SectionFrame)
-                distributeGridSections(container, LeftColumn, RightColumn)
-            else
-                -- Classic Mode: create flat section label
-                SectionFrame = Create("Frame", container, {
-                    Size = UDim2.new(1, 0, 0, 20),
-                    BackgroundTransparency = 1,
-                    Name = "Option",
-                    LayoutOrder = globalOrder
-                })
-                markLayoutItem(SectionFrame, "Section", globalOrder, SectionName)
-                
-                SectionLabel = InsertTheme(Create("TextLabel", SectionFrame, {
-                    Font = Enum.Font.GothamBold,
-                    Text = SectionName,
-                    TextColor3 = Theme["Color Text"],
-                    Size = UDim2.new(1, -25, 1, 0),
-                    Position = UDim2.new(0, 5),
-                    BackgroundTransparency = 1,
-                    TextTruncate = "AtEnd",
-                    TextSize = isMobile and 9 or 14,
-                    TextXAlignment = "Left"
-                }), "Text")
-            end
+			local SectionFrame = Create("Frame", container, {
+				Size = UDim2.new(1, 0, 0, 20),
+				BackgroundTransparency = 1,
+				Name = "Option"
+			})
 			self.CurrentSectionFrame = SectionFrame
 			self.CurrentSectionFrames = self.CurrentSectionFrames or {}
 			self.CurrentSectionFrames[container] = SectionFrame
@@ -7031,6 +5209,17 @@ end
                 }
             end)
 			
+			local SectionLabel = InsertTheme(Create("TextLabel", SectionFrame, {
+				Font = Enum.Font.GothamBold,
+				Text = SectionName,
+				TextColor3 = Theme["Color Text"],
+				Size = UDim2.new(1, -25, 1, 0),
+				Position = UDim2.new(0, 5),
+				BackgroundTransparency = 1,
+				TextTruncate = "AtEnd",
+				TextSize = isMobile and 9 or 14,
+				TextXAlignment = "Left"
+			}), "Text")
 			splib:RegisterTranslationLabel(SectionLabel, SectionName)
 			
 			local Section = {}
@@ -7387,7 +5576,6 @@ function Tab:AddLabel(Configs)
 
     local container = Configs.__force_container or Container
     local Frame, LabelFunc = ButtonFrame(container, PName, PDesc, UDim2.new(1, -20))
-    styleGridElement(Frame, LabelFunc, "Label")
     
     local Label = {}
     function Label:Visible(...) Funcs:ToggleVisible(Frame, ...) end
@@ -7467,7 +5655,6 @@ function Tab:AddBind(Configs)
         ReservedRight = isMobile and 100 or 120,
         MinHeight = 32
     }, true)
-    styleGridElement(Frame, LabelFunc, "Bind")
 
     if Configs and Configs.PremiumOnly then
         table.insert(splib.PremiumElements, Frame)
@@ -7742,20 +5929,11 @@ function Tab:AddImageLabel(Configs)
                 return nil
             end
 
-    local container = Configs.__force_container or Container
-    local actualParent, layoutOrder, globalOrder = resolveElementParent(container)
-    local Holder = Create("Frame", actualParent, {
+    local Holder = Create("Frame", Container, {
         Size = UDim2.new(1, 0, 0, 65),
         Name = "Option",
-        BackgroundTransparency = 1,
-        LayoutOrder = layoutOrder
+        BackgroundTransparency = 1
     })
-    markLayoutItem(Holder, "Element", globalOrder)
-    pcall(function()
-        if actualParent ~= container and actualParent:GetAttribute("SPLayoutKind") == "Section" then
-            Holder:SetAttribute("SPGridElement", true)
-        end
-    end)
 
     local FrameHolder = InsertTheme(Create("Frame", Holder, {
         Size = UDim2.new(1, 0, 0, 65),
@@ -7763,9 +5941,7 @@ function Tab:AddImageLabel(Configs)
         Position = UDim2.new(0, 0, 1, 0),
         BackgroundColor3 = Theme["Color Hub 2"]
     }), "Frame")
-    Make("Corner", FrameHolder, UDim.new(0, 10))
-    local FrameHolderStroke = Make("Stroke", FrameHolder, { Transparency = 0.55, Thickness = 1 })
-    FrameHolderStroke.Name = "ImageLabelCardStroke"
+    Make("Corner", FrameHolder)
 
     local ImageLabel = Create("ImageLabel", FrameHolder, {
         Size = UDim2.new(0, 50, 0, 50),
@@ -7773,7 +5949,7 @@ function Tab:AddImageLabel(Configs)
         Image = Logo,
         BackgroundTransparency = 1
     })
-    Make("Corner", ImageLabel, UDim.new(0, 8))
+    Make("Corner", ImageLabel, UDim.new(0, 4))
     local ImageStroke = Make("Stroke", ImageLabel, { Thickness = 1 })
 
     local LTitle = InsertTheme(Create("TextLabel", FrameHolder, {
@@ -7784,17 +5960,14 @@ function Tab:AddImageLabel(Configs)
         TextXAlignment = "Left",
         BackgroundTransparency = 1,
         TextSize = 10,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        TextWrapped = false,
         Text = Title
     }), "Text")
 
     local LDesc = InsertTheme(Create("TextLabel", FrameHolder, {
         Size = UDim2.new(1, -65, 0, 0),
         Position = UDim2.new(0, 65, 0, 22),
-        TextWrapped = false,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        AutomaticSize = Enum.AutomaticSize.None,
+        TextWrapped = "Y",
+        AutomaticSize = "Y",
         Font = Enum.Font.Gotham,
         TextColor3 = Theme["Color Dark Text"],
         TextXAlignment = "Left",
@@ -7802,59 +5975,6 @@ function Tab:AddImageLabel(Configs)
         TextSize = 8,
         Text = Desc
     }), "DarkText")
-
-    local function refreshImageLabelLayout()
-        local isGridImage = Holder:GetAttribute("SPGridElement") == true
-        local compact = isGridImage and Holder.AbsoluteSize.X > 0 and Holder.AbsoluteSize.X < GRID_COMPACT_CARD_WIDTH
-        local imageSize = compact and 34 or 50
-        local rowHeight = compact and 56 or 65
-        local textX = compact and 48 or 65
-        local textTop = compact and 7 or 7
-
-        Holder.Size = UDim2.new(1, 0, 0, rowHeight)
-        Holder.BackgroundTransparency = 1
-        Holder.ClipsDescendants = false
-
-        if isGridImage then
-            FrameHolder.AnchorPoint = Vector2.new(0, 0)
-            FrameHolder.Position = UDim2.new(0, 1, 0, 0)
-            FrameHolder.Size = UDim2.new(1, -2, 0, rowHeight)
-            FrameHolder.ClipsDescendants = true
-            if FrameHolderStroke then
-                FrameHolderStroke.Transparency = 0.62
-            end
-        else
-            FrameHolder.AnchorPoint = Vector2.new(0, 1)
-            FrameHolder.Position = UDim2.new(0, 0, 1, 0)
-            FrameHolder.Size = UDim2.new(1, 0, 0, rowHeight)
-            FrameHolder.ClipsDescendants = false
-            if FrameHolderStroke then
-                FrameHolderStroke.Transparency = 0.55
-            end
-        end
-
-        ImageLabel.Size = UDim2.new(0, imageSize, 0, imageSize)
-        ImageLabel.Position = UDim2.new(0, compact and 7 or 7, 0, compact and 11 or 7)
-
-        LTitle.Size = UDim2.new(1, -(textX + 8), 0, compact and 13 or 15)
-        LTitle.Position = UDim2.new(0, textX, 0, textTop)
-        LTitle.TextSize = compact and 9 or 10
-        LTitle.TextTruncate = Enum.TextTruncate.AtEnd
-
-        LDesc.Size = UDim2.new(1, -(textX + 8), 0, compact and 24 or 34)
-        LDesc.Position = UDim2.new(0, textX, 0, compact and 21 or 22)
-        LDesc.TextSize = compact and 7 or 8
-        LDesc.TextWrapped = false
-        LDesc.TextTruncate = Enum.TextTruncate.AtEnd
-    end
-
-    trackRuntimeConnection(FrameHolder:GetPropertyChangedSignal("AbsoluteSize"):Connect(refreshImageLabelLayout))
-    task.defer(refreshImageLabelLayout)
-    refreshImageLabelLayout()
-    bindGridTextTooltip(Holder, {
-        TitleLabel = LTitle,
-        DescLabel = LDesc
-    })
 
     local rainbowConnection
     local function StartRainbow()
@@ -7904,7 +6024,7 @@ function Tab:AddImageLabel(Configs)
             makeCopyItem(function() return ImageLabel.Image end, "Image asset copied", "Copy Image Asset")
         }
     end)
-    registerSearchElement(self, Title, Holder, getCurrentSearchSection(self, container))
+    registerSearchElement(self, Title, Holder, getCurrentSearchSection(self, Container))
     return ImageLabelObj
 end
 
@@ -7935,7 +6055,6 @@ function Tab:AddParagraph(...)
     
     local container = Configs.__force_container or Container
     local Frame, LabelFunc = ButtonFrame(container, PName, PDesc, UDim2.new(1, -20))
-    styleGridElement(Frame, LabelFunc, "Paragraph")
 
     local Paragraph = {}
     function Paragraph:Visible(...) Funcs:ToggleVisible(Frame, ...) end
@@ -7978,7 +6097,6 @@ function Tab:AddButton(Configs)
             local FButton, LabelFunc = ButtonFrame(container, BName, BDescription, {
                 ReservedRight = 32
             })
-            styleGridElement(FButton, LabelFunc, "Button")
 
             if PremiumOnly then
                 table.insert(splib.PremiumElements, FButton)
@@ -8085,7 +6203,6 @@ end
     local Button, LabelFunc = ButtonFrame(container, TName, TDesc, {
         ReservedRight = 50
     })
-    styleGridElement(Button, LabelFunc, "Toggle")
 
     if PremiumOnly then
         table.insert(splib.PremiumElements, Button)
@@ -8273,6 +6390,7 @@ function splib:ClearAllToggles()
     table.clear(targets)
 end
 function Tab:AddDropdown(Configs)
+	Configs = type(Configs) == "table" and Configs or {}
 	local DName = Configs[1] or Configs.Name or Configs.Title or "Dropdown"
 	local DDesc = Configs.Desc or Configs.Description or ""
 	local DOptions = Configs[2] or Configs.Options or {}
@@ -8281,6 +6399,72 @@ function Tab:AddDropdown(Configs)
     local OriginalDropdownDefault = OpDefault
 	local DMultiSelect = Configs.MultiSelect or false
 	local Callback = Funcs:GetCallback(Configs, 4)
+
+	local PremiumOptionColor = Color3.fromRGB(0, 170, 255)
+	local PremiumOptionRefs = {}
+
+	local function clearPremiumOptionRefs()
+		table.clear(PremiumOptionRefs)
+	end
+
+	local function rememberPremiumOptionRef(ref)
+		if ref == nil or ref == false or ref == true then return end
+
+		if type(ref) == "table" then
+			rememberPremiumOptionRef(ref.Name or ref.name or ref.Title or ref.title or ref.Text or ref.text or ref[1])
+			rememberPremiumOptionRef(ref.Value or ref.value or ref.Id or ref.id or ref[2])
+			return
+		end
+
+		local key = tostring(ref)
+		if key ~= "" then
+			PremiumOptionRefs[key] = true
+		end
+	end
+
+	local function loadPremiumOptionRefs(list)
+		if list == nil then return end
+
+		if type(list) ~= "table" then
+			rememberPremiumOptionRef(list)
+			return
+		end
+
+		for key, value in pairs(list) do
+			if type(key) ~= "number" and value == true then
+				rememberPremiumOptionRef(key)
+			else
+				rememberPremiumOptionRef(value)
+			end
+		end
+	end
+
+	local function isPremiumOptionConfig(name, value, rawOption)
+		if type(rawOption) == "table" then
+			if rawOption.Premium == true
+				or rawOption.PremiumOnly == true
+				or rawOption.IsPremium == true
+				or rawOption.Locked == true
+				or rawOption.ForPremium == true
+			then
+				return true
+			end
+		end
+
+		if name ~= nil and PremiumOptionRefs[tostring(name)] then
+			return true
+		end
+
+		if value ~= nil and PremiumOptionRefs[tostring(value)] then
+			return true
+		end
+
+		return false
+	end
+
+	clearPremiumOptionRefs()
+	loadPremiumOptionRefs(Configs.PremiumOptions or Configs.PremiumOnlyOptions or Configs.LockedOptions)
+	loadPremiumOptionRefs(Configs.PremiumOption)
 
 	if Configs.IsMobile and not isMobile then
 		return nil
@@ -8312,7 +6496,6 @@ function Tab:AddDropdown(Configs)
 
 	local container = Configs.__force_container or Container
 	local Button, LabelFunc = ButtonFrame(container, DName, DDesc, UDim2.new(1, -100))
-	styleGridElement(Button, LabelFunc, "Dropdown")
 
 	if Configs and Configs.PremiumOnly then
 		table.insert(splib.PremiumElements, Button)
@@ -8349,8 +6532,6 @@ function Tab:AddDropdown(Configs)
 		return false
 	end
 
-	local refreshDropdownInnerLayout
-
 	local SelectedFrame = InsertTheme(Create("Frame", Button, {
 		Name = "SelectedFrame",
 		Size = UDim2.new(0, 125, 0, 18),
@@ -8363,31 +6544,13 @@ function Tab:AddDropdown(Configs)
 	Make("Corner", SelectedFrame, UDim.new(0, 4))
 
 	local function updateSelectedFrameSize()
-        local gridElement = Button:GetAttribute("SPGridElement") == true
-        if gridElement then
-            local compact = Button.AbsoluteSize.X > 0 and Button.AbsoluteSize.X < GRID_COMPACT_CARD_WIDTH
-            SelectedFrame.Size = UDim2.new(1, compact and -14 or -18, 0, compact and 18 or 20)
-            SelectedFrame.Position = UDim2.new(0, compact and 7 or 9, 1, compact and -7 or -8)
-            SelectedFrame.AnchorPoint = Vector2.new(0, 1)
-            SelectedFrame.ClipsDescendants = true
-        else
-		    local scale = isPC and 0.22 or 0.14
-		    local mineWidth = isPC and 60 or 50
-            local maxWidth = 125
-		    local newWidth = math.clamp(Button.AbsoluteSize.X * scale, mineWidth, maxWidth)
-		    SelectedFrame.Size = UDim2.new(0, newWidth, 0, 18)
-            SelectedFrame.Position = UDim2.new(1, -10, 0.5)
-            SelectedFrame.AnchorPoint = Vector2.new(1, 0.5)
-            SelectedFrame.ClipsDescendants = false
-        end
-
-        if refreshDropdownInnerLayout then
-            refreshDropdownInnerLayout()
-        end
+		local scale = isPC and 0.22 or 0.14
+		local mineWidth = isPC and 60 or 50
+		local newWidth = math.clamp(Button.AbsoluteSize.X * scale, mineWidth, 125)
+		SelectedFrame.Size = UDim2.new(0, newWidth, 0, 18)
 	end
 
 	Button:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateSelectedFrameSize)
-	Button:GetAttributeChangedSignal("SPGridElement"):Connect(updateSelectedFrameSize)
 	task.defer(updateSelectedFrameSize)
 	updateSelectedFrameSize()
 
@@ -8418,39 +6581,6 @@ function Tab:AddDropdown(Configs)
 		BackgroundTransparency = 1,
 		ZIndex = 3
 	})
-
-	refreshDropdownInnerLayout = function()
-        local gridElement = Button:GetAttribute("SPGridElement") == true
-        if gridElement then
-            local compact = Button.AbsoluteSize.X > 0 and Button.AbsoluteSize.X < GRID_COMPACT_CARD_WIDTH
-            ActiveLabel.Size = UDim2.new(1, compact and -24 or -26, 1, 0)
-            ActiveLabel.Position = UDim2.new(0, compact and 7 or 8, 0.5, 0)
-            ActiveLabel.AnchorPoint = Vector2.new(0, 0.5)
-            ActiveLabel.TextScaled = false
-            ActiveLabel.TextSize = compact and (isMobile and 7 or 8) or (isMobile and 8 or 9)
-            ActiveLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-            Arrow.Size = UDim2.new(0, compact and 12 or 13, 0, compact and 12 or 13)
-            Arrow.Position = UDim2.new(1, -6, 0.5, 0)
-            Arrow.AnchorPoint = Vector2.new(1, 0.5)
-        else
-            ActiveLabel.Size = UDim2.new(0.85, 0, 0.85, 0)
-            ActiveLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
-            ActiveLabel.AnchorPoint = Vector2.new(0.5, 0.5)
-            ActiveLabel.TextScaled = true
-            ActiveLabel.TextSize = isMobile and 9 or 10
-            ActiveLabel.TextXAlignment = Enum.TextXAlignment.Center
-
-            Arrow.Size = UDim2.new(0, 15, 0, 15)
-            Arrow.Position = UDim2.new(0, -5, 0.5)
-            Arrow.AnchorPoint = Vector2.new(1, 0.5)
-        end
-    end
-    refreshDropdownInnerLayout()
-    task.defer(refreshDropdownInnerLayout)
-    bindGridControlTooltip(ActiveLabel, function()
-        return ActiveLabel.Text
-    end, Button)
 
 	local arrowTween
 	local arrowOpen = false
@@ -8904,7 +7034,7 @@ function Tab:AddDropdown(Configs)
 		local Default = type(OpDefault) ~= "table" and {OpDefault} or OpDefault or {}
 		local MultiSelect = DMultiSelect
 		local InitialSelection = saved or Default[1]
-		Selected = MultiSelect and {} or InitialSelection
+		Selected = MultiSelect and {} or nil
 
 		if MultiSelect then
 			for _, v in ipairs(saved or Default or {}) do
@@ -8976,8 +7106,107 @@ function Tab:AddDropdown(Configs)
 			UpdateLabel()
 		end
 
-		local function SelectByObject(optionObj)
+		local function notifyPremiumOption()
+			splib:MakeNotification{
+				Name = "Premium Option",
+				Image = "rbxassetid://10734966248",
+				Content = "This option requires SP Premium!",
+				Time = 1.5
+			}
+		end
+
+		local function canUseOption(optionObj, notify)
+			if optionObj and optionObj.Premium == true and not splib.IsPremium then
+				if notify then
+					notifyPremiumOption()
+				end
+				return false
+			end
+			return true
+		end
+
+		local function applyOptionPremiumVisual(optionObj)
+			if not (optionObj and optionObj.nodes) then return end
+
+			local optionButton = optionObj.nodes[1]
+			local optionText = optionObj.nodes[3]
+			if not (optionButton and optionText) then return end
+
+			local oldStar = optionButton:FindFirstChild("PremiumStar")
+			if oldStar then
+				oldStar:Destroy()
+			end
+			optionObj.nodes[4] = nil
+
+			optionText.Size = optionObj.Premium and UDim2.new(1, -24, 1, 0) or UDim2.new(1, -15, 1, 0)
+
+			if optionObj.Premium then
+				local star = Create("TextLabel", optionButton, {
+					Name = "PremiumStar",
+					Size = UDim2.new(0, 8, 0, 8),
+					Position = UDim2.new(1, -6, 0.5, 0),
+					AnchorPoint = Vector2.new(1, 0.5),
+					BackgroundTransparency = 1,
+					Text = "★",
+					Font = Enum.Font.GothamBold,
+					TextSize = 8,
+					TextColor3 = PremiumOptionColor,
+					TextTransparency = 0,
+					TextXAlignment = Enum.TextXAlignment.Center,
+					TextYAlignment = Enum.TextYAlignment.Center,
+					ZIndex = 86
+				})
+				optionObj.nodes[4] = star
+			end
+		end
+
+		local function clearLockedPremiumSelections()
+			if splib.IsPremium then return false end
+
+			local changed = false
+			if MultiSelect then
+				for _, name in ipairs(OptionList) do
+					local opt = Options[name]
+					if opt and opt.Premium == true and Selected[name] == true then
+						opt.Stats = false
+						Selected[name] = false
+						changed = true
+					end
+				end
+			else
+				for _, name in ipairs(OptionList) do
+					local opt = Options[name]
+					if opt and opt.Premium == true and ((opt.Value == Selected) or (opt.Name == Selected)) then
+						Selected = nil
+						changed = true
+						break
+					end
+				end
+			end
+
+			return changed
+		end
+
+		local function refreshPremiumOptionStates()
+			for _, name in ipairs(OptionList) do
+				local opt = Options[name]
+				if opt then
+					opt.Premium = isPremiumOptionConfig(opt.Name, opt.Value, opt.RawOption)
+					applyOptionPremiumVisual(opt)
+				end
+			end
+
+			local changed = clearLockedPremiumSelections()
+			UpdateSelected()
+			if changed then
+				CallbackSelected()
+			end
+		end
+
+		local function SelectByObject(optionObj, notifyLocked)
 			if not optionObj then return end
+			if not canUseOption(optionObj, notifyLocked ~= false) then return end
+
 			if MultiSelect then
 				optionObj.Stats = not optionObj.Stats
 				Selected[optionObj.Name] = optionObj.Stats
@@ -8991,8 +7220,10 @@ function Tab:AddDropdown(Configs)
 		end
 
 		AddOption = function(index, Value)
+			local rawOption = index
 			if type(index) == "table" then
-				Value = index[2]; index = index[1]
+				Value = index.Value or index.value or index.Id or index.id or index[2]
+				index = index.Name or index.name or index.Title or index.title or index.Text or index.text or index[1]
 			end
 
 			local Name
@@ -9004,19 +7235,26 @@ function Tab:AddDropdown(Configs)
 			if Value == nil then Value = Name end
 			if Options[Name] then return end
 
+			local isOptPremium = isPremiumOptionConfig(Name, Value, rawOption)
+
 			local opt = {
 				index = index,
 				Value = Value,
 				Name = Name,
 				Stats = false,
 				LastCB = 0,
-				nodes = nil
+				nodes = nil,
+				RawOption = rawOption,
+				Premium = isOptPremium
 			}
 			Options[Name] = opt
 			table.insert(OptionList, Name)
 
 			if MultiSelect then
 				local stat = Selected[Name]
+				if isOptPremium and not splib.IsPremium then
+					stat = false
+				end
 				Selected[Name] = stat or false
 				opt.Stats = stat or false
 			end
@@ -9040,8 +7278,9 @@ function Tab:AddDropdown(Configs)
 			}), "Theme")
 			Make("Corner", IsSelected, UDim.new(0.5, 0))
 
+			local textLabelWidth = isOptPremium and -30 or -15
 			local OptioneName = InsertTheme(Create("TextLabel", Button, {
-				Size = UDim2.new(1, 0, 1, 0),
+				Size = UDim2.new(1, textLabelWidth, 1, 0),
 				Position = UDim2.new(0, 10),
 				Text = Name,
 				TextColor3 = Theme["Color Text"],
@@ -9054,10 +7293,11 @@ function Tab:AddDropdown(Configs)
 
 			Button.Activated:Connect(function()
 				if PremiumGuard() then return end
-				SelectByObject(opt)
+				SelectByObject(opt, true)
 			end)
 
 			opt.nodes = {Button, IsSelected, OptioneName}
+			applyOptionPremiumVisual(opt)
 			ensureDropdownZIndex()
 
 			UpdateSelected()
@@ -9109,6 +7349,8 @@ function Tab:AddDropdown(Configs)
 				end
 			end
 			if not opt then return end
+			if not canUseOption(opt, false) then return end
+
 			if MultiSelect then
 				opt.Stats = not opt.Stats
 				Selected[opt.Name] = opt.Stats
@@ -9140,7 +7382,7 @@ function Tab:AddDropdown(Configs)
 				for _, want in ipairs(InitialSelection) do
 					for _, nm in ipairs(OptionList) do
 						local o = Options[nm]
-						if o and (o.Value == want or o.Name == want or tostring(o.Value) == tostring(want)) then
+						if o and (o.Value == want or o.Name == want or tostring(o.Value) == tostring(want)) and canUseOption(o, false) then
 							o.Stats = true
 							Selected[o.Name] = true
 							break
@@ -9161,6 +7403,12 @@ function Tab:AddDropdown(Configs)
 		end
 
 		ApplySearchFilter()
+
+		if splib._PremiumChanged then
+			trackRuntimeConnection(splib._PremiumChanged.Event:Connect(function()
+				refreshPremiumOptionStates()
+			end))
+		end
 	end
 
 
@@ -9203,26 +7451,29 @@ function Tab:AddDropdown(Configs)
 function Dropdown:Refresh(newOptions, deleteOld)
 	local list = newOptions or {}
 	local incoming = {}
+
 	for _, v in ipairs(list) do
-		local name, value
+		local name
 		if type(v) == "table" then
-			name = v[1]
-			value = v[2]
+			name = v.Name or v.name or v.Title or v.title or v.Text or v.text or v[1] or v.Value or v.value or v[2]
 		else
 			name = v
-			value = nil
 		end
-		if name == nil then name = tostring(value or v) end
+
+		if name == nil then name = tostring(v) end
 		name = tostring(name)
 		incoming[name] = true
+
 		if not Options[name] then
-			if value ~= nil then
-				AddOption(name, value)
-			else
-				AddOption(name)
-			end
+			AddOption(v)
+		else
+			local opt = Options[name]
+			opt.RawOption = v
+			opt.Premium = isPremiumOptionConfig(opt.Name, opt.Value, opt.RawOption)
+			applyOptionPremiumVisual(opt)
 		end
 	end
+
 	if deleteOld then
 		local copyList = {}
 		for i = 1, #OptionList do copyList[i] = OptionList[i] end
@@ -9232,9 +7483,38 @@ function Dropdown:Refresh(newOptions, deleteOld)
 			end
 		end
 	end
+
+	clearLockedPremiumSelections()
 	UpdateSelected()
 	ApplySearchFilter()
 end
+	function Dropdown:SetPremiumOptions(list)
+		clearPremiumOptionRefs()
+		loadPremiumOptionRefs(list)
+		refreshPremiumOptionStates()
+		ApplySearchFilter()
+	end
+
+	function Dropdown:AddPremiumOptions(...)
+		local args = {...}
+		if #args == 1 and type(args[1]) == "table" then
+			loadPremiumOptionRefs(args[1])
+		else
+			loadPremiumOptionRefs(args)
+		end
+		refreshPremiumOptionStates()
+		ApplySearchFilter()
+	end
+
+	function Dropdown:IsPremiumOption(value)
+		for _, name in ipairs(OptionList) do
+			local opt = Options[name]
+			if opt and (opt.Name == value or opt.Value == value or tostring(opt.Value) == tostring(value)) then
+				return opt.Premium == true
+			end
+		end
+		return false
+	end
 	function Dropdown:Select(val) SelectOption(val) end
 	function Dropdown:Set(val, Clear)
 		if type(val) == "table" then AddNewOptions(val, not Clear)
@@ -9454,7 +7734,6 @@ function Tab:AddSlider(Configs)
         ReservedRight = isMobile and 88 or 118,
         TitleWrapped = false
     })
-    styleGridElement(Button, LabelFunc, "Slider")
 
     if Configs and Configs.PremiumOnly then
         table.insert(splib.PremiumElements, Button)
@@ -9475,97 +7754,15 @@ function Tab:AddSlider(Configs)
 
     local SliderHolder = Create("TextButton", Button, {
         Name = "SliderHolder",
-        Size = UDim2.new(isMobile and 0.30 or 0.32, 0, 1, 0),
-        Position = UDim2.new(1, 0, 0, 0),
+        Size = UDim2.new(isMobile and 0.30 or 0.32, 0, 1),
+        Position = UDim2.new(1),
         AnchorPoint = Vector2.new(1, 0),
         AutoButtonColor = false,
         Text = "",
         BackgroundTransparency = 1
     })
 
-    local SliderBar
-    local SliderHandle
-    local HandleInner
-    local LabelVal
-    local BaseMousePos
-
-    local function getValueLabelWidth(compact)
-        local textSize = compact and (isMobile and 8 or 9) or (isMobile and 9 or 10)
-        local sampleNumber = math.max(math.abs(tonumber(Min) or 0), math.abs(tonumber(Max) or 0), math.abs(tonumber(Default) or 0))
-        local sampleText = string.format("%.1f", sampleNumber)
-        if Increase and Increase < 1 then
-            sampleText = string.format("%.2f", sampleNumber)
-        end
-
-        local measuredWidth = 0
-        pcall(function()
-            measuredWidth = TextService:GetTextSize(sampleText, textSize, Enum.Font.FredokaOne, Vector2.new(1000, 16)).X
-        end)
-
-        local minWidth = compact and 30 or 34
-        local maxWidth = compact and 48 or 58
-        return math.clamp(math.ceil(measuredWidth) + 6, minWidth, maxWidth)
-    end
-
-    local function updateSliderHolderLayout()
-        if Button:GetAttribute("SPGridElement") == true then
-            local compact = Button.AbsoluteSize.X > 0 and Button.AbsoluteSize.X < GRID_COMPACT_CARD_WIDTH
-            SliderHolder.Size = UDim2.new(1, compact and -14 or -18, 0, compact and 22 or 24)
-            SliderHolder.Position = UDim2.new(0, compact and 7 or 9, 1, compact and -7 or -8)
-            SliderHolder.AnchorPoint = Vector2.new(0, 1)
-
-            local valueWidth = getValueLabelWidth(compact)
-            local sidePadding = compact and 7 or 9
-            local gapToValue = compact and 8 or 10
-
-            if SliderBar then
-                SliderBar.Size = UDim2.new(1, -(valueWidth + sidePadding + gapToValue), 0, compact and 4 or 5)
-                SliderBar.Position = UDim2.new(0, sidePadding, 0.5, 0)
-                SliderBar.AnchorPoint = Vector2.new(0, 0.5)
-            end
-
-            if SliderHandle then
-                local handleSize = compact and (isMobile and 8 or 9) or (isMobile and 9 or 10)
-                SliderHandle.Size = UDim2.new(0, handleSize, 0, handleSize)
-            end
-            if HandleInner then
-                HandleInner.Size = UDim2.new(1, -4, 1, -4)
-            end
-
-            if LabelVal then
-                LabelVal.Size = UDim2.new(0, valueWidth, 0, 16)
-                LabelVal.Position = UDim2.new(1, -2, 0.5, 0)
-                LabelVal.AnchorPoint = Vector2.new(1, 0.5)
-                LabelVal.TextSize = compact and (isMobile and 8 or 9) or (isMobile and 9 or 10)
-                LabelVal.TextXAlignment = Enum.TextXAlignment.Right
-            end
-        else
-            SliderHolder.Size = UDim2.new(isMobile and 0.30 or 0.32, 0, 1, 0)
-            SliderHolder.Position = UDim2.new(1, 0, 0, 0)
-            SliderHolder.AnchorPoint = Vector2.new(1, 0)
-
-            if SliderBar then
-                SliderBar.Size = UDim2.new(1, -20, 0, 6)
-                SliderBar.Position = UDim2.new(0.5, 0, 0.5)
-                SliderBar.AnchorPoint = Vector2.new(0.5, 0.5)
-            end
-
-            if LabelVal then
-                LabelVal.Size = UDim2.new(0, 14, 0, 14)
-                LabelVal.Position = UDim2.new(0, 0, 0.5)
-                LabelVal.AnchorPoint = Vector2.new(1, 0.5)
-                LabelVal.TextSize = 11
-                LabelVal.TextXAlignment = Enum.TextXAlignment.Center
-            end
-        end
-    end
-
-    Button:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateSliderHolderLayout)
-    Button:GetAttributeChangedSignal("SPGridElement"):Connect(updateSliderHolderLayout)
-    task.defer(updateSliderHolderLayout)
-    updateSliderHolderLayout()
-
-    SliderBar = InsertTheme(Create("Frame", SliderHolder, {
+    local SliderBar = InsertTheme(Create("Frame", SliderHolder, {
         BackgroundColor3 = Theme["Color Stroke"],
         Size = UDim2.new(1, -20, 0, 6),
         Position = UDim2.new(0.5, 0, 0.5),
@@ -9578,7 +7775,7 @@ function Tab:AddSlider(Configs)
         BorderSizePixel = 0
     }), "Theme") Make("Corner", Indicator)
 
-    SliderHandle = InsertTheme(Create("Frame", SliderBar, {
+    local SliderHandle = InsertTheme(Create("Frame", SliderBar, {
         Size = UDim2.new(0, 16, 0, 16),
         BackgroundColor3 = Theme["Color Stroke"],
         Position = UDim2.fromScale(0, 0.5),
@@ -9587,7 +7784,7 @@ function Tab:AddSlider(Configs)
         Active = true
     }), "Stroke") Make("Corner", SliderHandle, UDim.new(1, 0))
 
-    HandleInner = InsertTheme(Create("Frame", SliderHandle, {
+    local HandleInner = InsertTheme(Create("Frame", SliderHandle, {
         Size = UDim2.new(1, -6, 1, -6),
         Position = UDim2.new(0.5, 0, 0.5, 0),
         AnchorPoint = Vector2.new(0.5, 0.5),
@@ -9596,7 +7793,7 @@ function Tab:AddSlider(Configs)
         BorderSizePixel = 0
     }), "Theme") Make("Corner", HandleInner, UDim.new(1, 0))
 
-    LabelVal = InsertTheme(Create("TextBox", SliderHolder, {
+    local LabelVal = InsertTheme(Create("TextBox", SliderHolder, {
         Size = UDim2.new(0, 14, 0, 14),
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(0, 0, 0.5),
@@ -9606,9 +7803,7 @@ function Tab:AddSlider(Configs)
         TextSize = 11
     }), "Text")
     local UIScale = Create("UIScale", LabelVal)
-    BaseMousePos = Create("Frame", SliderBar, { Position = UDim2.new(0,0,0.5,0), Visible = false })
-    updateSliderHolderLayout()
-    task.defer(updateSliderHolderLayout)
+    local BaseMousePos = Create("Frame", SliderBar, { Position = UDim2.new(0,0,0.5,0), Visible = false })
 
     LabelVal.ClearTextOnFocus = false
     LabelVal.TextEditable = true
@@ -9629,17 +7824,6 @@ function Tab:AddSlider(Configs)
         if Flag then pcall(function() SaveSliderFlag(Flag, NewValue) end) end
     end
 
-    local function getSliderHandleSize(active)
-        if Button:GetAttribute("SPGridElement") == true then
-            local compact = Button.AbsoluteSize.X > 0 and Button.AbsoluteSize.X < GRID_COMPACT_CARD_WIDTH
-            if active then
-                return compact and (isMobile and 10 or 11) or (isMobile and 11 or 12)
-            end
-            return compact and (isMobile and 9 or 10) or (isMobile and 10 or 11)
-        end
-        return active and 14 or 16
-    end
-
     local function AnimateVisuals(toScale)
         local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         TweenService:Create(SliderHandle, tweenInfo, { Position = UDim2.new(toScale, 0, 0.5, 0) }):Play()
@@ -9656,8 +7840,7 @@ function Tab:AddSlider(Configs)
             }
             return
         end
-        local activeHandleSize = getSliderHandleSize(true)
-        TweenService:Create(SliderHandle, TweenInfo.new(0.1, Enum.EasingStyle.Quad), { Size = UDim2.new(0, activeHandleSize, 0, activeHandleSize) }):Play()
+        TweenService:Create(SliderHandle, TweenInfo.new(0.1, Enum.EasingStyle.Quad), { Size = UDim2.new(0, 14, 0, 14) }):Play()
         Container.ScrollingEnabled = false
         while UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
             local mouseX = Player:GetMouse().X
@@ -9675,8 +7858,7 @@ function Tab:AddSlider(Configs)
             Indicator.Size = UDim2.new(clamped, 0, 1, 0)
             task.wait()
         end
-        local idleHandleSize = getSliderHandleSize(false)
-        TweenService:Create(SliderHandle, TweenInfo.new(0.1, Enum.EasingStyle.Quad), { Size = UDim2.new(0, idleHandleSize, 0, idleHandleSize) }):Play()
+        TweenService:Create(SliderHandle, TweenInfo.new(0.1, Enum.EasingStyle.Quad), { Size = UDim2.new(0, 16, 0, 16) }):Play()
         Container.ScrollingEnabled = true
     end)
 
@@ -9809,9 +7991,6 @@ function Tab:AddTextbox(Configs)
     if type(OriginalTextBoxDefault) ~= "string" then
         OriginalTextBoxDefault = ""
     end
-    if Flag then
-        splib.Flags[Flag] = TDefault
-    end
 
     local container = Configs.__force_container or Container
     local isExpanded = false
@@ -9827,7 +8006,6 @@ function Tab:AddTextbox(Configs)
     local descTextSize = isMobile and 7 or 8
 
     local updateCollapsedSize
-    local Button, LabelFunc
 
     local function stripRichTextForMeasure(str)
         return tostring(str or ""):gsub("<.->", "")
@@ -9893,23 +8071,7 @@ function Tab:AddTextbox(Configs)
         end
     end
 
-    local function isGridTextbox()
-        return Button and Button:GetAttribute("SPGridElement") == true
-    end
-
-    local function getInputAnchorPoint()
-        if isGridTextbox() then
-            return Vector2.new(0, 1)
-        end
-        return Vector2.new(1, 0.5)
-    end
-
     local function getInputPosition()
-        if isGridTextbox() then
-            local compact = Button.AbsoluteSize.X > 0 and Button.AbsoluteSize.X < GRID_COMPACT_CARD_WIDTH
-            return UDim2.new(0, compact and 7 or 9, 1, compact and -7 or -8)
-        end
-
         local height = currentInputHeight or inputHeight
         local offset
         if isExpanded then
@@ -9934,8 +8096,7 @@ function Tab:AddTextbox(Configs)
         DescLineLimit = nil
     }
 
-    Button, LabelFunc = ButtonFrame(container, TName, TDesc, textboxOptions)
-    styleGridElement(Button, LabelFunc, "Textbox")
+    local Button, LabelFunc = ButtonFrame(container, TName, TDesc, textboxOptions)
 
     local function applyStackedLayout(animated)
         if hasInputDescription then return end
@@ -9951,14 +8112,11 @@ function Tab:AddTextbox(Configs)
 
         local TitleL = LabelFunc.TitleLabel
         local DescL = LabelFunc.DescLabel
-        local gridTextBox = isGridTextbox()
         if TitleL then
-            TitleL.TextWrapped = false
-            TitleL.TextTruncate = Enum.TextTruncate.AtEnd
+            TitleL.TextWrapped = true
+            TitleL.TextTruncate = Enum.TextTruncate.None
         end
         if DescL then
-            DescL.AutomaticSize = Enum.AutomaticSize.Y
-            DescL.Size = UDim2.new(1, 0, 0, 0)
             DescL.TextWrapped = true
             DescL.TextTruncate = Enum.TextTruncate.None
         end
@@ -9990,27 +8148,11 @@ function Tab:AddTextbox(Configs)
     end
 
     Button:GetPropertyChangedSignal("AbsoluteSize"):Connect(checkOverlap)
-    Button:GetAttributeChangedSignal("SPGridElement"):Connect(function()
-        if Button:GetAttribute("SPGridElement") == true then
-            applyStackedLayout(false)
-        end
-
-        if updateCollapsedSize then
-            task.defer(function()
-                if Button and Button.Parent then
-                    updateCollapsedSize(false)
-                end
-            end)
-        end
-    end)
     if LabelFunc.TitleLabel then
         LabelFunc.TitleLabel:GetPropertyChangedSignal("TextBounds"):Connect(checkOverlap)
     end
     checkOverlap()
     task.defer(checkOverlap)
-    if Button:GetAttribute("SPGridElement") == true then
-        applyStackedLayout(false)
-    end
 
     pcall(function()
         Button:SetAttribute("ExtraHeight", getCollapsedExtraHeight())
@@ -10050,46 +8192,11 @@ function Tab:AddTextbox(Configs)
         Name = "SelectedFrame",
         Size = UDim2.new(0, 88, 0, currentInputHeight),
         Position = getInputPosition(),
-        AnchorPoint = getInputAnchorPoint(),
+        AnchorPoint = Vector2.new(1, 0.5),
         BackgroundColor3 = Theme["Color Stroke"],
         ClipsDescendants = true
     }), "Stroke")
     Make("Corner", SelectedFrame, UDim.new(0, 6))
-    local SelectedStroke = Make("Stroke", SelectedFrame, {
-        Transparency = 0.48,
-        Thickness = 1
-    })
-
-    local textBoxFocused = false
-    local textBoxHovered = false
-
-    local function refreshTextboxChrome(animated)
-        if not SelectedFrame or not SelectedFrame.Parent then return end
-        local isGrid = isGridTextbox()
-        local targetBgTransparency = isGrid and 0.04 or 0
-        local targetStrokeTransparency = isGrid and 0.42 or 0.55
-
-        if textBoxFocused then
-            targetBgTransparency = 0.00
-            targetStrokeTransparency = 0.12
-        elseif textBoxHovered then
-            targetBgTransparency = isGrid and 0.02 or 0
-            targetStrokeTransparency = 0.28
-        end
-
-        local info = TweenInfo.new(0.14, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-        if animated ~= false then
-            TweenService:Create(SelectedFrame, info, {BackgroundTransparency = targetBgTransparency}):Play()
-            if SelectedStroke then
-                TweenService:Create(SelectedStroke, info, {Transparency = targetStrokeTransparency}):Play()
-            end
-        else
-            SelectedFrame.BackgroundTransparency = targetBgTransparency
-            if SelectedStroke then
-                SelectedStroke.Transparency = targetStrokeTransparency
-            end
-        end
-    end
 
     local TextBoxInput = InsertTheme(Create("TextBox", SelectedFrame, {
         Size = UDim2.new(1, -30, 1, 0),
@@ -10118,23 +8225,6 @@ function Tab:AddTextbox(Configs)
         BackgroundTransparency = 1
     })
 
-    bindGridControlTooltip(TextBoxInput, function()
-        local current = tostring(TextBoxInput.Text or "")
-        if current == "" then
-            return TextBoxInput.PlaceholderText or ""
-        end
-        return current
-    end, Button)
-
-    trackRuntimeConnection(SelectedFrame.MouseEnter:Connect(function()
-        textBoxHovered = true
-        refreshTextboxChrome(true)
-    end))
-    trackRuntimeConnection(SelectedFrame.MouseLeave:Connect(function()
-        textBoxHovered = false
-        refreshTextboxChrome(true)
-    end))
-
     local TextBox = {}
     local sizeTween
     local positionTween
@@ -10156,15 +8246,6 @@ function Tab:AddTextbox(Configs)
     end
 
     local function getCollapsedWidth()
-        if isGridTextbox() then
-            local compact = Button.AbsoluteSize.X > 0 and Button.AbsoluteSize.X < GRID_COMPACT_CARD_WIDTH
-            local minWidth = isMobile and 84 or 96
-            if Button.AbsoluteSize.X > 0 then
-                return math.max(minWidth, math.floor(Button.AbsoluteSize.X - (compact and 14 or 18)))
-            end
-            return isMobile and 122 or 148
-        end
-
         -- Classic textbox behavior: keep a stable input width instead of growing with every character.
         local configuredWidth = tonumber(Configs.InputWidth or Configs.TextBoxWidth or Configs.Width)
         local fixedWidth = configuredWidth or (hasInputDescription and (isMobile and 122 or 148) or (isMobile and 82 or 96))
@@ -10182,10 +8263,6 @@ function Tab:AddTextbox(Configs)
     end
 
     local function getExpandedInputWidth()
-        if isGridTextbox() then
-            return getCollapsedWidth()
-        end
-
         -- Focused width is also capped. Long text is clipped/truncated, not wrapped or used to resize the row.
         local minWidth = isMobile and 92 or 110
         local maxWidth = isMobile and 190 or 230
@@ -10193,15 +8270,6 @@ function Tab:AddTextbox(Configs)
             maxWidth = math.min(maxWidth, math.max(minWidth, Button.AbsoluteSize.X - (isMobile and 34 or 44)))
         end
         return math.clamp(getCollapsedWidth() + (isMobile and 40 or 56), minWidth, maxWidth)
-    end
-
-    local function getInputFrameSize(width)
-        if isGridTextbox() then
-            local compact = Button.AbsoluteSize.X > 0 and Button.AbsoluteSize.X < GRID_COMPACT_CARD_WIDTH
-            return UDim2.new(1, compact and -14 or -18, 0, currentInputHeight)
-        end
-
-        return UDim2.new(0, width, 0, currentInputHeight)
     end
 
     local function setInputHeightForWidth(width)
@@ -10244,15 +8312,6 @@ function Tab:AddTextbox(Configs)
         local token = tweenToken
         isFrameTweening = true
 
-        if isGridTextbox() then
-            -- In Grid the textbox already fills the card width, so only chrome/focus should animate.
-            -- Direct size/position prevents the tiny shake that happened during focus/collapse.
-            SelectedFrame.Size = targetSize
-            SelectedFrame.Position = targetPosition
-            isFrameTweening = false
-            return
-        end
-
         local tweenDuration = isExpanded and 0.2 or 0.16
         local tweenInfo = TweenInfo.new(tweenDuration, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
         sizeTween = TweenService:Create(SelectedFrame, tweenInfo, {Size = targetSize})
@@ -10271,9 +8330,9 @@ function Tab:AddTextbox(Configs)
 
         local targetWidth = getCollapsedWidth()
         refreshInputHeight(animated, targetWidth)
-        local targetSize = getInputFrameSize(targetWidth)
+        local targetSize = UDim2.new(0, targetWidth, 0, currentInputHeight)
         local targetPosition = getInputPosition()
-        SelectedFrame.AnchorPoint = getInputAnchorPoint()
+        SelectedFrame.AnchorPoint = Vector2.new(1, 0.5)
 
         if animated then
             tweenFrame(targetSize, targetPosition)
@@ -10281,7 +8340,6 @@ function Tab:AddTextbox(Configs)
             SelectedFrame.Size = targetSize
             SelectedFrame.Position = targetPosition
         end
-        refreshTextboxChrome(animated)
     end
 
     local function expandInput()
@@ -10293,10 +8351,10 @@ function Tab:AddTextbox(Configs)
             Button:SetAttribute("ExtraHeight", getExpandedExtraHeight())
         end)
 
-        SelectedFrame.AnchorPoint = getInputAnchorPoint()
+        SelectedFrame.AnchorPoint = Vector2.new(1, 0.5)
         local expandedWidth = getExpandedInputWidth()
         refreshInputHeight(true, expandedWidth)
-        tweenFrame(getInputFrameSize(expandedWidth), getInputPosition())
+        tweenFrame(UDim2.new(0, expandedWidth, 0, currentInputHeight), getInputPosition())
         CreateTween({Pencil, "ImageColor3", Theme["Color Theme"], 0.18})
     end
 
@@ -10307,19 +8365,18 @@ function Tab:AddTextbox(Configs)
         end
 
         isExpanded = false
-        SelectedFrame.AnchorPoint = getInputAnchorPoint()
+        SelectedFrame.AnchorPoint = Vector2.new(1, 0.5)
         local collapsedWidth = getCollapsedWidth()
         refreshInputHeight(true, collapsedWidth)
         pcall(function()
             Button:SetAttribute("ExtraHeight", getCollapsedExtraHeight())
         end)
-        tweenFrame(getInputFrameSize(collapsedWidth), getInputPosition())
+        tweenFrame(UDim2.new(0, collapsedWidth, 0, currentInputHeight), getInputPosition())
         CreateTween({Pencil, "ImageColor3", Color3.fromRGB(255, 255, 255), 0.16})
     end
 
     local isApplyingTextBoxInput = false
     local lastSubmittedText = tostring(TextBoxInput.Text or "")
-    local setTextBoxValueFromContext
 
     TextBoxInput:GetPropertyChangedSignal("Text"):Connect(function()
         -- Keep typing calm: no content-based resize while the user types.
@@ -10337,7 +8394,7 @@ function Tab:AddTextbox(Configs)
             if not isFrameTweening then
                 local expandedWidth = getExpandedInputWidth()
                 refreshInputHeight(false, expandedWidth)
-                SelectedFrame.Size = getInputFrameSize(expandedWidth)
+                SelectedFrame.Size = UDim2.new(0, expandedWidth, 0, currentInputHeight)
                 SelectedFrame.Position = getInputPosition()
             end
         else
@@ -10347,11 +8404,7 @@ function Tab:AddTextbox(Configs)
         end
     end)
 
-    TextBoxInput.Focused:Connect(function()
-        textBoxFocused = true
-        refreshTextboxChrome(true)
-        expandInput()
-    end)
+    TextBoxInput.Focused:Connect(expandInput)
     Button.Activated:Connect(function()
         if Configs and Configs.PremiumOnly and not splib.IsPremium then
             splib:MakeNotification{
@@ -10413,77 +8466,60 @@ function Tab:AddTextbox(Configs)
             TextBoxInput.Text = Text
             isApplyingTextBoxInput = false
         end
-        
-        if TextBox.OnChanging then
-            Text = TextBox.OnChanging(Text) or Text
-            Text = tostring(Text or "")
-        end
+        if Text:gsub(" ", ""):len() > 0 then
+            if TextBox.OnChanging then
+                Text = TextBox.OnChanging(Text) or Text
+                Text = tostring(Text or "")
+            end
 
-        if Text == lastSubmittedText then
+            if Text == lastSubmittedText then
+                if TextBoxInput.Text ~= Text then
+                    isApplyingTextBoxInput = true
+                    TextBoxInput.Text = Text
+                    isApplyingTextBoxInput = false
+                end
+                return
+            end
+
+            lastSubmittedText = Text
+            if Flag then
+                SaveTextBoxFlag(Flag, Text)
+            end
+            Funcs:FireCallback(Callback, Text)
+
             if TextBoxInput.Text ~= Text then
                 isApplyingTextBoxInput = true
                 TextBoxInput.Text = Text
                 isApplyingTextBoxInput = false
             end
-            return
-        end
-
-        lastSubmittedText = Text
-        if Flag then
-            splib.Flags[Flag] = Text
-            SaveTextBoxFlag(Flag, Text)
-        end
-        Funcs:FireCallback(Callback, Text)
-
-        if TextBoxInput.Text ~= Text then
-            isApplyingTextBoxInput = true
-            TextBoxInput.Text = Text
-            isApplyingTextBoxInput = false
         end
     end
 
     TextBoxInput.FocusLost:Connect(function(enterPressed)
-        Input()
-        if not enterPressed then
+        if enterPressed then
+            Input()
+        else
             ignoreNextOpenUntil = tick() + 0.15
         end
-        textBoxFocused = false
-        refreshTextboxChrome(true)
         collapseInput()
     end)
 
     TextBox.OnChanging = false
     function TextBox:Visible(...) Funcs:ToggleVisible(Button, ...) end
     function TextBox:Destroy() Button:Destroy() end
-    function TextBox:GetValue()
-        return tostring(TextBoxInput.Text or "")
-    end
-    function TextBox:Set(value)
-        setTextBoxValueFromContext(value)
-    end
 
-    setTextBoxValueFromContext = function(value)
+    local function setTextBoxValueFromContext(value)
         value = sanitizeInputText(value)
         isApplyingTextBoxInput = true
         TextBoxInput.Text = value
         isApplyingTextBoxInput = false
         lastSubmittedText = value
         if Flag then
-            splib.Flags[Flag] = value
             SaveTextBoxFlag(Flag, value)
         end
         Funcs:FireCallback(Callback, value)
         updateCollapsedSize(true)
     end
-
-    task.defer(function()
-        if Flag then
-            splib.Flags[Flag] = tostring(TextBoxInput.Text or "")
-        end
-        pcall(function()
-            Funcs:FireCallback(Callback, tostring(TextBoxInput.Text or ""))
-        end)
-    end)
 
     bindContextMenu(Button, function()
         return {
@@ -10499,7 +8535,7 @@ function Tab:AddTextbox(Configs)
     return TextBox
 end
 local ColorPickersFile = "colorpickers.json"
-local function SaveColorPickerFlag(flag, color: Color3)
+local function SaveColorPickerFlag(flag, color)
 	local data = safeReadJsonFile(ColorPickersFile, {}) or {}
 	data[flag] = {
 		r = color.R,
@@ -10509,7 +8545,7 @@ local function SaveColorPickerFlag(flag, color: Color3)
 	safeWriteJsonFile(ColorPickersFile, data)
 end
 
-local function LoadColorPickerFlag(flag): Color3?
+local function LoadColorPickerFlag(flag)
 	local existing = safeReadJsonFile(ColorPickersFile, nil)
 	if type(existing) == "table" then
 		local saved = existing[flag]
@@ -10549,7 +8585,6 @@ if Flag then
        MaxHeight = isMobile and 76 or 38,
        DescLineLimit = isMobile and 3 or 1
    })
-   styleGridElement(Frame, LabelFunc, "ColorPicker")
  
     local ColorBox = InsertTheme(Create("TextButton", Frame, {
         Name = "ColorBox",
@@ -10565,11 +8600,7 @@ if Flag then
         ClipsDescendants = true
     }), "Stroke")
     Make("Corner", ColorBox, UDim.new(0.25, 0))
-    local ColorBoxStroke = Make("Stroke", ColorBox, {
-        Transparency = 0.42,
-        Thickness = 1
-    })
-
+ 
 local targetWidth = isMobile and 170 or 200
 local targetHeight = isMobile and 175 or 210
 
@@ -10819,77 +8850,6 @@ local isPresetOpen = false
 local colorWipeTween = nil
 local colorWipeToken = 0
 
-local function updateColorBoxLayout(animated)
-    if not ColorBox or not ColorBox.Parent then return end
-
-    local isGrid = false
-    pcall(function()
-        isGrid = Frame:GetAttribute("SPGridElement") == true
-    end)
-
-    local targetSize
-    local targetPosition
-    local targetAnchor
-    local targetStrokeTransparency = 0.42
-
-    if isGrid then
-        local compact = Frame.AbsoluteSize.X > 0 and Frame.AbsoluteSize.X < GRID_COMPACT_CARD_WIDTH
-        local targetWidth = compact and (isMobile and 32 or 34) or (isMobile and 36 or 40)
-        local targetHeight = compact and (isMobile and 20 or 20) or (isMobile and 21 or 22)
-
-        targetSize = UDim2.new(0, targetWidth, 0, targetHeight)
-        targetPosition = UDim2.new(1, compact and -7 or -9, 0.5, 0)
-        targetAnchor = Vector2.new(1, 0.5)
-        targetStrokeTransparency = 0.38
-
-        Arrow.AnchorPoint = Vector2.new(0.5, 0.5)
-        Arrow.Position = UDim2.new(0.5, 0, 0.5, 0)
-    else
-        targetSize = UDim2.new(0, 40, 0, 18)
-        targetPosition = UDim2.new(1, -10, 0.5, 0)
-        targetAnchor = Vector2.new(1, 0.5)
-        targetStrokeTransparency = 0.42
-
-        Arrow.AnchorPoint = Vector2.new(0, 0.5)
-        Arrow.Position = UDim2.new(0, 13, 0.5, 0)
-    end
-
-    ColorBox.AnchorPoint = targetAnchor
-
-    if animated ~= false then
-        TweenService:Create(ColorBox, TweenInfo.new(0.16, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-            Size = targetSize,
-            Position = targetPosition
-        }):Play()
-        if ColorBoxStroke then
-            TweenService:Create(ColorBoxStroke, TweenInfo.new(0.16), {
-                Transparency = targetStrokeTransparency
-            }):Play()
-        end
-    else
-        ColorBox.Size = targetSize
-        ColorBox.Position = targetPosition
-        if ColorBoxStroke then
-            ColorBoxStroke.Transparency = targetStrokeTransparency
-        end
-    end
-end
-
-Frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-    updateColorBoxLayout(false)
-end)
-Frame:GetAttributeChangedSignal("SPGridElement"):Connect(function()
-    updateColorBoxLayout(true)
-    if not isPresetOpen then
-        pcall(function()
-            Frame:SetAttribute("ExtraHeight", 0)
-        end)
-    end
-end)
-task.defer(function()
-    updateColorBoxLayout(false)
-end)
-
 local function getColorLuminance(color)
     return (0.299 * color.R) + (0.587 * color.G) + (0.114 * color.B)
 end
@@ -10993,18 +8953,9 @@ InsertTheme(PresetsList, "Stroke")
 local EXPANDED_PRESET_HEIGHT = 24
 local EXPANDED_PAD_HEIGHT = 30
 
-local function getColorpickerBaseExtraHeight()
-    local isGrid = false
-    pcall(function()
-        isGrid = Frame:GetAttribute("SPGridElement") == true
-    end)
-    return 0
-end
-
 local function animateFrameHeight(expanded)
-    local baseExtraHeight = getColorpickerBaseExtraHeight()
     pcall(function()
-        Frame:SetAttribute("ExtraHeight", baseExtraHeight + (expanded and EXPANDED_PAD_HEIGHT or 0))
+        Frame:SetAttribute("ExtraHeight", expanded and EXPANDED_PAD_HEIGHT or 0)
     end)
     local targetSize = expanded and UDim2.new(1, 0, 0, EXPANDED_PAD_HEIGHT) or UDim2.new(1, 0, 0, 0)
     TweenService:Create(
@@ -11652,25 +9603,12 @@ end
 			local Desc = Configs.Desc or Configs.Description or ""
 			local Logo = Configs[2] or Configs.Logo or ""
 			local Invite = Configs[3] or Configs.Invite or ""
-			local DisplayDesc = tostring(Desc or "")
-            if tostring(Invite or "") ~= "" then
-                DisplayDesc = DisplayDesc ~= "" and (DisplayDesc .. "\n" .. tostring(Invite)) or tostring(Invite)
-            end
 			
-            local container = Configs.__force_container or Container
-            local actualParent, layoutOrder, globalOrder = resolveElementParent(container)
-			local InviteHolder = Create("Frame", actualParent, {
+			local InviteHolder = Create("Frame", Container, {
 				Size = UDim2.new(1, 0, 0, 80),
 				Name = "Option",
-				BackgroundTransparency = 1,
-                LayoutOrder = layoutOrder
+				BackgroundTransparency = 1
 			})
-            markLayoutItem(InviteHolder, "Element", globalOrder)
-            pcall(function()
-                if actualParent ~= container and actualParent:GetAttribute("SPLayoutKind") == "Section" then
-                    InviteHolder:SetAttribute("SPGridElement", true)
-                end
-            end)
 			
 			local InviteLabel = Create("TextLabel", InviteHolder, {
 				Size = UDim2.new(1, 0, 0, 15),
@@ -11711,16 +9649,14 @@ end
 			local LDesc = InsertTheme(Create("TextLabel", FrameHolder, {
 				Size = UDim2.new(1, -52, 0, 0),
 				Position = UDim2.new(0, 44, 0, 22),
-				TextWrapped = true,
-				TextTruncate = Enum.TextTruncate.None,
-				AutomaticSize = Enum.AutomaticSize.Y,
+				TextWrapped = "Y",
+				AutomaticSize = "Y",
 				Font = Enum.Font.Gotham,
 				TextColor3 = Theme["Color Dark Text"],
-				TextXAlignment = Enum.TextXAlignment.Left,
-                TextYAlignment = Enum.TextYAlignment.Top,
+				TextXAlignment = "Left",
 				BackgroundTransparency = 1,
 				TextSize = 8,
-				Text = DisplayDesc
+				Text = Desc
 			}), "DarkText")
 			
 			local JoinButton = Create("TextButton", FrameHolder, {
@@ -11736,11 +9672,7 @@ end
 			
 			local ClickDelay
 			JoinButton.Activated:Connect(function()
-                pcall(function()
-                    if type(setclipboard) == "function" then
-				        setclipboard(Invite)
-                    end
-                end)
+				setclipboard(Invite)
 				if ClickDelay then return end
 				
 				ClickDelay = true
@@ -11756,85 +9688,6 @@ end
 				})ClickDelay = false
 			end)
 			
-            local function refreshDiscordInviteLayout()
-                local isGridInvite = InviteHolder:GetAttribute("SPGridElement") == true
-                local compact = isGridInvite and InviteHolder.AbsoluteSize.X > 0 and InviteHolder.AbsoluteSize.X < GRID_COMPACT_CARD_WIDTH
-                local imageSize = isGridInvite and (compact and 34 or 38) or 30
-                local textX = isGridInvite and (compact and 48 or 54) or 44
-                local titleY = isGridInvite and 10 or 7
-                local descY = isGridInvite and 30 or 22
-                local buttonHeight = isGridInvite and 20 or 16
-                local bottomPadding = isGridInvite and 9 or 7
-                local buttonGap = isGridInvite and 12 or 9
-
-                InviteHolder.BackgroundTransparency = 1
-                InviteHolder.ClipsDescendants = false
-                InviteLabel.Visible = false
-
-                FrameHolder.AnchorPoint = Vector2.new(0, 0)
-                FrameHolder.Position = UDim2.new(0, isGridInvite and 1 or 0, 0, 0)
-                FrameHolder.Size = UDim2.new(1, isGridInvite and -2 or 0, 0, 80)
-                FrameHolder.ClipsDescendants = false
-
-                ImageLabel.Size = UDim2.new(0, imageSize, 0, imageSize)
-                ImageLabel.Position = UDim2.new(0, isGridInvite and 8 or 7, 0, isGridInvite and 10 or 7)
-
-                LTitle.Size = UDim2.new(1, -(textX + 8), 0, isGridInvite and 16 or 15)
-                LTitle.Position = UDim2.new(0, textX, 0, titleY)
-                LTitle.TextSize = compact and 9 or 10
-                LTitle.TextWrapped = false
-                LTitle.TextTruncate = Enum.TextTruncate.AtEnd
-                LTitle.TextYAlignment = Enum.TextYAlignment.Top
-
-                local descWidth = 140
-                pcall(function()
-                    descWidth = math.max(40, FrameHolder.AbsoluteSize.X - textX - 10)
-                end)
-
-                local descHeight = 0
-                local descText = tostring(DisplayDesc or "")
-                if descText:gsub("%s+", "") ~= "" then
-                    local ok, measured = pcall(function()
-                        return TextService:GetTextSize(descText, compact and 7 or 8, LDesc.Font, Vector2.new(descWidth, 10000))
-                    end)
-                    if ok and measured then
-                        descHeight = math.ceil(measured.Y)
-                    else
-                        pcall(function()
-                            descHeight = math.ceil(LDesc.TextBounds.Y)
-                        end)
-                    end
-                    descHeight = math.max(descHeight, compact and 10 or 12)
-                end
-
-                LDesc.Text = DisplayDesc
-                LDesc.Size = UDim2.new(1, -(textX + 8), 0, descHeight)
-                LDesc.Position = UDim2.new(0, textX, 0, descY)
-                LDesc.TextSize = compact and 7 or 8
-                LDesc.TextWrapped = true
-                LDesc.TextTruncate = Enum.TextTruncate.None
-                LDesc.AutomaticSize = Enum.AutomaticSize.Y
-                LDesc.TextYAlignment = Enum.TextYAlignment.Top
-
-                local topContentHeight = math.max((isGridInvite and 10 or 7) + imageSize, descY + descHeight)
-                local holderHeight = math.max(isGridInvite and (compact and 104 or 112) or 80, topContentHeight + buttonGap + buttonHeight + bottomPadding)
-
-                InviteHolder.Size = UDim2.new(1, 0, 0, holderHeight)
-                FrameHolder.Size = UDim2.new(1, isGridInvite and -2 or 0, 0, holderHeight)
-
-                JoinButton.Size = UDim2.new(1, isGridInvite and -16 or -14, 0, buttonHeight)
-                JoinButton.Position = UDim2.new(0.5, 0, 1, -bottomPadding)
-                JoinButton.TextSize = compact and 10 or 12
-            end
-            trackRuntimeConnection(InviteHolder:GetPropertyChangedSignal("AbsoluteSize"):Connect(refreshDiscordInviteLayout))
-            trackRuntimeConnection(InviteHolder:GetAttributeChangedSignal("SPGridElement"):Connect(refreshDiscordInviteLayout))
-            task.defer(refreshDiscordInviteLayout)
-            refreshDiscordInviteLayout()
-            bindGridTextTooltip(InviteHolder, {
-                TitleLabel = LTitle,
-                DescLabel = LDesc
-            })
-
 			local DiscordInvite = {}
 			function DiscordInvite:Destroy() InviteHolder:Destroy() end
 			function DiscordInvite:Visible(...) Funcs:ToggleVisible(InviteHolder, ...) end
@@ -11844,7 +9697,7 @@ end
                     makeCopyItem(Invite, "Invite copied", "Copy Invite")
                 }
             end)
-			registerSearchElement(self, Title, InviteHolder, getCurrentSearchSection(self, container))
+			registerSearchElement(self, Title, InviteHolder, getCurrentSearchSection(self, Container))
 			return DiscordInvite
 		end
 
@@ -11998,20 +9851,6 @@ Tab:AddSection({
     Name = "UI",
     __force_container = SettingTab
 })
-
-Tab:AddDropdown({
-    Name = "Layout Mode",
-    Desc = "Classic list or animated Grid cards",
-    Options = {"Classic", "Grid"},
-    Default = splib.Save.LayoutMode or "Classic",
-    Flag = "LayoutMode",
-    Save = true,
-    Callback = function(v)
-        splib:SetLayoutMode(v)
-    end,
-    __force_container = SettingTab
-})
-
 
 local rainbowStroke
 
