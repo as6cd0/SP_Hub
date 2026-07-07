@@ -9,7 +9,8 @@ local Games: {[number]: string} = {
     [1119466531] = "https://raw.githubusercontent.com/as6cd0/SP_Hub/refs/heads/main/LegendOfSpeed",
     [6161049307] = "https://raw.githubusercontent.com/as6cd0/SP_Hub/refs/heads/main/PixelBlade",
     [8795154789] = "https://raw.githubusercontent.com/as6cd0/SP_Hub/refs/heads/main/Flick",
-    [10200395747] = "https://raw.githubusercontent.com/as6cd0/SP_Hub/refs/heads/main/GrowAGarden2"
+    [10200395747] = "https://raw.githubusercontent.com/as6cd0/SP_Hub/refs/heads/main/GrowAGarden2",
+    [66654135] = "https://raw.githubusercontent.com/as6cd0/SP_Hub/refs/heads/main/MurderMastery2"
 }
 
 local URL: string? = Games[GameId]
