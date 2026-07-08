@@ -9854,6 +9854,19 @@ Tab:AddSection({
     __force_container = SettingTab
 })
 
+Tab:AddDropdown({
+    Name = "Layout Mode",
+    Desc = "Classic list or animated Grid cards",
+    Options = {"Classic", "Grid"},
+    Default = splib.Save.LayoutMode or "Classic",
+    Flag = "LayoutMode",
+    Save = true,
+    Callback = function(v)
+        splib:SetLayoutMode(v)
+    end,
+    __force_container = SettingTab
+})
+
 local rainbowStroke
 
 rainbowStroke = Make("Stroke", MainFrame, {
