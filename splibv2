@@ -8971,7 +8971,7 @@ function Tab:AddDropdown(Configs)
 		local saved = (type(CheckFlag) == "function" and CheckFlag(Flag) and GetFlag(Flag)) or nil
 		local Default = type(OpDefault) ~= "table" and {OpDefault} or OpDefault or {}
 		local MultiSelect = DMultiSelect
-		local InitialSelection = saved or Default[1]
+		local InitialSelection = saved or (MultiSelect and Default or Default[1])
 		Selected = MultiSelect and {} or InitialSelection
 
 		if MultiSelect then
@@ -9462,7 +9462,7 @@ end
 		if DMultiSelect then
 			local res = {}
 			for i, nm in ipairs(OptionList) do
-				if Selected[nm] then table.insert(res, i) end
+				if Selected[nm] then table.insert(res, nm) end
 			end
 			return res
 		else
