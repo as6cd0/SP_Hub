@@ -584,6 +584,7 @@ splib.Save = {
   TabSize = type(saved.TabSize) == "number" and saved.TabSize or splib.Save.TabSize,
   Theme   = (type(saved.Theme) == "string" and splib.Themes[saved.Theme]) and saved.Theme or splib.Save.Theme,
   LayoutMode = saved.LayoutMode == "Grid" and "Grid" or "Classic",
+  SelectedFont = (type(saved.SelectedFont) == "string") and saved.SelectedFont or "Default",
 }
 
 _G.spLibConnections = _G.spLibConnections or {}
@@ -678,6 +679,84 @@ ScreenGui = Create("ScreenGui", CoreGui, {
         Name = "Scale"
     })
 })
+
+-- UI Font Handler
+local originalFonts = {}
+local fontMap = {
+    ["Default"] = "Default"
+}
+pcall(function() fontMap["Tajawal (Arabic)"] = Font.new("rbxassetid://12187377588") end)
+pcall(function() fontMap["Gotham"] = Font.fromEnum(Enum.Font.Gotham) end)
+pcall(function() fontMap["Fredoka One"] = Font.fromEnum(Enum.Font.FredokaOne) end)
+pcall(function() fontMap["Ubuntu"] = Font.fromEnum(Enum.Font.Ubuntu) end)
+pcall(function() fontMap["Roboto"] = Font.fromEnum(Enum.Font.Roboto) end)
+pcall(function() fontMap["Arial"] = Font.fromEnum(Enum.Font.Arial) end)
+pcall(function() fontMap["Source Sans"] = Font.fromEnum(Enum.Font.SourceSans) end)
+pcall(function() fontMap["Comic Sans"] = Font.fromEnum(Enum.Font.ComicSans) end)
+pcall(function() fontMap["Courier"] = Font.fromEnum(Enum.Font.CourierNew) end)
+pcall(function() fontMap["Arcade"] = Font.fromEnum(Enum.Font.Arcade) end)
+pcall(function() fontMap["Bangers"] = Font.fromEnum(Enum.Font.Bangers) end)
+pcall(function() fontMap["Creepster"] = Font.fromEnum(Enum.Font.Creepster) end)
+pcall(function() fontMap["Luckiest Guy"] = Font.fromEnum(Enum.Font.LuckiestGuy) end)
+pcall(function() fontMap["Patrick Hand"] = Font.fromEnum(Enum.Font.PatrickHand) end)
+
+local fontGuiConnection = nil
+local UIFontDropdown = nil
+
+local function applyFontSettings()
+    local selected = splib.Save.SelectedFont or "Default"
+    
+    if fontGuiConnection then
+        pcall(function() fontGuiConnection:Disconnect() end)
+        fontGuiConnection = nil
+    end
+    
+    if not ScreenGui then return end
+    
+    local fontObj = fontMap[selected]
+    if not fontObj then return end
+    
+    for _, descendant in ipairs(ScreenGui:GetDescendants()) do
+        if descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox") then
+            if fontObj == "Default" then
+                local orig = originalFonts[descendant]
+                if orig then
+                    pcall(function() descendant.FontFace = orig end)
+                end
+            else
+                if not originalFonts[descendant] then
+                    originalFonts[descendant] = descendant.FontFace
+                end
+                pcall(function() descendant.FontFace = fontObj end)
+            end
+        end
+    end
+    
+    if fontObj ~= "Default" then
+        fontGuiConnection = ScreenGui.DescendantAdded:Connect(function(descendant)
+            task.wait()
+            local current = splib.Save.SelectedFont or "Default"
+            local currentFontObj = fontMap[current]
+            if current ~= "Default" and currentFontObj and (descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox")) then
+                if not originalFonts[descendant] then
+                    originalFonts[descendant] = descendant.FontFace
+                end
+                pcall(function() descendant.FontFace = currentFontObj end)
+            end
+        end)
+        trackRuntimeConnection(fontGuiConnection)
+    end
+end
+
+function splib:SetFont(fontName)
+    splib.Save.SelectedFont = fontName
+    SaveJson("sp library.json", splib.Save)
+    if UIFontDropdown then
+        pcall(function() UIFontDropdown:Set(fontName) end)
+    else
+        pcall(applyFontSettings)
+    end
+end
 
 local function GetStr(val)
 	if type(val) == "function" then
@@ -12214,6 +12293,24 @@ Tab:AddSection({
     __force_container = SettingTab
 })
 
+UIFontDropdown = Tab:AddDropdown({
+    Name = "UI Font",
+    Desc = "Set the font of all UI texts",
+    Options = {
+        "Default", "Tajawal (Arabic)", "Gotham", "Fredoka One", "Ubuntu", "Roboto",
+        "Arial", "Source Sans", "Comic Sans", "Courier", "Arcade", "Bangers",
+        "Creepster", "Luckiest Guy", "Patrick Hand"
+    },
+    Default = splib.Save.SelectedFont or "Default",
+    Flag = "SelectedFont",
+    Save = true,
+    Callback = function(v)
+        splib.Save.SelectedFont = v
+        pcall(applyFontSettings)
+    end,
+    __force_container = SettingTab
+})
+
 Tab:AddDropdown({
     Name = "Layout Mode",
     Desc = "Classic list or animated Grid cards",
@@ -12329,6 +12426,7 @@ end
 
 		return Tab
 	end
+	pcall(applyFontSettings)
 	MinimizeButton.Activated:Connect(Window.MinimizeBtn)
 	return Window
 end
