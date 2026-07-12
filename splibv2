@@ -585,6 +585,7 @@ splib.Save = {
   Theme   = (type(saved.Theme) == "string" and splib.Themes[saved.Theme]) and saved.Theme or splib.Save.Theme,
   LayoutMode = saved.LayoutMode == "Grid" and "Grid" or "Classic",
   SelectedFont = (type(saved.SelectedFont) == "string") and saved.SelectedFont or "Default",
+  FontSizeOffset = type(saved.FontSizeOffset) == "number" and saved.FontSizeOffset or 0,
 }
 
 _G.spLibConnections = _G.spLibConnections or {}
@@ -682,6 +683,8 @@ ScreenGui = Create("ScreenGui", CoreGui, {
 
 -- UI Font Handler
 local originalFonts = {}
+local originalTextSizes = {}
+local originalLineHeights = {}
 local fontMap = {
     ["Default"] = "Default"
 }
@@ -692,8 +695,8 @@ pcall(function() fontMap["Ubuntu"] = Font.fromEnum(Enum.Font.Ubuntu) end)
 pcall(function() fontMap["Roboto"] = Font.fromEnum(Enum.Font.Roboto) end)
 pcall(function() fontMap["Arial"] = Font.fromEnum(Enum.Font.Arial) end)
 pcall(function() fontMap["Source Sans"] = Font.fromEnum(Enum.Font.SourceSans) end)
-pcall(function() fontMap["Comic Sans"] = Font.fromEnum(Enum.Font.ComicSans) end)
-pcall(function() fontMap["Courier"] = Font.fromEnum(Enum.Font.CourierNew) end)
+pcall(function() fontMap["Cairo (Arabic)"] = Font.new("rbxassetid://12187377099") end)
+pcall(function() fontMap["Marhey (Arabic)"] = Font.new("rbxassetid://12187364648") end)
 pcall(function() fontMap["Arcade"] = Font.fromEnum(Enum.Font.Arcade) end)
 pcall(function() fontMap["Bangers"] = Font.fromEnum(Enum.Font.Bangers) end)
 pcall(function() fontMap["Creepster"] = Font.fromEnum(Enum.Font.Creepster) end)
@@ -703,8 +706,30 @@ pcall(function() fontMap["Patrick Hand"] = Font.fromEnum(Enum.Font.PatrickHand) 
 local fontGuiConnection = nil
 local UIFontDropdown = nil
 
+local function shouldScaleFontSize(descendant)
+    local parent = descendant.Parent
+    if parent and (parent:IsA("TextButton") or parent:IsA("ImageButton")) then
+        local grandparent = parent.Parent
+        if grandparent and grandparent:IsA("ScrollingFrame") and grandparent.Name == "Tab Scroll" then
+            return false
+        end
+    end
+    return true
+end
+
+local function isMultiLineLabel(descendant)
+    local name = descendant.Name
+    if name == "DescL" or name == "Description" or name == "Status" or name == "Content" then
+        return true
+    end
+    return false
+end
+
 local function applyFontSettings()
     local selected = splib.Save.SelectedFont or "Default"
+    local isArabicFont = selected:find("Arabic") ~= nil
+    local arabicBaseOffset = isArabicFont and 1 or 0
+    local sizeOffset = splib.Save.FontSizeOffset or 0
     
     if fontGuiConnection then
         pcall(function() fontGuiConnection:Disconnect() end)
@@ -718,6 +743,7 @@ local function applyFontSettings()
     
     for _, descendant in ipairs(ScreenGui:GetDescendants()) do
         if descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox") then
+            -- 1. FontFace application
             if fontObj == "Default" then
                 local orig = originalFonts[descendant]
                 if orig then
@@ -729,19 +755,88 @@ local function applyFontSettings()
                 end
                 pcall(function() descendant.FontFace = fontObj end)
             end
+            
+            -- 2. TextSize adjustment with offset and Arabic scaling
+            if not originalTextSizes[descendant] then
+                originalTextSizes[descendant] = descendant.TextSize
+            end
+            
+            if fontObj == "Default" and sizeOffset == 0 then
+                local origSize = originalTextSizes[descendant]
+                if origSize then
+                    pcall(function() descendant.TextSize = origSize end)
+                end
+            else
+                local baseSize = originalTextSizes[descendant] or descendant.TextSize
+                local currentOffset = sizeOffset
+                if isArabicFont and shouldScaleFontSize(descendant) then
+                    currentOffset = currentOffset + arabicBaseOffset
+                end
+                pcall(function() descendant.TextSize = math.clamp(baseSize + currentOffset, 7, 26) end)
+            end
+
+            -- 3. LineHeight adjustment for Arabic fonts (to prevent line overlap on multiline labels only)
+            if fontObj == "Default" then
+                local origLineHeight = originalLineHeights[descendant]
+                if origLineHeight then
+                    pcall(function() descendant.LineHeight = origLineHeight end)
+                end
+            else
+                if not originalLineHeights[descendant] then
+                    originalLineHeights[descendant] = descendant.LineHeight
+                end
+                if isArabicFont and isMultiLineLabel(descendant) then
+                    pcall(function() descendant.LineHeight = 1.35 end)
+                else
+                    local origLineHeight = originalLineHeights[descendant]
+                    if origLineHeight then
+                        pcall(function() descendant.LineHeight = origLineHeight end)
+                    end
+                end
+            end
         end
     end
     
-    if fontObj ~= "Default" then
+    -- Dynamic connection for new descendants
+    if fontObj ~= "Default" or sizeOffset ~= 0 then
         fontGuiConnection = ScreenGui.DescendantAdded:Connect(function(descendant)
             task.wait()
             local current = splib.Save.SelectedFont or "Default"
             local currentFontObj = fontMap[current]
-            if current ~= "Default" and currentFontObj and (descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox")) then
+            local currentIsArabic = current:find("Arabic") ~= nil
+            local currentArabicBaseOffset = currentIsArabic and 1 or 0
+            local currentSizeOffset = splib.Save.FontSizeOffset or 0
+            
+            if (descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox")) then
                 if not originalFonts[descendant] then
                     originalFonts[descendant] = descendant.FontFace
                 end
-                pcall(function() descendant.FontFace = currentFontObj end)
+                if not originalTextSizes[descendant] then
+                    originalTextSizes[descendant] = descendant.TextSize
+                end
+                if not originalLineHeights[descendant] then
+                    originalLineHeights[descendant] = descendant.LineHeight
+                end
+                
+                if currentFontObj and currentFontObj ~= "Default" then
+                    pcall(function() descendant.FontFace = currentFontObj end)
+                end
+                
+                local baseSize = originalTextSizes[descendant] or descendant.TextSize
+                local currentOffset = currentSizeOffset
+                if currentIsArabic and shouldScaleFontSize(descendant) then
+                    currentOffset = currentOffset + currentArabicBaseOffset
+                end
+                pcall(function() descendant.TextSize = math.clamp(baseSize + currentOffset, 7, 26) end)
+                
+                if currentIsArabic and isMultiLineLabel(descendant) then
+                    pcall(function() descendant.LineHeight = 1.35 end)
+                else
+                    local origLineHeight = originalLineHeights[descendant]
+                    if origLineHeight then
+                        pcall(function() descendant.LineHeight = origLineHeight end)
+                    end
+                end
             end
         end)
         trackRuntimeConnection(fontGuiConnection)
@@ -1845,8 +1940,12 @@ local function distributeGridSections(container, leftColumn, rightColumn)
             targetColumn = rightColumn
         end
 
-        section.Parent = targetColumn
-        section.LayoutOrder = index
+        if section.Parent ~= targetColumn then
+            section.Parent = targetColumn
+        end
+        if section.LayoutOrder ~= index then
+            section.LayoutOrder = index
+        end
         lastSection = section
 
         if targetColumn == leftColumn then
@@ -1936,11 +2035,17 @@ local function ensureGridColumns(container)
         columnsFrame.Size = UDim2.new(1, 0, 0, math.max(leftLayout.AbsoluteContentSize.Y, rightLayout.AbsoluteContentSize.Y))
     end
 
+    local isRefreshingGrid = false
     local function refreshGrid()
+        if isRefreshingGrid then return end
         if not columnsFrame.Parent then return end
+        isRefreshingGrid = true
         distributeGridSections(container, leftColumn, rightColumn)
         updateColumnSizes()
-        task.defer(updateColumnSizes)
+        task.defer(function()
+            pcall(updateColumnSizes)
+            isRefreshingGrid = false
+        end)
     end
 
     clearLayoutConnections(container)
@@ -2068,6 +2173,7 @@ local function applyLayoutModeToContainer(container, mode)
         end
     else
         setCurrentGridCard(container, nil)
+        clearLayoutConnections(container) -- Disconnect immediately to prevent event callbacks from re-parenting items
 
         for _, item in ipairs(items) do
             local kind = item:GetAttribute("SPLayoutKind")
@@ -2083,8 +2189,13 @@ local function applyLayoutModeToContainer(container, mode)
         if columnsFrame then
             columnsFrame:Destroy()
         end
-        clearLayoutConnections(container)
         container:SetAttribute("SectionCount", 0)
+
+        if previousMode == "Grid" then
+            task.defer(function()
+                animateGridBuild(container)
+            end)
+        end
     end
 end
 
@@ -2226,6 +2337,7 @@ local function ButtonFrame(parent, Title, Description, HolderSize, isBind)
     Make("Corner", Frame, UDim.new(0, 10))
 
     local TitleL = InsertTheme(Create("TextLabel", Frame, {
+        Name = "TitleL",
         Font = Enum.Font.GothamMedium,
         TextColor3 = Theme["Color Text"],
         AutomaticSize = Enum.AutomaticSize.Y,
@@ -2242,6 +2354,7 @@ local function ButtonFrame(parent, Title, Description, HolderSize, isBind)
     }), "Text")
 
     local DescL = InsertTheme(Create("TextLabel", Frame, {
+        Name = "DescL",
         Font = Enum.Font.Gotham,
         TextColor3 = Theme["Color Dark Text"],
         AutomaticSize = Enum.AutomaticSize.Y,
@@ -2300,6 +2413,9 @@ local function ButtonFrame(parent, Title, Description, HolderSize, isBind)
         local ok, measured = pcall(function()
             return TextService:GetTextSize(text, label.TextSize, label.Font, Vector2.new(width, 10000))
         end)
+        if ok and measured then
+            measuredHeight = math.ceil(measured.Y * (label.LineHeight or 1.0))
+        end
         if ok and measured then
             measuredHeight = math.ceil(measured.Y)
         end
@@ -2397,6 +2513,10 @@ local function ButtonFrame(parent, Title, Description, HolderSize, isBind)
         Frame:GetAttributeChangedSignal("ExtraHeight"):Connect(refreshLayout)
     end)
     Frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(refreshLayout)
+    pcall(function()
+        TitleL:GetPropertyChangedSignal("TextSize"):Connect(refreshLayout)
+        DescL:GetPropertyChangedSignal("TextSize"):Connect(refreshLayout)
+    end)
 
     local bindBox
     if isBind then
@@ -3136,6 +3256,13 @@ local function styleGridElement(frame, labelFunc, elementType)
                 frame.Size = classicSize
                 frame.BackgroundTransparency = classicBackgroundTransparency
                 frame.ClipsDescendants = classicClipsDescendants
+
+                -- Clear grid attributes to allow proper Classic size recalculation
+                frame:SetAttribute("SPGridControlReserve", nil)
+                frame:SetAttribute("SPGridBaseHeight", nil)
+                frame:SetAttribute("ExtraHeight", nil)
+                frame:SetAttribute("AnimateHeight", nil)
+                frame:SetAttribute("HeightTweenTime", nil)
 
                 local currentStroke = stroke or frame:FindFirstChild("SPGridElementStroke")
                 if currentStroke then
@@ -12297,8 +12424,8 @@ UIFontDropdown = Tab:AddDropdown({
     Name = "UI Font",
     Desc = "Set the font of all UI texts",
     Options = {
-        "Default", "Tajawal (Arabic)", "Gotham", "Fredoka One", "Ubuntu", "Roboto",
-        "Arial", "Source Sans", "Comic Sans", "Courier", "Arcade", "Bangers",
+        "Default", "Tajawal (Arabic)", "Cairo (Arabic)", "Marhey (Arabic)", "Gotham", 
+        "Fredoka One", "Ubuntu", "Roboto", "Arial", "Source Sans", "Arcade", "Bangers",
         "Creepster", "Luckiest Guy", "Patrick Hand"
     },
     Default = splib.Save.SelectedFont or "Default",
@@ -12306,6 +12433,21 @@ UIFontDropdown = Tab:AddDropdown({
     Save = true,
     Callback = function(v)
         splib.Save.SelectedFont = v
+        pcall(applyFontSettings)
+    end,
+    __force_container = SettingTab
+})
+
+Tab:AddSlider({
+    Name = "UI Font Size Offset",
+    Desc = "Adjust the UI text sizes",
+    Min = -4,
+    Max = 6,
+    Default = splib.Save.FontSizeOffset or 0,
+    Flag = "FontSizeOffset",
+    Save = true,
+    Callback = function(v)
+        splib.Save.FontSizeOffset = v
         pcall(applyFontSettings)
     end,
     __force_container = SettingTab
