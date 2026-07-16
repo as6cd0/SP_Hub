@@ -41,6 +41,67 @@ local placeId = game.PlaceId
 local CurrentGame = Games[placeId]
 local isSupported = CurrentGame ~= nil
 
+local Languages = {
+    { Code = "en", Name = "English", Display = "🇺🇸 English" },
+    { Code = "ar", Name = "Arabic", Display = "🇸🇦 العربية" },
+    { Code = "es", Name = "Española", Display = "🇪🇸 Española" },
+    { Code = "tr", Name = "Turkey", Display = "🇹🇷 Türkçe" },
+    { Code = "ru", Name = "Russian", Display = "🇷🇺 Русский" },
+    { Code = "fr", Name = "France", Display = "🇫🇷 Français" },
+    { Code = "de", Name = "Germany", Display = "🇩🇪 Deutsch" },
+    { Code = "pt", Name = "Brazil", Display = "🇧🇷 Português" }
+}
+
+local SkipTranslations = {
+    en = "Skip",
+    ar = "تخطي",
+    es = "Omitir",
+    tr = "Geç",
+    ru = "Пропустить",
+    fr = "Passer",
+    de = "Überspringen",
+    pt = "Pular"
+}
+
+local function saveLanguageSetting(value)
+    pcall(function()
+        local json = {}
+        local ok, data = pcall(readfile, "dropdowns.json")
+        if ok and data then
+            json = game:GetService("HttpService"):JSONDecode(data) or {}
+        end
+        json["LanguageSetting"] = value
+        writefile("dropdowns.json", game:GetService("HttpService"):JSONEncode(json))
+    end)
+end
+
+local function getSavedLanguageCode()
+    local code = getgenv().SP_Hub_Language
+    if code then return code end
+    code = "en"
+    pcall(function()
+        local ok, data = pcall(readfile, "dropdowns.json")
+        if ok and data then
+            local json = game:GetService("HttpService"):JSONDecode(data)
+            local savedName = json and json["LanguageSetting"]
+            if savedName then
+                local Codes = {
+                    English = "en",
+                    Arabic = "ar",
+                    ["Española"] = "es",
+                    Turkey = "tr",
+                    Russian = "ru",
+                    France = "fr",
+                    Germany = "de",
+                    Brazil = "pt"
+                }
+                code = Codes[savedName] or "en"
+            end
+        end
+    end)
+    return code
+end
+
 local oldUI = PlayerGui:FindFirstChild("Loading SP Hub") or CoreGui:FindFirstChild("Loading SP Hub")
 if oldUI then oldUI:Destroy() end
 
@@ -99,6 +160,7 @@ MainFrame.BorderSizePixel = 0
 MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 MainFrame.Position = UDim2.new(0.5, 0, 1.5, 0)
 MainFrame.Size = UDim2.new(0.32, 0, 0.32, 0)
+MainFrame.ClipsDescendants = true
 MainFrame.Visible = false
 
 local UICorner_Main = Instance.new("UICorner")
@@ -124,6 +186,7 @@ SPHub.Font = Enum.Font.FredokaOne
 SPHub.Text = "SP Hub"
 SPHub.TextColor3 = Color3.fromRGB(255, 255, 255)
 SPHub.TextScaled = true
+SPHub.ZIndex = 2
 
 local SPHubGlow = Instance.new("Frame")
 SPHubGlow.Name = "UnderGlow"
@@ -143,25 +206,6 @@ GameNameLabel.Font = Enum.Font.FredokaOne
 GameNameLabel.Text = isSupported and CurrentGame.Name or "Unsupported Game"
 GameNameLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
 GameNameLabel.TextScaled = true
-
-local ExitButton = Instance.new("TextButton")
-ExitButton.Name = "ExitButton"
-ExitButton.Parent = MainFrame
-ExitButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-ExitButton.Position = UDim2.new(0.88, 0, 0.06, 0)
-ExitButton.Size = UDim2.new(0.08, 0, 0.12, 0)
-ExitButton.Font = Enum.Font.SourceSansBold
-ExitButton.Text = "X"
-ExitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ExitButton.TextScaled = true
-
-local UICorner_Exit = Instance.new("UICorner")
-UICorner_Exit.CornerRadius = UDim.new(1, 0)
-UICorner_Exit.Parent = ExitButton
-
-local UIAspectRatioConstraint_5 = Instance.new("UIAspectRatioConstraint")
-UIAspectRatioConstraint_5.AspectRatio = 1
-UIAspectRatioConstraint_5.Parent = ExitButton
 
 local function applyHoverEffect(button, defaultColor, hoverColor)
     button.MouseEnter:Connect(function()
@@ -185,19 +229,6 @@ local function applyHoverEffect(button, defaultColor, hoverColor)
         end
     end)
 end
-
-ExitButton.MouseEnter:Connect(function()
-    TweenService:Create(ExitButton, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Rotation = 90,
-        BackgroundColor3 = Color3.fromRGB(220, 40, 40)
-    }):Play()
-end)
-ExitButton.MouseLeave:Connect(function()
-    TweenService:Create(ExitButton, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-        Rotation = 0,
-        BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-    }):Play()
-end)
 
 local function makeDraggable(frame, handle)
     local dragging = false
@@ -237,6 +268,75 @@ end
 
 makeDraggable(MainFrame, SPHub)
 
+local function closeMenu()
+    local slideOut = TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+        Position = UDim2.new(0.5, 0, 1.5, 0)
+    })
+    slideOut:Play()
+    slideOut.Completed:Wait()
+    LoadingGui:Destroy()
+end
+
+local function launchGameScript(langCode)
+    getgenv().SP_Hub_Language = langCode
+    
+    local ok, data = pcall(readfile, "dropdowns.json")
+    if ok and data then
+        local json = game:GetService("HttpService"):JSONDecode(data)
+        local savedName = json and json["LanguageSetting"]
+        if not savedName then
+            local NameMap = {
+                en = "English",
+                ar = "Arabic",
+                es = "Española",
+                tr = "Turkey",
+                ru = "Russian",
+                fr = "France",
+                de = "Germany",
+                pt = "Brazil"
+            }
+            saveLanguageSetting(NameMap[langCode] or "English")
+        end
+    end
+
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "SP Hub",
+        Text = "The Script Will Be Load...",
+        Duration = 3
+    })
+
+    local scriptUrl = "https://raw.githubusercontent.com/as6cd0/SP_Hub/main/" .. CurrentGame.Script
+    pcall(function()
+        loadstring(game:HttpGet(scriptUrl))()
+    end)
+end
+
+local SkipButton = nil
+
+local function updateUIText(langCode)
+    local isArabic = (langCode == "ar")
+    if isArabic then
+        SPHub.Text = "اختر اللغة"
+        GameNameLabel.Text = "اللغة الحالية: العربية"
+    else
+        local langMap = {
+            en = "English",
+            es = "Española",
+            tr = "Türkçe",
+            ru = "Русский",
+            fr = "Français",
+            de = "Deutsch",
+            pt = "Português"
+        }
+        local currentName = langMap[langCode] or "English"
+        SPHub.Text = "Select Language"
+        GameNameLabel.Text = "Current Language: " .. currentName
+    end
+    if SkipButton then
+        SkipButton.Text = SkipTranslations[langCode] or "Skip / تخطي"
+    end
+end
+
 if isSupported then
     local PlayButton = Instance.new("TextButton")
     PlayButton.Name = "PlayButton"
@@ -260,6 +360,94 @@ if isSupported then
 
     applyHoverEffect(PlayButton, Color3.fromRGB(30, 30, 30), Color3.fromRGB(45, 45, 45))
 
+    local ButtonsFrame = Instance.new("Frame")
+    ButtonsFrame.Name = "ButtonsFrame"
+    ButtonsFrame.Parent = MainFrame
+    ButtonsFrame.BackgroundTransparency = 1
+    ButtonsFrame.Position = UDim2.new(0.05, 0, 0.35, 0)
+    ButtonsFrame.Size = UDim2.new(0.9, 0, 0.55, 0)
+    ButtonsFrame.Visible = false
+
+    local UIGridLayout = Instance.new("UIGridLayout")
+    UIGridLayout.Parent = ButtonsFrame
+    UIGridLayout.CellSize = UDim2.new(0.44, 0, 0.18, 0)
+    UIGridLayout.CellPadding = UDim2.new(0.04, 0, 0.04, 0)
+    UIGridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    UIGridLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+
+    SkipButton = Instance.new("TextButton")
+    SkipButton.Name = "SkipButton"
+    SkipButton.Parent = MainFrame
+    SkipButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    SkipButton.Position = UDim2.new(0.35, 0, 0.89, 0)
+    SkipButton.Size = UDim2.new(0.3, 0, 0.08, 0)
+    SkipButton.Font = Enum.Font.SourceSansBold
+    SkipButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+    SkipButton.TextScaled = true
+    SkipButton.Visible = false
+
+    local UICorner_Skip = Instance.new("UICorner")
+    UICorner_Skip.CornerRadius = UDim.new(0, 8)
+    UICorner_Skip.Parent = SkipButton
+
+    local UIStroke_Skip = Instance.new("UIStroke")
+    UIStroke_Skip.Thickness = 1
+    UIStroke_Skip.Color = Color3.fromRGB(40, 40, 40)
+    UIStroke_Skip.Parent = SkipButton
+
+    applyHoverEffect(SkipButton, Color3.fromRGB(25, 25, 25), Color3.fromRGB(35, 35, 35))
+
+    SkipButton.MouseButton1Click:Connect(function()
+        local clickTween = TweenService:Create(SkipButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = SkipButton.Size - UDim2.new(0.04, 0, 0.04, 0),
+            Position = SkipButton.Position + UDim2.new(0.02, 0, 0.02, 0)
+        })
+        clickTween:Play()
+        clickTween.Completed:Wait()
+
+        local activeCode = getSavedLanguageCode()
+        task.spawn(launchGameScript, activeCode)
+        closeMenu()
+    end)
+
+    for _, lang in ipairs(Languages) do
+        local btn = Instance.new("TextButton")
+        btn.Name = lang.Name .. "Button"
+        btn.Parent = ButtonsFrame
+        btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        btn.Text = lang.Display
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.TextScaled = true
+        btn.Font = Enum.Font.SourceSansBold
+
+        local btnCorner = Instance.new("UICorner")
+        btnCorner.CornerRadius = UDim.new(0, 10)
+        btnCorner.Parent = btn
+
+        local btnStroke = Instance.new("UIStroke")
+        btnStroke.Thickness = 1.5
+        btnStroke.Color = Color3.fromRGB(60, 60, 60)
+        btnStroke.Parent = btn
+
+        applyHoverEffect(btn, Color3.fromRGB(30, 30, 30), Color3.fromRGB(45, 45, 45))
+
+        btn.MouseButton1Click:Connect(function()
+            local clickTween = TweenService:Create(btn, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Size = btn.Size - UDim2.new(0.04, 0, 0.04, 0),
+                Position = btn.Position + UDim2.new(0.02, 0, 0.02, 0)
+            })
+            clickTween:Play()
+            clickTween.Completed:Wait()
+
+            saveLanguageSetting(lang.Name)
+            updateUIText(lang.Code)
+
+            task.wait(0.3)
+            task.spawn(launchGameScript, lang.Code)
+            closeMenu()
+        end)
+    end
+
     PlayButton.MouseButton1Click:Connect(function()
         local clickTween = TweenService:Create(PlayButton, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             Size = PlayButton.Size - UDim2.new(0.04, 0, 0.04, 0),
@@ -267,23 +455,34 @@ if isSupported then
         })
         clickTween:Play()
         clickTween.Completed:Wait()
-        
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "SP Hub",
-            Text = "The Script Will Be Load...",
-            Duration = 3
+
+        PlayButton.Visible = false
+
+        local activeCode = getSavedLanguageCode()
+        updateUIText(activeCode)
+
+        TweenService:Create(SPHub, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0.05, 0, 0.05, 0),
+            Size = UDim2.new(0.9, 0, 0.12, 0)
+        }):Play()
+
+        TweenService:Create(GameNameLabel, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0.05, 0, 0.22, 0),
+            Size = UDim2.new(0.9, 0, 0.08, 0)
+        }):Play()
+
+        local resizeTween = TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0.35, 0, 0.45, 0)
         })
+        local ratioTween = TweenService:Create(UIAspectRatioConstraint, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            AspectRatio = 1.2
+        })
+        resizeTween:Play()
+        ratioTween:Play()
+        resizeTween.Completed:Wait()
 
-        local scriptUrl = "https://raw.githubusercontent.com/as6cd0/SP_Hub/main/" .. CurrentGame.Script
-        local success, err = pcall(function()
-            loadstring(game:HttpGet(scriptUrl))()
-        end)
-
-        if not success then
-            warn("Error loading script: " .. tostring(err))
-        else
-            LoadingGui:Destroy()
-        end
+        ButtonsFrame.Visible = true
+        SkipButton.Visible = true
     end)
 else
     local AutoClickerButton = Instance.new("TextButton")
@@ -380,10 +579,6 @@ else
         end
     end)
 end
-
-ExitButton.MouseButton1Click:Connect(function()
-    LoadingGui:Destroy()
-end)
 
 local function runLoadingSequence()
     LoadingFrame.Visible = true
