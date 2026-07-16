@@ -207,6 +207,43 @@ GameNameLabel.Text = isSupported and CurrentGame.Name or "Unsupported Game"
 GameNameLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
 GameNameLabel.TextScaled = true
 
+local ExitButton = Instance.new("TextButton")
+ExitButton.Name = "ExitButton"
+ExitButton.Parent = MainFrame
+ExitButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+ExitButton.Position = UDim2.new(0.88, 0, 0.06, 0)
+ExitButton.Size = UDim2.new(0.08, 0, 0.12, 0)
+ExitButton.Font = Enum.Font.SourceSansBold
+ExitButton.Text = "X"
+ExitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ExitButton.TextScaled = true
+ExitButton.ZIndex = 3
+
+local UICorner_Exit = Instance.new("UICorner")
+UICorner_Exit.CornerRadius = UDim.new(1, 0)
+UICorner_Exit.Parent = ExitButton
+
+local UIAspectRatioConstraint_Exit = Instance.new("UIAspectRatioConstraint")
+UIAspectRatioConstraint_Exit.AspectRatio = 1
+UIAspectRatioConstraint_Exit.Parent = ExitButton
+
+ExitButton.MouseEnter:Connect(function()
+    TweenService:Create(ExitButton, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Rotation = 90,
+        BackgroundColor3 = Color3.fromRGB(220, 40, 40)
+    }):Play()
+end)
+ExitButton.MouseLeave:Connect(function()
+    TweenService:Create(ExitButton, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Rotation = 0,
+        BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+    }):Play()
+end)
+
+ExitButton.MouseButton1Click:Connect(function()
+    LoadingGui:Destroy()
+end)
+
 local function applyHoverEffect(button, defaultColor, hoverColor)
     button.MouseEnter:Connect(function()
         TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
@@ -457,6 +494,7 @@ if isSupported then
         clickTween.Completed:Wait()
 
         PlayButton.Visible = false
+        ExitButton.Visible = false
 
         local activeCode = getSavedLanguageCode()
         updateUIText(activeCode)
