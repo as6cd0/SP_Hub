@@ -63,6 +63,17 @@ local SkipTranslations = {
     pt = "Pular"
 }
 
+local CheckBoxTranslations = {
+    en = "Don't show this again",
+    ar = "عدم إظهار هذه القائمة مجدداً",
+    es = "No volver a mostrar",
+    tr = "Bunu tekrar gösterme",
+    ru = "Больше не показывать",
+    fr = "Ne plus afficher",
+    de = "Nicht mehr anzeigen",
+    pt = "Não mostrar novamente"
+}
+
 local function saveLanguageSetting(value)
     pcall(function()
         local json = {}
@@ -100,6 +111,32 @@ local function getSavedLanguageCode()
         end
     end)
     return code
+end
+
+local function saveDontShowSetting(value)
+    pcall(function()
+        local json = {}
+        local ok, data = pcall(readfile, "dropdowns.json")
+        if ok and data then
+            json = game:GetService("HttpService"):JSONDecode(data) or {}
+        end
+        json["DontShowLanguageMenu"] = value
+        writefile("dropdowns.json", game:GetService("HttpService"):JSONEncode(json))
+    end)
+end
+
+local function getSavedDontShowSetting()
+    local dontShow = false
+    pcall(function()
+        local ok, data = pcall(readfile, "dropdowns.json")
+        if ok and data then
+            local json = game:GetService("HttpService"):JSONDecode(data)
+            if json and json["DontShowLanguageMenu"] ~= nil then
+                dontShow = json["DontShowLanguageMenu"]
+            end
+        end
+    end)
+    return dontShow
 end
 
 local oldUI = PlayerGui:FindFirstChild("Loading SP Hub") or CoreGui:FindFirstChild("Loading SP Hub")
@@ -349,6 +386,7 @@ local function launchGameScript(langCode)
 end
 
 local SkipButton = nil
+local CheckBoxText = nil
 
 local function updateUIText(langCode)
     local isArabic = (langCode == "ar")
@@ -371,6 +409,9 @@ local function updateUIText(langCode)
     end
     if SkipButton then
         SkipButton.Text = SkipTranslations[langCode] or "Skip / تخطي"
+    end
+    if CheckBoxText then
+        CheckBoxText.Text = CheckBoxTranslations[langCode] or "Don't show this again"
     end
 end
 
@@ -397,18 +438,86 @@ if isSupported then
 
     applyHoverEffect(PlayButton, Color3.fromRGB(30, 30, 30), Color3.fromRGB(45, 45, 45))
 
+    local dontShowAgain = false
+
+    local DontShowFrame = Instance.new("Frame")
+    DontShowFrame.Name = "DontShowFrame"
+    DontShowFrame.Parent = MainFrame
+    DontShowFrame.BackgroundTransparency = 1
+    DontShowFrame.Position = UDim2.new(0.15, 0, 0.79, 0)
+    DontShowFrame.Size = UDim2.new(0.7, 0, 0.06, 0)
+    DontShowFrame.Visible = false
+
+    local CheckBoxButton = Instance.new("TextButton")
+    CheckBoxButton.Name = "CheckBoxButton"
+    CheckBoxButton.Parent = DontShowFrame
+    CheckBoxButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    CheckBoxButton.Size = UDim2.new(1, 0, 1, 0)
+    CheckBoxButton.Text = ""
+    CheckBoxButton.BackgroundTransparency = 0
+
+    local CheckBoxRatio = Instance.new("UIAspectRatioConstraint")
+    CheckBoxRatio.AspectRatio = 1
+    CheckBoxRatio.Parent = CheckBoxButton
+
+    local CheckBoxCorner = Instance.new("UICorner")
+    CheckBoxCorner.CornerRadius = UDim.new(0, 4)
+    CheckBoxCorner.Parent = CheckBoxButton
+
+    local CheckBoxStroke = Instance.new("UIStroke")
+    CheckBoxStroke.Thickness = 1.5
+    CheckBoxStroke.Color = Color3.fromRGB(60, 60, 60)
+    CheckBoxStroke.Parent = CheckBoxButton
+
+    local CheckMark = Instance.new("TextLabel")
+    CheckMark.Name = "CheckMark"
+    CheckMark.Parent = CheckBoxButton
+    CheckMark.BackgroundTransparency = 1
+    CheckMark.Size = UDim2.new(1, 0, 1, 0)
+    CheckMark.Font = Enum.Font.SourceSansBold
+    CheckMark.Text = ""
+    CheckMark.TextColor3 = Color3.fromRGB(255, 60, 60)
+    CheckMark.TextScaled = true
+
+    CheckBoxText = Instance.new("TextLabel")
+    CheckBoxText.Name = "CheckBoxText"
+    CheckBoxText.Parent = DontShowFrame
+    CheckBoxText.BackgroundTransparency = 1
+    CheckBoxText.Position = UDim2.new(0.12, 0, 0, 0)
+    CheckBoxText.Size = UDim2.new(0.88, 0, 1, 0)
+    CheckBoxText.Font = Enum.Font.SourceSansBold
+    CheckBoxText.TextColor3 = Color3.fromRGB(180, 180, 180)
+    CheckBoxText.TextXAlignment = Enum.TextXAlignment.Left
+    CheckBoxText.TextScaled = true
+
+    local TriggerButton = Instance.new("TextButton")
+    TriggerButton.Name = "TriggerButton"
+    TriggerButton.Parent = DontShowFrame
+    TriggerButton.BackgroundTransparency = 1
+    TriggerButton.Size = UDim2.new(1, 0, 1, 0)
+    TriggerButton.Text = ""
+    TriggerButton.ZIndex = 4
+
+    TriggerButton.MouseButton1Click:Connect(function()
+        dontShowAgain = not dontShowAgain
+        CheckMark.Text = dontShowAgain and "✓" or ""
+        TweenService:Create(CheckBoxStroke, TweenInfo.new(0.2), {
+            Color = dontShowAgain and Color3.fromRGB(255, 60, 60) or Color3.fromRGB(60, 60, 60)
+        }):Play()
+    end)
+
     local ButtonsFrame = Instance.new("Frame")
     ButtonsFrame.Name = "ButtonsFrame"
     ButtonsFrame.Parent = MainFrame
     ButtonsFrame.BackgroundTransparency = 1
-    ButtonsFrame.Position = UDim2.new(0.05, 0, 0.35, 0)
-    ButtonsFrame.Size = UDim2.new(0.9, 0, 0.55, 0)
+    ButtonsFrame.Position = UDim2.new(0.05, 0, 0.30, 0)
+    ButtonsFrame.Size = UDim2.new(0.9, 0, 0.46, 0)
     ButtonsFrame.Visible = false
 
     local UIGridLayout = Instance.new("UIGridLayout")
     UIGridLayout.Parent = ButtonsFrame
-    UIGridLayout.CellSize = UDim2.new(0.44, 0, 0.18, 0)
-    UIGridLayout.CellPadding = UDim2.new(0.04, 0, 0.04, 0)
+    UIGridLayout.CellSize = UDim2.new(0.44, 0, 0.20, 0)
+    UIGridLayout.CellPadding = UDim2.new(0.04, 0, 0.03, 0)
     UIGridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
     UIGridLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 
@@ -416,7 +525,7 @@ if isSupported then
     SkipButton.Name = "SkipButton"
     SkipButton.Parent = MainFrame
     SkipButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    SkipButton.Position = UDim2.new(0.35, 0, 0.89, 0)
+    SkipButton.Position = UDim2.new(0.35, 0, 0.88, 0)
     SkipButton.Size = UDim2.new(0.3, 0, 0.08, 0)
     SkipButton.Font = Enum.Font.SourceSansBold
     SkipButton.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -442,6 +551,7 @@ if isSupported then
         clickTween:Play()
         clickTween.Completed:Wait()
 
+        saveDontShowSetting(dontShowAgain)
         local activeCode = getSavedLanguageCode()
         task.spawn(launchGameScript, activeCode)
         closeMenu()
@@ -477,6 +587,7 @@ if isSupported then
             clickTween.Completed:Wait()
 
             saveLanguageSetting(lang.Name)
+            saveDontShowSetting(dontShowAgain)
             updateUIText(lang.Code)
 
             task.wait(0.3)
@@ -492,6 +603,13 @@ if isSupported then
         })
         clickTween:Play()
         clickTween.Completed:Wait()
+
+        if getSavedDontShowSetting() then
+            local activeCode = getSavedLanguageCode()
+            task.spawn(launchGameScript, activeCode)
+            closeMenu()
+            return
+        end
 
         PlayButton.Visible = false
         ExitButton.Visible = false
@@ -520,6 +638,7 @@ if isSupported then
         resizeTween.Completed:Wait()
 
         ButtonsFrame.Visible = true
+        DontShowFrame.Visible = true
         SkipButton.Visible = true
     end)
 else
