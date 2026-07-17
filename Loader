@@ -20,7 +20,7 @@ local Games = {
         Script = "BladeBallSource"
     },
     [3101667897] = {
-        Name = "Legends Of Speed v1.4",
+        Name = "Legends Of Speed v1.3",
         Script = "LegendOfSpeedSource"
     },
     [18172550962] = {
