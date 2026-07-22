@@ -12,7 +12,7 @@ local Games = {
         Script = "GrowAGarden2Source"
     },
     [142823291] = {
-        Name = "Murder Mystery 2 v1.2",
+        Name = "Murder Mystery 2 v1.3",
         Script = "MurderMystery2Source"
     },
     [13772394625] = {
