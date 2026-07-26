@@ -7,38 +7,50 @@ local LP = Players.LocalPlayer
 local PlayerGui = LP:WaitForChild("PlayerGui")
 
 local Games = {
-    [126884695634066] = {
-        Name = "Grow a Garden 2 v1.1",
-        Script = "GrowAGarden2Source"
+    PlaceIds = {
+        [126884695634066] = {
+            Name = "Grow a Garden 2 v1.1",
+            Script = "GrowAGarden2Source"
+        },
+        [4924922222] = {
+            Name = "Brookhaven v1.6",
+            Script = "BrookhavenSource"
+        },
+        [136801880565837] = {
+            Name = "Flick v1",
+            Script = "FlickSource"
+        }
     },
-    [142823291] = {
-        Name = "Murder Mystery 2 v1.3",
-        Script = "MurderMystery2Source"
-    },
-    [13772394625] = {
-        Name = "Blade Ball v1.3",
-        Script = "BladeBallSource"
-    },
-    [3101667897] = {
-        Name = "Legends Of Speed v1.3",
-        Script = "LegendOfSpeedSource"
-    },
-    [18172550962] = {
-        Name = "Pixel Blade v1.1",
-        Script = "PixelBladeSource"
-    },
-    [4924922222] = {
-        Name = "Brookhaven v1.6",
-        Script = "BrookhavenSource"
-    },
-    [136801880565837] = {
-        Name = "Flick v1",
-        Script = "FlickSource"
+    GameIds = {
+        [6161049307] = {
+            Name = "Pixel Blade v1.1",
+            Script = "PixelBladeSource"
+        },
+        [66654135] = {
+            Name = "Murder Mystery 2 v1.3",
+            Script = "MurderMystery2Source"
+        },
+        [4777817887] = {
+            Name = "Blade Ball v1.3",
+            Script = "BladeBallSource"
+        },
+        [1119466531] = {
+            Name = "Legends Of Speed v1.3",
+            Script = "LegendOfSpeedSource"
+        }
     }
 }
 
+
 local placeId = game.PlaceId
-local CurrentGame = Games[placeId]
+local CurrentGame = Games.PlaceIds[placeId]
+
+
+if not CurrentGame then
+    CurrentGame = Games.GameIds[game.GameId]
+end
+
+
 local isSupported = CurrentGame ~= nil
 
 local Languages = {
