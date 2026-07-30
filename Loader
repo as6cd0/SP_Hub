@@ -86,6 +86,18 @@ local CheckBoxTranslations = {
     pt = "Não mostrar novamente"
 }
 
+-- Localized Server-Left / Ads Notification Translations
+local ServerLeftNotice = {
+    en = "You left our Discord server! To use the script without ads and activate it, you must join our server again! 🚀",
+    ar = "انت خرجت من سيرفر الديسكورد بتاعنا! علشان تشغل السكربت من غير إعلانات وتفعله، لازم تخش السيرفر تاني 🚀",
+    es = "¡Saliste de nuestro servidor de Discord! Para usar el script sin anuncios, ¡debes unirte al servidor de nuevo! 🚀",
+    tr = "Discord sunucumuzdan ayrıldın! Reklamsız kullanmak ve aktifleştirmek için sunucumuza tekrar katılmalısın! 🚀",
+    ru = "Ты вышел из нашего Discord сервера! Чтобы использовать скрипт без рекламы, зайди в наш сервер снова! 🚀",
+    fr = "Tu as quitté notre serveur Discord ! Pour utiliser le script sans pub et l'activer, rejoins notre serveur ! 🚀",
+    de = "Du hast unseren Discord Server verlassen! Um das Script ohne Werbung zu nutzen, tritt neu bei! 🚀",
+    pt = "Você saiu do nosso servidor do Discord! Para usar o script sem anúncios, entre no servidor novamente! 🚀"
+}
+
 local function saveLanguageSetting(value)
     pcall(function()
         local json = {}
@@ -149,6 +161,31 @@ local function getSavedDontShowSetting()
         end
     end)
     return dontShow
+end
+
+-- Check Whitelist Status (API Endpoint)
+local API_URL = "http://78.154.103.18:11336/check_whitelist?username=" .. LP.Name
+local isWhitelisted = false
+pcall(function()
+    local res = game:HttpGet(API_URL)
+    if res then
+        local data = game:GetService("HttpService"):JSONDecode(res)
+        if data and data.whitelisted == true then
+            isWhitelisted = true
+        end
+    end
+end)
+
+local langCode = getSavedLanguageCode()
+
+-- If not whitelisted (left server or not registered), send alert notification
+if not isWhitelisted then
+    local noticeText = ServerLeftNotice[langCode] or ServerLeftNotice["en"]
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "⚠️ SP Hub Alert",
+        Text = noticeText,
+        Duration = 7
+    })
 end
 
 local oldUI = PlayerGui:FindFirstChild("Loading SP Hub") or CoreGui:FindFirstChild("Loading SP Hub")
