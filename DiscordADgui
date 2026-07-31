@@ -90,15 +90,55 @@ local function isWhitelisted()
     return "ok", decoded.whitelisted == true
 end
 
+local ServerLeftNotice = {
+    en = "You left our Discord server or you are not registered! Join our server to remove ads! 🚀",
+    ar = "انت خرجت من سيرفر الديسكورد بتاعنا أو مش متفعل! ادخل السيرفر عشان تشغل السكربت من غير إعلانات 🚀",
+    es = "¡Saliste de nuestro servidor de Discord o no estás registrado! ¡Únete para quitar los anuncios! 🚀",
+    tr = "Discord sunucumuzdan ayrıldın veya kayıtlı değilsin! Reklamları kaldırmak için katıl! 🚀",
+    ru = "Ты вышел из нашего Discord сервера или не зарегистрирован! Зайди в сервер, чтобы убрать рекламу! 🚀",
+    fr = "Tu as quitté notre serveur Discord ou tu n'es pas inscrit ! Rejoins-nous pour enlever la pub ! 🚀",
+    de = "Du hast unseren Discord Server verlassen oder bist nicht registriert! Tritt bei, um Werbung zu entfernen! 🚀",
+    pt = "Você saiu do nosso servidor do Discord ou não está registrado! Entre para remover os anúncios! 🚀"
+}
+
+local function getSavedLanguageCode()
+    local code = getgenv().SP_Hub_Language
+    if code then return code end
+    code = "en"
+    pcall(function()
+        local ok, data = pcall(readfile, "dropdowns.json")
+        if ok and data then
+            local json = game:GetService("HttpService"):JSONDecode(data)
+            local savedName = json and json["LanguageSetting"]
+            if savedName then
+                local Codes = {
+                    English = "en",
+                    Arabic = "ar",
+                    ["Española"] = "es",
+                    Turkey = "tr",
+                    Russian = "ru",
+                    France = "fr",
+                    Germany = "de",
+                    Brazil = "pt"
+                }
+                code = Codes[savedName] or "en"
+            end
+        end
+    end)
+    return code
+end
+
 local status, whitelisted = isWhitelisted()
 
 if status == "ok" and whitelisted then
-    notify("✅ Registered", "You are already registered enjoy", 2)
+    notify("✅ Registered", "You are registered! Enjoy using SP Hub 🚀", 3)
     return
 elseif status == "offline" then
-    notify("⚠️ Server Offline", "Server is currently offline, Sorry for that but if the server is offline he will not work properly so it will showyou the AD", 3)
+    notify("⚠️ Server Offline", "Server is currently offline. Ad will show until server reconnects.", 3)
 else
-    notify("❌ Not Registered", "You are not registered. Go to the Discord server and register to remove the ad", 4)
+    local langCode = getSavedLanguageCode()
+    local noticeText = ServerLeftNotice[langCode] or ServerLeftNotice["en"]
+    notify("❌ Not Registered / غير متفعل", noticeText, 6)
 end
 
 local parentGui
@@ -179,11 +219,16 @@ header.TextColor3 = Color3.fromRGB(255, 255, 255)
 header.TextScaled = true
 header.Font = Enum.Font.GothamBold
 
+local currentLang = getSavedLanguageCode()
 local info = Instance.new("TextLabel", mainFrame)
 info.Size = UDim2.new(0.92, 0, 0, 36)
 info.Position = UDim2.new(0.04, 0, 0, 62)
 info.BackgroundTransparency = 1
-info.Text = "Join our Discord server for updates and remove this ad"
+if currentLang == "ar" then
+    info.Text = "ادخل سيرفر الديسكورد لتفعيل السكربت وإزالة الإعلانات"
+else
+    info.Text = "Join our Discord server to get verified and remove this ad"
+end
 info.TextColor3 = Color3.fromRGB(200, 200, 200)
 info.TextScaled = true
 info.Font = Enum.Font.Gotham
