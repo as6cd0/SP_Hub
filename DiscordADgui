@@ -91,14 +91,14 @@ local function isWhitelisted()
 end
 
 local ServerLeftNotice = {
-    en = "You left our Discord server or you are not registered! Join our server to remove ads! 🚀",
-    ar = "انت خرجت من سيرفر الديسكورد بتاعنا أو مش متفعل! ادخل السيرفر عشان تشغل السكربت من غير إعلانات 🚀",
-    es = "¡Saliste de nuestro servidor de Discord o no estás registrado! ¡Únete para quitar los anuncios! 🚀",
-    tr = "Discord sunucumuzdan ayrıldın veya kayıtlı değilsin! Reklamları kaldırmak için katıl! 🚀",
-    ru = "Ты вышел из нашего Discord сервера или не зарегистрирован! Зайди в сервер, чтобы убрать рекламу! 🚀",
-    fr = "Tu as quitté notre serveur Discord ou tu n'es pas inscrit ! Rejoins-nous pour enlever la pub ! 🚀",
-    de = "Du hast unseren Discord Server verlassen oder bist nicht registriert! Tritt bei, um Werbung zu entfernen! 🚀",
-    pt = "Você saiu do nosso servidor do Discord ou não está registrado! Entre para remover os anúncios! 🚀"
+    en = "You left our Discord server or you are not registered! Join our server to remove ads!",
+    ar = "انت خرجت من سيرفر الديسكورد بتاعنا أو مش متفعل! ادخل السيرفر عشان تشغل السكربت من غير إعلانات",
+    es = "¡Saliste de nuestro servidor de Discord o no estás registrado! ¡Únete para quitar los anuncios!",
+    tr = "Discord sunucumuzdan ayrıldın veya kayıtlı değilsin! Reklamları kaldırmak için katıl!",
+    ru = "Ты вышел из нашего Discord сервера или не зарегистрирован! Зайди в сервер, чтобы убрать рекламу!",
+    fr = "Tu as quitté notre serveur Discord ou tu n'es pas inscrit ! Rejoins-nous pour enlever la pub !",
+    de = "Du hast unseren Discord Server verlassen oder bist nicht registriert! Tritt bei, um Werbung zu entfernen!",
+    pt = "Você saiu do nosso servidor do Discord ou não está registrado! Entre para remover os anúncios!"
 }
 
 local function getSavedLanguageCode()
@@ -131,14 +131,14 @@ end
 local status, whitelisted = isWhitelisted()
 
 if status == "ok" and whitelisted then
-    notify("✅ Registered", "You are registered! Enjoy using SP Hub 🚀", 3)
+    notify("✅ Registered", "You are registered! Enjoy using SP Hub", 3)
     return
 elseif status == "offline" then
     notify("⚠️ Server Offline", "Server is currently offline. Ad will show until server reconnects.", 3)
 else
     local langCode = getSavedLanguageCode()
     local noticeText = ServerLeftNotice[langCode] or ServerLeftNotice["en"]
-    notify("❌ Not Registered / غير متفعل", noticeText, 6)
+    notify("❌ Not Registered", noticeText, 6)
 end
 
 local parentGui
