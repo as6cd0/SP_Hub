@@ -9664,6 +9664,112 @@ end
 		pcall(UpdateSelected)
 		pcall(ApplySearchFilter)
 	end
+	function Dropdown:UpdateOptionText(oldName, newName)
+		oldName = tostring(oldName or "")
+		newName = tostring(newName or "")
+		if oldName == "" or newName == "" or oldName == newName then return false end
+		if not Options[oldName] then return false end
+
+		local opt = Options[oldName]
+		Options[oldName] = nil
+		opt.Name = newName
+		opt.Value = newName
+		Options[newName] = opt
+
+		for i, nm in ipairs(OptionList) do
+			if nm == oldName then
+				OptionList[i] = newName
+				break
+			end
+		end
+
+		if type(Selected) == "table" and MultiSelect then
+			if Selected[oldName] ~= nil then
+				Selected[newName] = Selected[oldName]
+				Selected[oldName] = nil
+			end
+		elseif Selected == oldName then
+			Selected = newName
+		end
+
+		if opt.nodes and opt.nodes[3] then
+			pcall(function() opt.nodes[3].Text = newName end)
+		end
+
+		pcall(UpdateSelected)
+		pcall(ApplySearchFilter)
+		return true
+	end
+	function Dropdown:SetSelected(list)
+		if not list then return end
+		local selectedSet = {}
+		if type(list) == "table" then
+			if #list > 0 then
+				for _, item in ipairs(list) do selectedSet[tostring(item)] = true end
+			else
+				for k, v in pairs(list) do if v then selectedSet[tostring(k)] = true end end
+			end
+		else
+			selectedSet[tostring(list)] = true
+		end
+
+		if MultiSelect then
+			for _, nm in ipairs(OptionList) do
+				local opt = Options[nm]
+				if opt then
+					local want = selectedSet[nm] or selectedSet[tostring(opt.Value)] or false
+					if want and premium.canUseOption(opt, false) then
+						opt.Stats = true
+						Selected[nm] = true
+					else
+						opt.Stats = false
+						Selected[nm] = false
+					end
+				end
+			end
+		else
+			Selected = nil
+			for _, nm in ipairs(OptionList) do
+				local opt = Options[nm]
+				if opt and (selectedSet[nm] or selectedSet[tostring(opt.Value)]) then
+					if premium.canUseOption(opt, false) then
+						Selected = opt.Value
+						break
+					end
+				end
+			end
+		end
+
+		pcall(UpdateSelected)
+		pcall(CallbackSelected)
+	end
+	function Dropdown:SelectAll()
+		if not MultiSelect then return end
+		for _, nm in ipairs(OptionList) do
+			local opt = Options[nm]
+			if opt and premium.canUseOption(opt, false) then
+				opt.Stats = true
+				Selected[nm] = true
+			end
+		end
+		pcall(UpdateSelected)
+		pcall(CallbackSelected)
+	end
+	function Dropdown:ClearSelected()
+		if MultiSelect then
+			for _, nm in ipairs(OptionList) do
+				local opt = Options[nm]
+				if opt then
+					opt.Stats = false
+					Selected[nm] = false
+				end
+			end
+		else
+			Selected = nil
+		end
+		pcall(UpdateSelected)
+		pcall(CallbackSelected)
+	end
 	function Dropdown:GetValue()
 		if DMultiSelect then
 			local res = {}
