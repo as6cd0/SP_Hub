@@ -9180,17 +9180,9 @@ function Tab:AddDropdown(Configs)
 		local InitialSelection = saved or (MultiSelect and Default or Default[1])
 		Selected = MultiSelect and {} or InitialSelection
 
-		local function getSelTable()
-			if MultiSelect and type(Selected) ~= "table" then
-				Selected = {}
-			end
-			return Selected
-		end
-
 		if MultiSelect then
-			local sel = getSelTable()
 			for _, v in ipairs(saved or Default or {}) do
-				if type(v) == "string" then sel[v] = true end
+				if type(v) == "string" then Selected[v] = true end
 			end
 		end
 
@@ -9214,9 +9206,8 @@ function Tab:AddDropdown(Configs)
 			pcall(function()
 				if Flag and type(SaveDropdownFlag) == "function" then
 					if MultiSelect then
-						local sel = getSelTable()
 						local list = {}
-						for _, nm in ipairs(OptionList) do if sel[nm] then table.insert(list, nm) end end
+						for _, nm in ipairs(OptionList) do if Selected[nm] then table.insert(list, nm) end end
 						SaveDropdownFlag(Flag, list)
 					else
 						SaveDropdownFlag(Flag, tostring(Selected))
@@ -9228,10 +9219,9 @@ function Tab:AddDropdown(Configs)
 
 		local function UpdateLabel()
 			if MultiSelect then
-				local sel = getSelTable()
 				local list = {}
 				for _, name in ipairs(OptionList) do
-					if sel[name] then table.insert(list, name) end
+					if Selected[name] then table.insert(list, name) end
 				end
 				ActiveLabel.Text = #list > 0 and table.concat(list, ", ") or "..."
 			else
@@ -9246,8 +9236,7 @@ function Tab:AddDropdown(Configs)
 					local nodes, Stats = v.nodes, v.Stats
 					local isSel
 					if MultiSelect then
-						local sel = getSelTable()
-						isSel = (sel[name] == true)
+						isSel = (Selected[name] == true)
 					else
 						isSel = (v.Value == Selected) or (v.Name == Selected)
 					end
@@ -9320,12 +9309,11 @@ function Tab:AddDropdown(Configs)
 
 			local changed = false
 			if MultiSelect then
-				local sel = getSelTable()
 				for _, name in ipairs(OptionList) do
 					local opt = Options[name]
-					if opt and opt.Premium == true and sel[name] == true then
+					if opt and opt.Premium == true and Selected[name] == true then
 						opt.Stats = false
-						sel[name] = false
+						Selected[name] = false
 						changed = true
 					end
 				end
@@ -9364,9 +9352,8 @@ function Tab:AddDropdown(Configs)
 			if not premium.canUseOption(optionObj, notifyLocked ~= false) then return end
 
 			if MultiSelect then
-				local sel = getSelTable()
 				optionObj.Stats = not optionObj.Stats
-				sel[optionObj.Name] = optionObj.Stats
+				Selected[optionObj.Name] = optionObj.Stats
 				CallbackSelected()
 			else
 				optionObj.LastCB = tick()
@@ -9406,12 +9393,11 @@ function Tab:AddDropdown(Configs)
 			table.insert(OptionList, Name)
 
 			if MultiSelect then
-				local sel = getSelTable()
-				local stat = sel[Name]
+				local stat = Selected[Name]
 				if isOptPremium and not splib.IsPremium then
 					stat = false
 				end
-				sel[Name] = stat or false
+				Selected[Name] = stat or false
 				opt.Stats = stat or false
 			end
 
@@ -9477,8 +9463,7 @@ function Tab:AddDropdown(Configs)
 			end
 
 			if MultiSelect then
-				local sel = getSelTable()
-				sel[Name] = nil
+				Selected[Name] = nil
 			else
 				if Selected == opt.Value or Selected == Name then
 					Selected = nil
@@ -9508,9 +9493,8 @@ function Tab:AddDropdown(Configs)
 			if not premium.canUseOption(opt, false) then return end
 
 			if MultiSelect then
-				local sel = getSelTable()
 				opt.Stats = not opt.Stats
-				sel[opt.Name] = opt.Stats
+				Selected[opt.Name] = opt.Stats
 			else
 				Selected = opt.Value
 			end
@@ -9536,13 +9520,12 @@ function Tab:AddDropdown(Configs)
 
 		if MultiSelect then
 			if InitialSelection ~= nil and type(InitialSelection) == "table" then
-				local sel = getSelTable()
 				for _, want in ipairs(InitialSelection) do
 					for _, nm in ipairs(OptionList) do
 						local o = Options[nm]
 						if o and (o.Value == want or o.Name == want or tostring(o.Value) == tostring(want)) then
 							o.Stats = true
-							sel[o.Name] = true
+							Selected[o.Name] = true
 							break
 						end
 					end
@@ -9555,10 +9538,6 @@ function Tab:AddDropdown(Configs)
 		else
 			if InitialSelection ~= nil then
 				SelectOption(InitialSelection)
-			else
-				UpdateSelected()
-			end
-		end
 			else
 				UpdateSelected()
 			end
@@ -9679,128 +9658,11 @@ end
 	end
 	function Dropdown:Select(val) SelectOption(val) end
 	function Dropdown:Set(val, Clear)
-		if type(val) == "table" then
-			if MultiSelect then
-				Dropdown:SetSelected(val)
-			else
-				AddNewOptions(val, not Clear)
-			end
-		elseif type(val) == "function" then
-			Callback = val
-		else
-			SelectOption(val)
-		end
+		if type(val) == "table" then AddNewOptions(val, not Clear)
+		elseif type(val) == "function" then Callback = val
+		else SelectOption(val) end
 		pcall(UpdateSelected)
 		pcall(ApplySearchFilter)
-	end
-	function Dropdown:UpdateOptionText(oldName, newName)
-		oldName = tostring(oldName or "")
-		newName = tostring(newName or "")
-		if oldName == "" or newName == "" or oldName == newName then return false end
-		if not Options[oldName] then return false end
-
-		local opt = Options[oldName]
-		Options[oldName] = nil
-		opt.Name = newName
-		opt.Value = newName
-		Options[newName] = opt
-
-		for i, nm in ipairs(OptionList) do
-			if nm == oldName then
-				OptionList[i] = newName
-				break
-			end
-		end
-
-		if type(Selected) == "table" and MultiSelect then
-			if Selected[oldName] ~= nil then
-				Selected[newName] = Selected[oldName]
-				Selected[oldName] = nil
-			end
-		elseif Selected == oldName then
-			Selected = newName
-		end
-
-		if opt.nodes and opt.nodes[3] then
-			pcall(function() opt.nodes[3].Text = newName end)
-		end
-
-		pcall(UpdateSelected)
-		pcall(ApplySearchFilter)
-		return true
-	end
-	function Dropdown:SetSelected(list)
-		if not list then return end
-		local selectedSet = {}
-		if type(list) == "table" then
-			if #list > 0 then
-				for _, item in ipairs(list) do selectedSet[tostring(item)] = true end
-			else
-				for k, v in pairs(list) do if v then selectedSet[tostring(k)] = true end end
-			end
-		else
-			selectedSet[tostring(list)] = true
-		end
-
-		if MultiSelect then
-			local sel = getSelTable()
-			for _, nm in ipairs(OptionList) do
-				local opt = Options[nm]
-				if opt then
-					local want = selectedSet[nm] or selectedSet[tostring(opt.Value)] or false
-					if want and premium.canUseOption(opt, false) then
-						opt.Stats = true
-						sel[nm] = true
-					else
-						opt.Stats = false
-						sel[nm] = false
-					end
-				end
-			end
-		else
-			Selected = nil
-			for _, nm in ipairs(OptionList) do
-				local opt = Options[nm]
-				if opt and (selectedSet[nm] or selectedSet[tostring(opt.Value)]) then
-					if premium.canUseOption(opt, false) then
-						Selected = opt.Value
-						break
-					end
-				end
-			end
-		end
-
-		pcall(UpdateSelected)
-		pcall(CallbackSelected)
-	end
-	function Dropdown:SelectAll()
-		if not MultiSelect then return end
-		local sel = getSelTable()
-		for _, nm in ipairs(OptionList) do
-			local opt = Options[nm]
-			if opt and premium.canUseOption(opt, false) then
-				opt.Stats = true
-				sel[nm] = true
-			end
-		end
-		pcall(UpdateSelected)
-		pcall(CallbackSelected)
-	end
-	function Dropdown:ClearSelected()
-		if MultiSelect then
-			local sel = getSelTable()
-			for _, nm in ipairs(OptionList) do
-				local opt = Options[nm]
-				if opt then
-					opt.Stats = false
-					sel[nm] = false
-				end
-			end
-		else
-			Selected = nil
-		end
-		pcall(UpdateSelected)
-		pcall(CallbackSelected)
 	end
 	function Dropdown:GetValue()
 		if DMultiSelect then
