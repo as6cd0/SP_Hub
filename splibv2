@@ -9679,9 +9679,17 @@ end
 	end
 	function Dropdown:Select(val) SelectOption(val) end
 	function Dropdown:Set(val, Clear)
-		if type(val) == "table" then AddNewOptions(val, not Clear)
-		elseif type(val) == "function" then Callback = val
-		else SelectOption(val) end
+		if type(val) == "table" then
+			if MultiSelect then
+				Dropdown:SetSelected(val)
+			else
+				AddNewOptions(val, not Clear)
+			end
+		elseif type(val) == "function" then
+			Callback = val
+		else
+			SelectOption(val)
+		end
 		pcall(UpdateSelected)
 		pcall(ApplySearchFilter)
 	end
