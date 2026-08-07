@@ -9,7 +9,7 @@ local PlayerGui = LP:WaitForChild("PlayerGui")
 local Games = {
     PlaceIds = {
         [97598239454123] = {
-            Name = "Grow a Garden 2 v1.1",
+            Name = "Grow a Garden 2 v1.2",
             Script = "GrowAGarden2Source"
         },
         [4924922222] = {
