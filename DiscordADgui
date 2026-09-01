@@ -2,66 +2,72 @@ local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+
 local player = Players.LocalPlayer
 local API_URL = "http://78.154.103.18:11336/check_whitelist"
 
 local COUNTDOWN_SECONDS = 10
-local HTTP_TIMEOUT_SECONDS = 5
+local HTTP_TIMEOUT_SECONDS = 2.5
 local CACHE_TTL_SECONDS = 60
 local DISCORD_LINK = "https://discord.gg/6Yp2B4JHyz"
 
 local cache = {
     result = nil,
+    status = nil,
     time = 0
 }
-local lastNotifyTime = 0
-local NOTIFY_COOLDOWN = 2
 
 local function notify(title, text, duration)
-    StarterGui:SetCore("SendNotification", {
-        Title = title;
-        Text = text;
-        Duration = duration;
-    })
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = title,
+            Text = text,
+            Duration = duration or 3
+        })
+    end)
 end
 
-notify("Checking", "Wait for checking if you are registerd or not...", 2)
+local HttpRequest = (syn and syn.request) 
+    or (http and http.request) 
+    or request 
+    or http_request 
+    or (fluxus and fluxus.request)
 
-local function httpGet(url)
+local function fastHttpGet(url, timeout)
+    timeout = timeout or HTTP_TIMEOUT_SECONDS
+
+    if HttpRequest then
+        local ok, res = pcall(function()
+            return HttpRequest({
+                Url = url,
+                Method = "GET",
+                Timeout = timeout,
+                Headers = {
+                    ["User-Agent"] = "SP-Hub-Client/1.0",
+                    ["Accept"] = "application/json"
+                }
+            })
+        end)
+
+        if ok and res then
+            local body = (type(res) == "table" and res.Body) or (type(res) == "string" and res) or nil
+            local statusCode = (type(res) == "table" and (res.StatusCode or res.Status)) or 200
+            if body and (statusCode == 200 or statusCode == 0) then
+                return true, body
+            end
+        end
+    end
+
     if HttpService.HttpEnabled then
         local ok, res = pcall(function()
             return HttpService:GetAsync(url, false)
         end)
-        if ok and res then
+        if ok and type(res) == "string" and res ~= "" then
             return true, res
         end
     end
-    
-    local requestFunctions = {
-        http_request,
-        request,
-        (syn and syn.request),
-        (http and http.request),
-        (fluxus and fluxus.request)
-    }
-    
-    for _, reqFunc in ipairs(requestFunctions) do
-        if reqFunc then
-            local ok, res = pcall(function()
-                return reqFunc({Url = url, Method = "GET"})
-            end)
-            
-            if ok and res then
-                if type(res) == "table" and res.Body then
-                    return true, res.Body
-                elseif type(res) == "string" then
-                    return true, res
-                end
-            end
-        end
-    end
-    
+
     return false, nil
 end
 
@@ -71,23 +77,37 @@ local function isWhitelisted()
         return "offline", false
     end
 
+    if cache.result ~= nil and (tick() - cache.time) < CACHE_TTL_SECONDS then
+        return cache.status or "ok", cache.result
+    end
+
     local url = API_URL .. "?username=" .. HttpService:UrlEncode(username)
-    local ok, body = httpGet(url)
+    local ok, body = fastHttpGet(url, HTTP_TIMEOUT_SECONDS)
 
     if not ok or not body then
+        cache.result = false
+        cache.status = "offline"
+        cache.time = tick()
         return "offline", false
     end
 
-    local decoded
+    local decoded = nil
     local success = pcall(function()
         decoded = HttpService:JSONDecode(body)
     end)
 
     if not success or type(decoded) ~= "table" then
+        cache.result = false
+        cache.status = "offline"
+        cache.time = tick()
         return "offline", false
     end
 
-    return "ok", decoded.whitelisted == true
+    local is_wl = (decoded.whitelisted == true)
+    cache.result = is_wl
+    cache.status = "ok"
+    cache.time = tick()
+    return "ok", is_wl
 end
 
 local ServerLeftNotice = {
@@ -102,31 +122,35 @@ local ServerLeftNotice = {
 }
 
 local function getSavedLanguageCode()
-    local code = getgenv().SP_Hub_Language
+    local code = getgenv and getgenv().SP_Hub_Language
     if code then return code end
     code = "en"
     pcall(function()
-        local ok, data = pcall(readfile, "dropdowns.json")
-        if ok and data then
-            local json = game:GetService("HttpService"):JSONDecode(data)
-            local savedName = json and json["LanguageSetting"]
-            if savedName then
-                local Codes = {
-                    English = "en",
-                    Arabic = "ar",
-                    ["Española"] = "es",
-                    Turkey = "tr",
-                    Russian = "ru",
-                    France = "fr",
-                    Germany = "de",
-                    Brazil = "pt"
-                }
-                code = Codes[savedName] or "en"
+        if readfile and isfile and isfile("dropdowns.json") then
+            local data = readfile("dropdowns.json")
+            if data then
+                local json = HttpService:JSONDecode(data)
+                local savedName = json and json["LanguageSetting"]
+                if savedName then
+                    local Codes = {
+                        English = "en",
+                        Arabic = "ar",
+                        ["Española"] = "es",
+                        Turkey = "tr",
+                        Russian = "ru",
+                        France = "fr",
+                        Germany = "de",
+                        Brazil = "pt"
+                    }
+                    code = Codes[savedName] or "en"
+                end
             end
         end
     end)
     return code
 end
+
+notify("Checking", "Wait for checking if you are registered or not...", 1.5)
 
 local status, whitelisted = isWhitelisted()
 
@@ -138,14 +162,15 @@ elseif status == "offline" then
 else
     local langCode = getSavedLanguageCode()
     local noticeText = ServerLeftNotice[langCode] or ServerLeftNotice["en"]
-    notify("❌ Not Registered", noticeText, 6)
+    notify("❌ Not Registered", noticeText, 5)
 end
 
-local parentGui
-if game.CoreGui then
-    parentGui = game.CoreGui
-else
-    parentGui = player and player:FindFirstChild("PlayerGui") or nil
+local parentGui = (game:GetService("CoreGui")) or (player and player:FindFirstChild("PlayerGui"))
+if not parentGui then return end
+
+local existingGui = parentGui:FindFirstChild("DiscordAdUI")
+if existingGui then
+    pcall(function() existingGui:Destroy() end)
 end
 
 local ScreenGui = Instance.new("ScreenGui")
@@ -153,44 +178,26 @@ ScreenGui.Name = "DiscordAdUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = parentGui
 
-task.spawn(function()
-    local Lighting = game:GetService("Lighting")
+local blurInstance = Lighting:FindFirstChild("AdUI_Pro_Blur")
+if not blurInstance then
+    blurInstance = Instance.new("BlurEffect")
+    blurInstance.Name = "AdUI_Pro_Blur"
+    blurInstance.Parent = Lighting
+    blurInstance.Size = 0
+end
 
-    local function removeBlur()
-        local blur = Lighting:FindFirstChild("AdUI_Pro_Blur")
-        if blur then
-            pcall(function()
-                blur:Destroy()
-            end)
-        end
-    end
-
-    ScreenGui.AncestryChanged:Connect(function(_, parent)
-        if not parent then
-            removeBlur()
-        end
+local function removeBlur()
+    pcall(function()
+        local b = Lighting:FindFirstChild("AdUI_Pro_Blur")
+        if b then b:Destroy() end
     end)
+end
 
-    while true do
-        if not ScreenGui or not ScreenGui.Parent then
-            removeBlur()
-            break
-        end
-        task.wait(0.25)
+ScreenGui.AncestryChanged:Connect(function(_, parent)
+    if not parent then
+        removeBlur()
     end
 end)
-
-local Lighting = game:GetService("Lighting")
-local blurInstance
-do
-    blurInstance = Lighting:FindFirstChild("AdUI_Pro_Blur")
-    if not blurInstance then
-        blurInstance = Instance.new("BlurEffect")
-        blurInstance.Name = "AdUI_Pro_Blur"
-        blurInstance.Parent = Lighting
-        blurInstance.Size = 0
-    end
-end
 
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
@@ -208,7 +215,6 @@ mainCorner.CornerRadius = UDim.new(0, 12)
 local stroke = Instance.new("UIStroke", mainFrame)
 stroke.Color = Color3.fromRGB(45, 45, 45)
 stroke.Thickness = 1.4
-stroke.Transparency = 0
 
 local header = Instance.new("TextLabel", mainFrame)
 header.Size = UDim2.new(1, 0, 0, 52)
@@ -261,36 +267,32 @@ secondsLabel.Font = Enum.Font.GothamBold
 local copyButton = Instance.new("TextButton", mainFrame)
 copyButton.Name = "CopyButton"
 copyButton.Size = UDim2.new(0, 220, 0, 48)
-copyButton.Position = UDim2.new(0.29, 0, 0, 196)
+copyButton.Position = UDim2.new(0.5, -110, 0, 196)
 copyButton.BackgroundColor3 = Color3.fromRGB(34, 34, 34)
 copyButton.BorderSizePixel = 0
 copyButton.Text = "Copy Discord Link"
-copyButton.TextColor3 = Color3.fromRGB(255,255,255)
+copyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 copyButton.TextScaled = true
 copyButton.Font = Enum.Font.GothamBold
 local copyCorner = Instance.new("UICorner", copyButton)
 copyCorner.CornerRadius = UDim.new(0, 8)
 local copyStroke = Instance.new("UIStroke", copyButton)
-copyStroke.Color = Color3.fromRGB(60,60,60)
+copyStroke.Color = Color3.fromRGB(60, 60, 60)
 copyStroke.Thickness = 1
 
-if copyButton:IsA("GuiButton") then
-    copyButton.MouseEnter:Connect(function()
-        pcall(function()
-            TweenService:Create(copyButton, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(44, 44, 44)}):Play()
-            TweenService:Create(copyButton, TweenInfo.new(0.18), {TextTransparency = 0.0}):Play()
-        end)
+copyButton.MouseEnter:Connect(function()
+    pcall(function()
+        TweenService:Create(copyButton, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(44, 44, 44)}):Play()
     end)
-    copyButton.MouseLeave:Connect(function()
-        pcall(function()
-            TweenService:Create(copyButton, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(34, 34, 34)}):Play()
-        end)
+end)
+copyButton.MouseLeave:Connect(function()
+    pcall(function()
+        TweenService:Create(copyButton, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(34, 34, 34)}):Play()
     end)
-end
+end)
 
-local closeButton
 if player and (player.Name == "nadermohamedtest" or player.Name == "nadermohamed6" or player.Name == "hhnnader2") then
-    closeButton = Instance.new("TextButton", mainFrame)
+    local closeButton = Instance.new("TextButton", mainFrame)
     closeButton.AnchorPoint = Vector2.new(1, 1)
     closeButton.Position = UDim2.new(1, -16, 1, -16)
     closeButton.Size = UDim2.new(0, 110, 0, 40)
@@ -299,7 +301,7 @@ if player and (player.Name == "nadermohamedtest" or player.Name == "nadermohamed
     closeButton.Text = "Close"
     closeButton.TextScaled = true
     closeButton.Font = Enum.Font.GothamBold
-    closeButton.TextColor3 = Color3.fromRGB(255,255,255)
+    closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 
     local closeCorner = Instance.new("UICorner", closeButton)
     closeCorner.CornerRadius = UDim.new(0, 8)
@@ -309,42 +311,32 @@ if player and (player.Name == "nadermohamedtest" or player.Name == "nadermohamed
     closeStroke.Thickness = 1
 
     closeButton.MouseButton1Click:Connect(function()
-        local Lighting = game:GetService("Lighting")
-        local blur = Lighting:FindFirstChild("AdUI_Pro_Blur")
-        if blur then
-            pcall(function() blur:Destroy() end)
-        end
-
+        removeBlur()
         pcall(function()
-            if ScreenGui then
-                ScreenGui:Destroy()
-            end
+            if ScreenGui then ScreenGui:Destroy() end
         end)
     end)
 end
 
 pcall(function()
     TweenService:Create(blurInstance, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = 14}):Play()
-end)
-
-mainFrame.Position = mainFrame.Position + UDim2.new(0, 0, 0.03, 0)
-mainFrame.Size = UDim2.new(0, 560, 0, 320)
-mainFrame.BackgroundTransparency = 1
-mainFrame.Rotation = 2
-
-pcall(function()
+    mainFrame.Position = UDim2.new(0.5, 0, 0.53, 0)
+    mainFrame.BackgroundTransparency = 1
     TweenService:Create(mainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
         BackgroundTransparency = 0,
-        Position = UDim2.new(0.5, 0, 0.5, 0),
-        Rotation = 0
+        Position = UDim2.new(0.5, 0, 0.5, 0)
     }):Play()
 end)
 
 local function destroyUI()
     pcall(function()
-        TweenService:Create(blurInstance, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = 0}):Play()
-        TweenService:Create(mainFrame, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {BackgroundTransparency = 1, Position = mainFrame.Position + UDim2.new(0, 0, 0.03, 0)}):Play()
-        task.wait(0.28)
+        TweenService:Create(blurInstance, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = 0}):Play()
+        TweenService:Create(mainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0.5, 0, 0.53, 0)
+        }):Play()
+        task.wait(0.26)
+        removeBlur()
         ScreenGui:Destroy()
     end)
 end
@@ -352,9 +344,7 @@ end
 local function startCountdown(seconds)
     local startTime = tick()
     local duration = math.max(1, seconds)
-    local step = 0.04
-    local progress = 1
-    while progress > 0 do
+    while true do
         local elapsed = tick() - startTime
         local pct = math.clamp(1 - (elapsed / duration), 0, 1)
         pcall(function()
@@ -362,7 +352,7 @@ local function startCountdown(seconds)
             secondsLabel.Text = tostring(math.ceil(pct * duration))
         end)
         if pct <= 0 then break end
-        task.wait(step)
+        task.wait(0.05)
     end
     destroyUI()
 end
@@ -372,13 +362,27 @@ task.spawn(function()
 end)
 
 copyButton.MouseButton1Click:Connect(function()
-    pcall(function() setclipboard(DISCORD_LINK) end)
+    pcall(function()
+        if setclipboard then
+            setclipboard(DISCORD_LINK)
+        elseif toclipboard then
+            toclipboard(DISCORD_LINK)
+        elseif Clipboard and Clipboard.set then
+            Clipboard.set(DISCORD_LINK)
+        end
+    end)
     copyButton.Text = "Copied ✓"
+    task.delay(1.5, function()
+        if copyButton and copyButton.Parent then
+            copyButton.Text = "Copy Discord Link"
+        end
+    end)
 end)
 
 if player then
     player.AncestryChanged:Connect(function()
         if not player:IsDescendantOf(game) then
+            removeBlur()
             pcall(function() ScreenGui:Destroy() end)
         end
     end)
